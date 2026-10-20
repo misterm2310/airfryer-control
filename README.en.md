@@ -65,6 +65,32 @@ One device per air fryer. Entity IDs depend on the name in the app (here “Frit
 
 ---
 
+## 🃏 Ready-made cards (shipped with the integration)
+
+Nothing extra to install – the integration ships two cards and registers them as dashboard resources automatically. In your dashboard choose **Add card** and search for **Airfryer Control** (reload the page once after an update).
+
+| Card | What it does |
+|---|---|
+| `custom:airfryer-control-card` | One row per zone (Zone 1, Zone 2, Grandzone) with status, “done at …” and a round **send / cancel / stop** button. Tap a row for a dialog with program, temperature and time (per-program limits respected). The (i) shows credits, donation link and privacy. |
+| `custom:airfryer-control-ticker` | The **ticker**: “Air fryer Zone 1: done at 19:42 +++ Zone 2: waiting for start”. Frame **red and pulsing** when a zone is done, otherwise teal. Hides itself when idle. Optionally includes extra timers (e.g. `sensor.einkaufsliste_kochtimer`). |
+
+```yaml
+type: custom:airfryer-control-card
+title: Air fryer
+```
+```yaml
+type: custom:airfryer-control-ticker
+hide_when_idle: true
+extra_entities:
+  - sensor.einkaufsliste_kochtimer
+```
+
+Both cards have an editor, follow light/dark and run smoothly on a Fire TV. Zones are detected automatically. The cards only talk to your Home Assistant.
+
+<p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Card on a phone"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Dialog, dark"></p>
+
+> 🧪 The cards are still **beta** – if something is off, please report it.
+
 ## 🤖 Automations
 
 The event `airfryer_control_fertig` carries `geraet` (name), `modell`, `zone` (`1`, `2`, `3` or `alle` = whole fryer), `zustand` and `programm`.

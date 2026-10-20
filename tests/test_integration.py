@@ -620,3 +620,18 @@ def test_program_temperature_limits() -> None:
     for mode, (temp, _) in MODE_DEFAULTS.items():
         low, high = temp_limits(mode)
         assert low <= temp <= high
+
+
+async def test_frontend_cards_are_served_and_registered() -> None:
+    """Die Karten-Datei existiert und ist als Dashboard-Ressource eingetragen."""
+    from pathlib import Path
+
+    from custom_components.airfryer_control import frontend
+    from custom_components.airfryer_control.const import CARD_FILENAME
+
+    www = Path(frontend.__file__).parent / "www"
+    js = (www / CARD_FILENAME).read_text(encoding="utf-8")
+    assert "customElements.define(\"airfryer-control-card\"" in js
+    assert "customElements.define(\"airfryer-control-ticker\"" in js
+    assert (www / "mister-m.webp").exists()
+    assert frontend._version() != "0"

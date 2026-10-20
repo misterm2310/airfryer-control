@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from .core.api import AirfryerApi, AirfryerAuthError, AirfryerError
 from .const import CONF_EMAIL, CONF_PASSWORD_HASH, CONF_REGION, CONF_TERMINAL_ID, DOMAIN
 from .coordinator import AirfryerCoordinator
+from .frontend import async_setup_frontend
 from .services import async_register_services
 
 PLATFORMS = [
@@ -35,8 +36,9 @@ type AirfryerConfigEntry = ConfigEntry[AirfryerCoordinator]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Dienste anmelden (einmal für alle Konten)."""
+    """Dienste anmelden und die Karten bereitstellen (einmal für alle Konten)."""
     async_register_services(hass)
+    await async_setup_frontend(hass)
     return True
 
 

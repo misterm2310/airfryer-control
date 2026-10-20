@@ -72,6 +72,34 @@ Einfache Fritteusen mit nur einer Kammer bekommen statt der Zonen-Sensoren einfa
 
 ---
 
+## 🃏 Die fertigen Karten (kommen mit der Integration)
+
+Du musst **nichts extra installieren** – die Integration bringt zwei Karten selbst mit und trägt sie automatisch bei den Dashboard-Ressourcen ein. Im Dashboard auf **Karte hinzufügen** gehen und nach **Airfryer Control** suchen (nach einem Update einmal die Seite neu laden).
+
+| Karte | Was sie macht |
+|---|---|
+| `custom:airfryer-control-card` | Eine Zeile pro Zone (Zone 1, Zone 2, Grandzone) mit Status, „fertig um …“ und rundem Knopf zum **Senden / Abbrechen / Beenden**. Antippen der Zeile öffnet ein Fenster mit Programm, Temperatur und Zeit (Grenzen je Programm werden beachtet). Das (i) oben zeigt Credits, Spenden-Link und Datenschutz. |
+| `custom:airfryer-control-ticker` | Das **Laufband**: „Fritteuse Zone 1: fertig um 19:42 Uhr +++ Zone 2: wartet auf Start“. Rahmen **rot und blinkend**, wenn eine Zone fertig ist, sonst türkis. Blendet sich aus, wenn nichts läuft. Optional mit weiteren Kochtimern (z. B. `sensor.einkaufsliste_kochtimer`). |
+
+```yaml
+type: custom:airfryer-control-card
+title: Heißluftfritteuse
+```
+```yaml
+type: custom:airfryer-control-ticker
+hide_when_idle: true
+extra_entities:
+  - sensor.einkaufsliste_kochtimer
+speed: 11      # kleiner = schneller
+font_size: 16
+```
+
+Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.
+
+<p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Karte auf dem Handy"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Einstellfenster dunkel"></p>
+
+> 🧪 Die Karten sind noch **Beta** – wenn etwas hakt, sag Bescheid (Fehler melden, siehe unten).
+
 ## 🖼️ Beispiel fürs Dashboard
 
 ```yaml

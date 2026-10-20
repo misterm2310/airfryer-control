@@ -139,3 +139,7 @@ REDACT_KEYS = {
     "ip",
     "wifiName",
 }
+
+# Karte, die die Integration selbst ins Dashboard bringt
+STATIC_URL = "/airfryer_control_files"
+CARD_FILENAME = "airfryer-control-card.js"

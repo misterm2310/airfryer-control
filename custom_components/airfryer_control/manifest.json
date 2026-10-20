@@ -5,6 +5,11 @@
     "@misterm2310"
   ],
   "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "lovelace"
+  ],
   "documentation": "https://github.com/misterm2310/airfryer-control",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
@@ -13,5 +18,5 @@
     "custom_components.airfryer_control"
   ],
   "requirements": [],
-  "version": "1.0.0-beta.10"
+  "version": "1.0.0-beta.11"
 }
