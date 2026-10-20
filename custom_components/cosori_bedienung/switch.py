@@ -22,7 +22,7 @@ from .const import DOMAIN, SENT_OPTIMISTIC_SECONDS, STATE_WAITING
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import zone_view, zones_for_device
-from .senden import async_send, get_plan
+from .senden import async_end, async_send, get_plan
 
 
 async def async_setup_entry(
@@ -44,7 +44,6 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
 
     _attr_translation_key = "zone_senden"
     _attr_icon = "mdi:pot-steam"
-    _attr_assumed_state = True
 
     def __init__(self, coordinator, cid, zone: int) -> None:
         super().__init__(coordinator, cid, f"zone{zone}_gart")
@@ -105,7 +104,7 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
         zs = zone_view(self.fryer.state, self._zone)
         chamber = zs.zone if zs else self._zone
         try:
-            await self.coordinator.api.bypass_v2(self.fryer.info, "endCook", {"chamber": chamber})
+            await async_end(self.coordinator, self.fryer, chamber)
         except CosoriError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
@@ -114,4 +113,3 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
             ) from err
         self._sent_at = None
         self.async_write_ha_state()
-        await self.coordinator.async_request_fast_refresh()

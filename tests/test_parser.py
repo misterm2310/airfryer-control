@@ -97,14 +97,15 @@ def test_garbage_does_not_crash():
     assert state.zones == {}
 
 
-def test_send_variants_first_is_app_form():
+def test_send_variants_never_start_by_default():
     variants = build_variants("acc", 2, 180, 10, "bake")
     names = [v.name for v in variants]
-    assert len(names) == len(set(names)) >= 6
-    assert all(v.payload["accountId"] == "acc" for v in variants)
+    assert names == ["multi_app", "multi_app_celsius", "multi_app_zone0"]
+    for v in variants:
+        assert v.method == "startMultiCook"
+        assert v.payload["readyStart"] is False  # nur senden, nie starten
+        assert v.payload["accountId"] == "acc"
     first = variants[0]
-    assert first.name == "multi_app" and first.method == "startMultiCook"
-    assert first.payload["readyStart"] is True  # = bereitstellen, kein Fernstart
     assert first.payload["workChamber"] == 2 and first.payload["tempUnit"] == "c"
     assert first.payload["cookConfigs"] == [
         {"cookSetTime": 600, "cookTemp": 180, "mode": "Bake", "chamber": 2,
@@ -112,6 +113,13 @@ def test_send_variants_first_is_app_form():
     ]
     airfry = build_variants("acc", 1, 200, 15, "airfry")[0].payload["cookConfigs"][0]
     assert airfry["recipeName"] == "Air Fry" and airfry["cookSetTime"] == 900
+
+
+def test_start_variant_only_when_explicitly_requested():
+    explicit = build_variants("acc", 1, 180, 10, "airfry", include_start=True)
+    assert explicit[-1].name == "multi_app_startet"
+    assert explicit[-1].payload["readyStart"] is True
+    assert all(v.payload["readyStart"] is False for v in explicit[:-1])
 
 
 def test_ready_means_waiting_for_start():

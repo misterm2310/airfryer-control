@@ -291,7 +291,8 @@ async def test_stop_button(hass: HomeAssistant) -> None:
     await hass.services.async_call(
         "button", "press", {"entity_id": eid(hass, "button", "garen_beenden")}, blocking=True
     )
-    assert ("endCook", {}) in FakeApi.instances[-1].calls
+    calls = FakeApi.instances[-1].calls
+    assert ("endCook", {"chamber": 1}) in calls and ("endCook", {"chamber": 2}) in calls
 
 
 async def test_start_service_is_gone(hass: HomeAssistant) -> None:
@@ -299,7 +300,7 @@ async def test_start_service_is_gone(hass: HomeAssistant) -> None:
     assert not hass.services.has_service(DOMAIN, "garen_starten")
 
 
-async def test_send_test_service_stops_at_first_hit(hass: HomeAssistant) -> None:
+async def test_send_test_service_never_starts_by_itself(hass: HomeAssistant) -> None:
     FakeApi.reject = {"startMultiCook"}
     await setup(hass)
     device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
@@ -310,22 +311,25 @@ async def test_send_test_service_stops_at_first_hit(hass: HomeAssistant) -> None
         blocking=True,
         return_response=True,
     )
-    assert res["ok"] is True
-    assert res["gemerkte_variante"] == "kochmodus_manuell"
-    assert [v["ok"] for v in res["versuche"]] == [False] * 5 + [True]
-    sent = [c for c in FakeApi.instances[-1].calls if c[0] == "cookMode"]
-    assert len(sent) == 1 and sent[0][1]["chamber"] == 2
+    assert res["ok"] is False
+    assert [v["variante"] for v in res["versuche"]] == [
+        "multi_app", "multi_app_celsius", "multi_app_zone0"
+    ]
+    sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"]
+    assert len(sent) == 3 and all(c[1]["readyStart"] is False for c in sent)
     assert "konto-42" not in str(res)
 
 
-async def test_send_test_single_variant(hass: HomeAssistant) -> None:
+async def test_send_test_explicit_start_variant(hass: HomeAssistant) -> None:
     await setup(hass)
     device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
     res = await hass.services.async_call(
-        DOMAIN, "senden_testen", {"geraet": device.id, "variante": "startkochen"},
+        DOMAIN, "senden_testen", {"geraet": device.id, "variante": "multi_app_startet"},
         blocking=True, return_response=True,
     )
-    assert [v["variante"] for v in res["versuche"]] == ["startkochen"]
+    assert [v["variante"] for v in res["versuche"]] == ["multi_app_startet"]
+    sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"]
+    assert sent[0][1]["readyStart"] is True
 
 
 async def test_raw_service(hass: HomeAssistant) -> None:
@@ -446,6 +450,7 @@ async def test_switch_on_sends_plan_and_off_ends(hass: HomeAssistant, fake_api) 
     )
     method, data = [c for c in api.calls if c[0] == "startMultiCook"][0]
     assert data["workChamber"] == 2 and data["accountId"] == "konto-42"
+    assert data["readyStart"] is False
     assert data["cookConfigs"] == [
         {"cookSetTime": 300, "cookTemp": 220, "mode": "Grill", "chamber": 2,
          "recipeId": 14, "recipeName": "Grill", "recipeType": 3, "shakeTime": 0}
@@ -463,7 +468,7 @@ async def test_switch_on_all_rejected_shows_codes(hass: HomeAssistant, fake_api)
 
     fake_api.status_rejected = True
     fake_api.multi = real_twinfry()
-    FakeApi.reject = {"startMultiCook", "cookMode", "startCook"}
+    FakeApi.reject = {"startMultiCook"}
     await setup(hass)
     with pytest.raises(HomeAssistantError) as err:
         await hass.services.async_call(
@@ -507,3 +512,23 @@ async def test_ready_shows_waiting_and_switch_on(hass: HomeAssistant, fake_api) 
     assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "on"
     assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "off"
     assert hass.states.get(eid(hass, "binary_sensor", "gart")).state == "off"
+
+
+async def test_stop_button_zone_without_program_is_not_an_error(hass: HomeAssistant) -> None:
+    from custom_components.cosori_bedienung.api import CosoriError as _E
+
+    await setup(hass)
+    api = FakeApi.instances[-1]
+    orig = api.bypass_v2
+
+    async def picky(device, method, data=None):
+        if method == "endCook" and data == {"chamber": 2}:
+            api.calls.append((method, data))
+            raise _E("kein Programm", 11923000)
+        return await orig(device, method, data)
+
+    api.bypass_v2 = picky
+    await hass.services.async_call(
+        "button", "press", {"entity_id": eid(hass, "button", "garen_beenden")}, blocking=True
+    )
+    assert ("endCook", {"chamber": 1}) in api.calls and ("endCook", {"chamber": 2}) in api.calls

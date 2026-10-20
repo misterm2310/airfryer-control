@@ -99,7 +99,7 @@ actions:
 
 | Action | What it does |
 |---|---|
-| `cosori_bedienung.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` all are tried in turn until one works. |
+| `cosori_bedienung.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). |
 | `cosori_bedienung.garen_beenden` | Stop. |
 | `cosori_bedienung.befehl_senden` | **Tinkerers, admins only:** sends an app command and returns the response (without account data). |
 
@@ -120,7 +120,7 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 
 - **Unofficial.** If Cosori/VeSync change their server, it may break until updated.
 - **Remote start** is blocked by Cosori in the EU – so there is no start button. “Send” only wakes the fryer; you start on the device.
-- **“Send” is new.** The command (`startMultiCook`) comes from a sister fryer (Cosori Turbo Tower Pro, pyvesync) and is **not yet confirmed** on the TwinFry. Only **Air Fry** is confirmed so far; for Bake, Roast, Grill, Reheat and Dry the recipe number is a guess. If the fryer refuses, the integration tries older variants and shows the error codes – please report them in an issue.
+- **“Send” is new.** The command (`startMultiCook` with `readyStart: false`) comes from a sister fryer (Cosori Turbo Tower Pro, pyvesync) and is still being tested on the TwinFry. Only **Air Fry** is confirmed so far; for Bake, Roast, Grill, Reheat and Dry the recipe number is a guess. ⚠️ With `readyStart: true` the TwinFry **starts right away** – the integration never sends that on its own.
 - **Pause/resume:** command not known for sure yet – no button.
 - **Stopping a single zone and changing temperature/time** are sent as the app is believed to do (`endCook` with zone, `setTimeOrTemp`) – **not yet tried on a real TwinFry**.
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.

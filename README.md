@@ -168,7 +168,7 @@ actions:
 
 | Dienst | Was er tut |
 |---|---|
-| `cosori_bedienung.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden alle der Reihe nach probiert, bis eine klappt. |
+| `cosori_bedienung.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
 | `cosori_bedienung.garen_beenden` | Stopp. |
 | `cosori_bedienung.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
 
@@ -199,7 +199,7 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 
 - **Inoffiziell.** Cosori/VeSync bieten keine offene Schnittstelle. Ändern sie etwas am Server, kann die Integration ausfallen, bis sie angepasst ist.
 - **Starten aus der Ferne:** In der EU erlaubt Cosori das **nicht** – darum gibt es keinen Start-Knopf. „Senden“ weckt die Fritteuse nur auf; gestartet wird am Gerät.
-- **„Senden“ ist neu.** Der Befehl (`startMultiCook`) stammt von einer Schwester-Fritteuse (Cosori Turbo Tower Pro, pyvesync) und ist an der TwinFry noch **nicht bestätigt**. Bestätigt ist bisher nur das Programm **Heißluft (AirFry)**; bei Backen, Braten, Grillen, Aufwärmen und Dörren ist die Rezept-Nummer geraten. Lehnt die Fritteuse ab, probiert die Integration ältere Schreibweisen und zeigt die Fehlercodes – bitte im Ticket melden.
+- **„Senden“ ist neu.** Der Befehl (`startMultiCook` mit `readyStart: false`) stammt von einer Schwester-Fritteuse (Cosori Turbo Tower Pro, pyvesync) und ist an der TwinFry erst im Test. Bestätigt ist bisher nur das Programm **Heißluft (AirFry)**; bei Backen, Braten, Grillen, Aufwärmen und Dörren ist die Rezept-Nummer geraten. ⚠️ Mit `readyStart: true` **startet** die TwinFry sofort – das schickt die Integration nie von selbst.
 - **Pausieren/Fortsetzen:** Den Befehl dafür kennen wir noch nicht sicher – darum gibt es (noch) keinen Knopf.
 - **Zone einzeln beenden und Temperatur/Zeit ändern** schicken die Befehle so, wie die App es nach heutigem Wissen tut (`endCook` mit Zone, `setTimeOrTemp`). An der echten TwinFry ist das noch **nicht ausprobiert**. Lehnt sie ab, bekommst du eine Meldung mit dem Grund.
 - **Feldnamen:** Den Stillstand der TwinFry kennen wir aus einer echten Antwort, die Werte **während des Garens** noch nicht. Zeigt ein Sensor Quatsch, schau in `sensor.…_rohdaten` – dort steht, was die Fritteuse wirklich geschickt hat.

@@ -228,7 +228,7 @@
         },
         "variante": {
           "name": "Schreibweise",
-          "description": "Leer = der Reihe nach alle probieren, bis eine klappt. Oder genau eine, z. B. multi_c."
+          "description": "Leer = die sicheren Schreibweisen der Reihe nach probieren, bis eine klappt (multi_app, multi_app_celsius, multi_app_zone0). „multi_app_startet“ STARTET die TwinFry wirklich – nur wenn du das willst."
         },
         "alle": {
           "name": "Alle probieren",

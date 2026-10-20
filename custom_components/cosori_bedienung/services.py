@@ -26,7 +26,7 @@ from .const import (
     SERVICE_STOP,
 )
 from .coordinator import CosoriCoordinator, FryerData
-from .senden import async_send
+from .senden import async_end, async_send
 from .util import redact
 
 ATTR_DEVICE = "geraet"
@@ -79,7 +79,7 @@ def _find(hass: HomeAssistant, device_id: str) -> tuple[CosoriCoordinator, Fryer
 async def _stop(call: ServiceCall) -> None:
     coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
     try:
-        await coordinator.api.bypass_v2(fryer.info, "endCook", {})
+        await async_end(coordinator, fryer)
     except CosoriError as err:
         raise HomeAssistantError(f"Fritteuse hat „Beenden“ abgelehnt: {err}") from err
     await coordinator.async_request_fast_refresh()

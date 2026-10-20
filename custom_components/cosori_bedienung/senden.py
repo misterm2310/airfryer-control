@@ -2,9 +2,10 @@
 
 Für Doofe: In der App gibst du Korb, Programm, Temperatur und Zeit ein und
 drückst unten „Senden“. Die Fritteuse wacht auf und wartet, bis du am Gerät
-auf Start drückst. Der Befehl dafür ist `startMultiCook` mit Rezept-Angaben
-(so macht es auch die Schwester-Fritteuse in pyvesync). Zur Sicherheit probieren wir
-bei Ablehnung noch ältere Schreibweisen durch und merken uns die, die klappt.
+auf Start drückst. Der Befehl dafür ist `startMultiCook` mit Rezept-Angaben und
+`readyStart: false` (so macht es auch die Schwester-Fritteuse in pyvesync).
+ACHTUNG: Mit `readyStart: true` STARTET die TwinFry sofort – diese Schreibweise
+wird darum nie automatisch geschickt, nur wenn man sie ausdrücklich verlangt.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Any
 from .api import CosoriDeviceOffline, CosoriError
 from .const import DEFAULT_MODE, MODE_DEFAULTS, MODES
 from .coordinator import CosoriCoordinator, FryerData
+from .parser import zones_for_device
 from .util import redact
 
 PAUSE_SECONDS = 1.0
@@ -41,98 +43,55 @@ class SendVariant:
 
 
 def build_variants(
-    account_id: str | None, zone: int, temp: int, minutes: int, mode: str
+    account_id: str | None,
+    zone: int,
+    temp: int,
+    minutes: int,
+    mode: str,
+    *,
+    include_start: bool = False,
 ) -> list[SendVariant]:
-    """Alle Schreibweisen, die wir ausprobieren (die erste ist die bestätigte Form der App)."""
+    """Schreibweisen für „Senden“ – nie mit Start, außer include_start ist ausdrücklich an."""
     app_mode = MODES.get(mode, mode)
     secs = int(minutes) * 60
     acc = account_id or ""
 
-    def multi(unit: str, work: int, *, app: bool = False, ready: bool = False) -> dict[str, Any]:
+    def multi(unit: str, work: int, *, ready: bool = False) -> dict[str, Any]:
         config: dict[str, Any] = {
             "cookSetTime": secs,
             "cookTemp": int(temp),
             "mode": app_mode,
             "chamber": zone,
         }
-        if app:
-            # Wie die Schwester-Fritteuse (Turbo Tower Pro) in pyvesync: mit Rezept-Angaben
-            config.update(
-                recipeId=14,
-                recipeName="Air Fry" if mode == "airfry" else app_mode,
-                recipeType=3,
-                shakeTime=0,
-            )
+        # Wie die Schwester-Fritteuse (Turbo Tower Pro) in pyvesync: mit Rezept-Angaben
+        config.update(
+            recipeId=14,
+            recipeName="Air Fry" if mode == "airfry" else app_mode,
+            recipeType=3,
+            shakeTime=0,
+        )
         return {
             "syncType": 0,
             "workChamber": work,
             "tempUnit": unit,
             "accountId": acc,
-            # „true“ heißt hier: Programm bereitstellen (Zone steht dann auf „ready“ und wartet
-            # auf den Start-Knopf am Gerät) – ein Fernstart ist das nicht.
+            # false = nur senden (Zone steht dann auf „ready“ und wartet auf Start am Gerät).
+            # true = die TwinFry STARTET sofort!
             "readyStart": ready,
             "cookConfigs": [config],
         }
 
-    cook_mode_base = {
-        "accountId": acc,
-        "appointmentTs": 0,
-        "cookSetTemp": int(temp),
-        "cookSetTime": secs,
-        "cookStatus": "cooking",
-        "readyStart": False,
-        "recipeType": 3,
-        "tempUnit": "celsius",
-    }
-    start_cook = {
-        "accountId": acc,
-        "cookTempDECP": 0,
-        "hasPreheat": 0,
-        "hasWarm": False,
-        "imageUrl": "",
-        "mode": app_mode,
-        "readyStart": False,
-        "recipeId": 14,
-        "recipeName": app_mode,
-        "recipeType": 3,
-        "startAct": {
-            "appointingTime": 0,
-            "cookSetTime": secs,
-            "cookTemp": int(temp),
-            "cookTempDECP": 0,
-            "imageUrl": "",
-            "level": 0,
-            "preheatTemp": 0,
-            "shakeTime": 0,
-            "targetTemp": 0,
-        },
-        "tempUnit": "c",
-    }
-    return [
-        SendVariant("multi_app", "startMultiCook", multi("c", zone, app=True, ready=True)),
-        SendVariant("multi_app_ohne_ready", "startMultiCook", multi("c", zone, app=True)),
-        SendVariant("multi_c", "startMultiCook", multi("c", zone)),
-        SendVariant("multi_celsius", "startMultiCook", multi("celsius", zone)),
-        SendVariant("multi_arbeitszone0", "startMultiCook", multi("c", 0)),
-        SendVariant(
-            "kochmodus_manuell",
-            "cookMode",
-            {**cook_mode_base, "customRecipe": "Manuell", "mode": "custom", "recipeId": 1,
-             "chamber": zone},
-        ),
-        SendVariant(
-            "kochmodus_programm",
-            "cookMode",
-            {**cook_mode_base, "mode": app_mode, "recipeId": 14, "chamber": zone},
-        ),
-        SendVariant(
-            "kochmodus_ohne_zone",
-            "cookMode",
-            {**cook_mode_base, "customRecipe": "Manuell", "mode": "custom", "recipeId": 1},
-        ),
-        SendVariant("startkochen_zone", "startCook", {**start_cook, "chamber": zone}),
-        SendVariant("startkochen", "startCook", start_cook),
+    safe = [
+        SendVariant("multi_app", "startMultiCook", multi("c", zone)),
+        SendVariant("multi_app_celsius", "startMultiCook", multi("celsius", zone)),
+        SendVariant("multi_app_zone0", "startMultiCook", multi("c", 0)),
     ]
+    if include_start:
+        # Nur auf ausdrücklichen Wunsch (Dienst „Senden testen“ mit variante): startet wirklich!
+        safe.append(
+            SendVariant("multi_app_startet", "startMultiCook", multi("c", zone, ready=True))
+        )
+    return safe
 
 
 async def async_send(
@@ -150,9 +109,11 @@ async def async_send(
 
     Mit ``only`` wird genau eine Variante geschickt, mit ``try_all`` alle
     (sonst Stopp beim ersten Treffer). Ist schon eine Variante bekannt, geht
-    sie zuerst raus.
+    sie zuerst raus. Nur mit ``only`` darf auch die startende Form raus.
     """
-    variants = build_variants(coordinator.api.account_id, zone, temp, minutes, mode)
+    variants = build_variants(
+        coordinator.api.account_id, zone, temp, minutes, mode, include_start=bool(only)
+    )
     if only:
         variants = [v for v in variants if v.name == only]
     elif coordinator.send_variant:
@@ -178,3 +139,37 @@ async def async_send(
             break
     await coordinator.async_request_fast_refresh()
     return results
+
+
+NO_PROGRAM_CODE = 11923000  # „Zone hat kein Programm“ → ist schon aus
+
+
+async def async_end(
+    coordinator: CosoriCoordinator, fryer: FryerData, zone: int | None = None
+) -> None:
+    """Zone(n) beenden. Ohne ``zone`` werden alle Zonen beendet.
+
+    Die TwinFry will bei ``endCook`` die Zone wissen. Hat eine Zone kein Programm,
+    meldet sie Code 11923000 – das zählt als „schon aus“, nicht als Fehler.
+    """
+    if fryer.model.startswith("CS"):
+        await coordinator.api.bypass_v2(fryer.info, "endCook", {})
+        await coordinator.async_request_fast_refresh()
+        return
+    zones = [zone] if zone else zones_for_device(fryer.state, fryer.multizone)
+    errors: list[CosoriError] = []
+    done = 0
+    for z in zones:
+        try:
+            await coordinator.api.bypass_v2(fryer.info, "endCook", {"chamber": z})
+            done += 1
+        except CosoriDeviceOffline:
+            raise
+        except CosoriError as err:
+            if err.code == NO_PROGRAM_CODE:
+                done += 1
+            else:
+                errors.append(err)
+    await coordinator.async_request_fast_refresh()
+    if errors and not done:
+        raise errors[0]

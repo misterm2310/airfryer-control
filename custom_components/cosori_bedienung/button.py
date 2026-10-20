@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .api import CosoriError
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity
+from .senden import async_end
 
 
 async def async_setup_entry(
@@ -35,7 +36,7 @@ class StopButton(CosoriEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         try:
-            await self.coordinator.api.bypass_v2(self.fryer.info, "endCook", {})
+            await async_end(self.coordinator, self.fryer)
         except CosoriError as err:
             raise HomeAssistantError(f"Fritteuse hat „Beenden“ abgelehnt: {err}") from err
         await self.coordinator.async_request_fast_refresh()
