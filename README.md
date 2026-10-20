@@ -90,7 +90,7 @@ type: custom:airfryer-control-ticker
 hide_when_idle: true
 extra_entities:
   - sensor.einkaufsliste_kochtimer
-speed: 11      # kleiner = schneller
+speed: 60      # Pixel pro Sekunde (20–200)
 font_size: 16
 ```
 

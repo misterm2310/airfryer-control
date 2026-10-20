@@ -278,7 +278,7 @@ class AirfryerControlCard extends HTMLElement {
 class AirfryerControlTicker extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: "open" }); this._sig = ""; }
   setConfig(config) {
-    this._config = { hide_when_idle: true, speed: 11, extra_entities: [], ...config };
+    this._config = { hide_when_idle: true, speed: 60, extra_entities: [], language: "auto", ...config };
     this._sig = "";
     if (this._hass) this._render();
   }
@@ -290,7 +290,7 @@ class AirfryerControlTicker extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     const parts = this._parts();
-    const sig = parts.items.join("|") + parts.done;
+    const sig = parts.items.join("|") + parts.done + (this._config?.language || "") + (this._config?.speed || "");
     if (sig === this._sig) return;
     this._sig = sig;
     this._render();
@@ -301,8 +301,10 @@ class AirfryerControlTicker extends HTMLElement {
   }
   disconnectedCallback() { clearInterval(this._timer); }
 
+  _lh() { const l = this._config?.language; return l && l !== "auto" ? { ...this._hass, language: l } : this._hass; }
+
   _parts() {
-    const hass = this._hass;
+    const hass = this._lh();
     const items = [];
     let done = false;
     for (const z of findZones(hass)) {
@@ -331,7 +333,7 @@ class AirfryerControlTicker extends HTMLElement {
   }
 
   _render() {
-    const hass = this._hass;
+    const hass = this._lh();
     if (!hass || !this._config) return;
     const { items, done } = this._parts();
     const hide = this._config.hide_when_idle && !items.length;
@@ -340,20 +342,25 @@ class AirfryerControlTicker extends HTMLElement {
     this.dispatchEvent(new CustomEvent("card-visibility-changed", { detail: { value: !hide }, bubbles: true, composed: true }));
     const base = items.length ? items.join(" +++ ") : tr(hass, "👨‍🍳 Kein Kochtimer aktiv", "👨‍🍳 No cooking timer active");
     const piece = `+++ ${base} `;
-    const text = piece.repeat(Math.max(5, Math.ceil(260 / piece.length)));
-    const dur = Math.max(10, Math.round((text.length * Number(this._config.speed || 11)) / 100));
+    const plain = piece.length;
+    const n = Math.max(5, Math.ceil(260 / plain));
+    const text = piece.repeat(n);
+    const dur = Math.max(8, Math.round(((plain * n * 11) / 100) * (60 / (Number(this._config.speed) || 60))));
     const color = done ? "#E53935" : "#26A69A";
     this.shadowRoot.innerHTML = `<style>
       :host { display:block; }
-      @keyframes ac_pulse { 0%,100% { opacity:1 } 50% { opacity:.3 } }
-      @keyframes ac_tick { from { transform:translateX(0) } to { transform:translateX(-50%) } }
-      ha-card { height:40px; display:flex; align-items:center; border:2px solid ${color}; border-radius:8px; box-sizing:border-box; overflow:hidden; }
-      ha-icon { flex:none; --mdc-icon-size:22px; margin:0 10px; color:${color}; ${done ? "animation:ac_pulse 1s ease-in-out infinite;" : ""} }
-      .box { overflow:hidden; width:100%; display:flex; align-items:center; }
+      ha-card { display:block; height:40px; padding:0; background:var(--card-background-color); border-radius:8px; border:none; box-shadow:0 5px 3px rgba(0,0,0,.1); overflow:hidden; }
+      .box { display:flex; align-items:center; width:100%; height:100%; border:2px solid ${color}; border-radius:8px; box-sizing:border-box; }
+      .box ha-icon { flex:none; --mdc-icon-size:22px; margin:0 10px; color:${color}; ${done ? "animation:ac_pulse 1s ease-in-out infinite;" : ""} }
+      .box ha-icon + .win + ha-icon { animation-delay:.5s; }
+      .win { flex:1; min-width:0; overflow:hidden; display:flex; align-items:center; }
       .wrap { white-space:nowrap; display:flex; animation:ac_tick ${dur}s linear infinite; }
-      .txt { font-size:${Number(this._config.font_size || 16)}px; font-weight:500; line-height:20px; padding-right:20px; color:var(--primary-text-color); }
+      .txt { font-family:Roboto,sans-serif; font-size:${Number(this._config.font_size || 16)}px; font-weight:500; line-height:20px; padding-right:20px; color:var(--primary-text-color); }
+      @keyframes ac_pulse { 0% { opacity:1 } 50% { opacity:.3 } 100% { opacity:1 } }
+      @keyframes ac_tick { from { transform:translateX(0) } to { transform:translateX(-50%) } }
+      @media (prefers-reduced-motion: reduce) { .wrap { animation:none; } .box ha-icon { animation:none; } }
     </style>
-    <ha-card><ha-icon icon="mdi:chef-hat"></ha-icon><div class="box"><div class="wrap"><span class="txt">${esc(text)}</span><span class="txt">${esc(text)}</span></div></div><ha-icon icon="mdi:chef-hat"></ha-icon></ha-card>`;
+    <ha-card><div class="box"><ha-icon icon="mdi:chef-hat"></ha-icon><div class="win"><div class="wrap"><span class="txt">${esc(text)}</span><span class="txt">${esc(text)}</span></div></div><ha-icon icon="mdi:chef-hat"></ha-icon></div></ha-card>`;
   }
 }
 
@@ -386,15 +393,17 @@ customElements.define("airfryer-control-card-editor", makeEditor(
 const tickLabels = {
   extra_entities: ["Zusätzliche Kochtimer (z. B. sensor.einkaufsliste_kochtimer)", "Extra timers (e.g. sensor.einkaufsliste_kochtimer)"],
   hide_when_idle: ["Ausblenden, wenn nichts läuft", "Hide when idle"],
-  speed: ["Tempo (kleiner = schneller)", "Speed (smaller = faster)"],
+  speed: ["Tempo (Pixel pro Sekunde)", "Speed (pixels per second)"],
+  language: ["Sprache", "Language"],
   font_size: ["Schriftgröße", "Font size"],
 };
 customElements.define("airfryer-control-ticker-editor", makeEditor(
   () => [
     { name: "extra_entities", selector: { entity: { multiple: true, domain: "sensor" } } },
     { name: "hide_when_idle", selector: { boolean: {} } },
-    { name: "speed", selector: { number: { min: 4, max: 30, mode: "box" } } },
+    { name: "speed", selector: { number: { min: 20, max: 200, step: 5, mode: "box" } } },
     { name: "font_size", selector: { number: { min: 12, max: 28, mode: "box" } } },
+    { name: "language", selector: { select: { mode: "dropdown", options: [{ value: "auto", label: "Auto (Home Assistant)" }, { value: "de", label: "Deutsch" }, { value: "en", label: "English" }] } } },
   ],
   (h, n) => { const l = tickLabels[n]; return l ? tr(h, l[0], l[1]) : n; }));
 
