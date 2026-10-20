@@ -21,8 +21,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ALL_STATES, DOMAIN, STATE_OFFLINE
 from .coordinator import CosoriCoordinator, FryerData
-from .entity import CosoriEntity
-from .parser import ZoneState, zone_view, zones_for_device
+from .entity import CosoriEntity, async_remove_stale
+from .parser import ZoneState, reports_current_temp, zone_view, zones_for_device
 from .util import redact
 
 
@@ -94,7 +94,7 @@ SINGLE_SENSORS: tuple[ZoneSensorDescription, ...] = (
     ZoneSensorDescription(
         key="programm",
         translation_key="programm",
-        value_fn=lambda f, z, _n: z.mode if z else None,
+        value_fn=lambda f, z, _n: z.mode if (z and z.busy) else None,
     ),
 )
 
@@ -122,12 +122,6 @@ ZONE_SENSORS: tuple[ZoneSensorDescription, ...] = (
         value_fn=lambda f, z, n: _zone_finish(f, n),
     ),
     ZoneSensorDescription(
-        key="solltemperatur",
-        translation_key="zone_solltemperatur",
-        device_class=SensorDeviceClass.TEMPERATURE,
-        value_fn=lambda f, z, _n: z.set_temp if z else None,
-    ),
-    ZoneSensorDescription(
         key="temperatur",
         translation_key="zone_temperatur",
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -137,7 +131,7 @@ ZONE_SENSORS: tuple[ZoneSensorDescription, ...] = (
     ZoneSensorDescription(
         key="programm",
         translation_key="zone_programm",
-        value_fn=lambda f, z, _n: z.mode if z else None,
+        value_fn=lambda f, z, _n: z.mode if (z and z.busy) else None,
     ),
 )
 
@@ -150,12 +144,23 @@ async def async_setup_entry(
     for cid, fryer in coordinator.fryers.items():
         entities += [FryerSensor(coordinator, cid, d) for d in FRYER_SENSORS]
         zones = zones_for_device(fryer.state, fryer.multizone)
+        # Gemessene Temperatur nur, wenn die Fritteuse sie überhaupt schickt
+        with_temp = reports_current_temp(fryer.state)
         if zones:
             for zone in zones:
-                entities += [ZoneSensor(coordinator, cid, d, zone) for d in ZONE_SENSORS]
+                entities += [
+                    ZoneSensor(coordinator, cid, d, zone)
+                    for d in ZONE_SENSORS
+                    if d.key != "temperatur" or with_temp
+                ]
         else:
-            entities += [ZoneSensor(coordinator, cid, d, 1, single=True) for d in SINGLE_SENSORS]
+            entities += [
+                ZoneSensor(coordinator, cid, d, 1, single=True)
+                for d in SINGLE_SENSORS
+                if d.key != "temperatur" or with_temp
+            ]
         entities.append(RawDataSensor(coordinator, cid))
+    async_remove_stale(hass, entry, "sensor", {e.unique_id for e in entities})
     async_add_entities(entities)
 
 
@@ -246,6 +251,7 @@ class RawDataSensor(CosoriEntity, SensorEntity):
             "modell": fryer.model,
             "status": redact(fryer.raw_status),
             "mehrzonen_status": redact(fryer.raw_multi),
+            "abgelehnte_abfragen": dict(fryer.method_errors),
             "letzter_fehler": fryer.last_error,
         }
 

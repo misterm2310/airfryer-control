@@ -64,6 +64,26 @@ def finished_multi() -> dict[str, Any]:
     }
 
 
+def real_twinfry(status: str = "standby", remaining: int = 0, set_time: int = 0, temp: int = 0):
+    """Echte Antwort von Marcos TwinFry (getAirfryerMultiStatus), 20.10.2026."""
+    zone = {
+        "cookStatus": status, "startTime": 0, "recipeType": 3, "recipeId": 14,
+        "recipeName": "", "upc": "", "holdTime": 0, "cookSetTime": set_time,
+        "cookTemp": temp, "mode": "AirFry", "currentRemainingTime": remaining,
+        "totalTimeRemaining": remaining,
+    }
+    return {
+        "statusList": [
+            {**zone, "chamber": 1},
+            {**zone, "chamber": 2, "cookStatus": "standby", "currentRemainingTime": 0,
+             "cookSetTime": 0, "cookTemp": 0, "totalTimeRemaining": 0},
+        ],
+        "tempUnit": "c",
+        "syncType": 0,
+        "workChamber": 0,
+    }
+
+
 class FakeApi:
     """Attrappe der VeSync-Cloud."""
 
@@ -73,6 +93,7 @@ class FakeApi:
     status: dict[str, Any] = {"cookStatus": "cooking"}
     multi: dict[str, Any] = cooking_multi()
     offline = False
+    status_rejected = False
 
     def __init__(self, session, email, password_md5, region, terminal_id, time_zone="x"):
         self.email = email
@@ -97,6 +118,8 @@ class FakeApi:
         if FakeApi.offline:
             raise CosoriDeviceOffline("offline", -11300030)
         if method == "getAirfryerStatus":
+            if FakeApi.status_rejected:
+                raise CosoriError("„getAirfryerStatus“ vom Gerät abgelehnt (Code 11030000)", 11030000)
             return dict(FakeApi.status)
         if method == "getAirfryerMultiStatus":
             return dict(FakeApi.multi)
@@ -116,6 +139,7 @@ def fake_api():
     FakeApi.status = {"cookStatus": "cooking"}
     FakeApi.multi = cooking_multi()
     FakeApi.offline = False
+    FakeApi.status_rejected = False
     with (
         patch("custom_components.cosori_bedienung.CosoriApi", FakeApi),
         patch("custom_components.cosori_bedienung.config_flow.CosoriApi", FakeApi),
@@ -318,3 +342,101 @@ async def test_unload(hass: HomeAssistant) -> None:
     entry = await setup(hass)
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is config_entries.ConfigEntryState.NOT_LOADED
+
+
+# ------------------------------------------------- Echte TwinFry (Beta 2)
+async def test_twinfry_real_standby(hass: HomeAssistant, fake_api) -> None:
+    """Normale Statusfrage abgelehnt, Mehrzonen-Frage klappt (wie bei Marco)."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    await setup(hass)
+    assert hass.states.get(eid(hass, "sensor", "status")).state == "bereit"
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "bereit"
+    assert hass.states.get(eid(hass, "sensor", "zone2_status")).state == "bereit"
+    assert hass.states.get(eid(hass, "sensor", "restzeit")).state == "0"
+    # Im Standby kein „AirFry“ anzeigen
+    assert hass.states.get(eid(hass, "sensor", "zone1_programm")).state == "unknown"
+    # TwinFry schickt keine gemessene Temperatur → kein Sensor dafür
+    reg = er.async_get(hass)
+    assert reg.async_get_entity_id("sensor", DOMAIN, f"{CID}_zone1_temperatur") is None
+    assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "off"
+    assert hass.states.get(eid(hass, "number", "zone1_temperatur")).state == "unknown"
+    raw = hass.states.get(eid(hass, "sensor", "rohdaten")).attributes
+    assert "getAirfryerStatus" in raw["abgelehnte_abfragen"]
+    # Die abgelehnte Frage wird danach nicht mehr gestellt
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=120))
+    await hass.async_block_till_done()
+    asked = [c[0] for c in FakeApi.instances[-1].calls].count("getAirfryerStatus")
+    assert asked == 1
+
+
+async def test_twinfry_real_cooking(hass: HomeAssistant, fake_api) -> None:
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry("cooking", remaining=754, set_time=900, temp=200)
+    await setup(hass)
+    assert hass.states.get(eid(hass, "sensor", "status")).state == "gart"
+    assert hass.states.get(eid(hass, "sensor", "zone1_restzeit")).state == "13"
+    assert hass.states.get(eid(hass, "sensor", "restzeit")).state == "13"
+    assert hass.states.get(eid(hass, "sensor", "zone1_programm")).state == "AirFry"
+    assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "on"
+    assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "off"
+    assert hass.states.get(eid(hass, "number", "zone1_temperatur")).state == "200"
+    assert hass.states.get(eid(hass, "number", "zone1_garzeit")).state == "15"
+
+    api = FakeApi.instances[-1]
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": eid(hass, "number", "zone1_temperatur"), "value": 180}, blocking=True,
+    )
+    assert ("setTimeOrTemp", {"cookSetTime": 900, "cookSetTemp": 180, "chamber": 1}) in api.calls
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": eid(hass, "number", "zone1_garzeit"), "value": 20}, blocking=True,
+    )
+    assert ("setTimeOrTemp", {"cookSetTime": 1200, "cookSetTemp": 200, "chamber": 1}) in api.calls
+
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+    )
+    assert ("endCook", {"chamber": 1}) in api.calls
+
+
+async def test_switch_on_and_number_when_idle_give_clear_message(hass: HomeAssistant, fake_api) -> None:
+    from homeassistant.exceptions import ServiceValidationError
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    await setup(hass)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+        )
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "number", "set_value",
+            {"entity_id": eid(hass, "number", "zone2_temperatur"), "value": 180}, blocking=True,
+        )
+
+
+async def test_old_single_sensors_are_removed(hass: HomeAssistant, fake_api) -> None:
+    """Nach dem Update von Beta 1 verschwinden die alten Ein-Kammer-Sensoren."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    reg = er.async_get(hass)
+    old = reg.async_get_or_create("sensor", DOMAIN, f"{CID}_programm", config_entry=entry)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert reg.async_get(old.entity_id) is None
+
+
+async def test_nothing_removed_while_offline(hass: HomeAssistant, fake_api) -> None:
+    fake_api.offline = True
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    reg = er.async_get(hass)
+    old = reg.async_get_or_create("sensor", DOMAIN, f"{CID}_zone1_restzeit", config_entry=entry)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert reg.async_get(old.entity_id) is not None

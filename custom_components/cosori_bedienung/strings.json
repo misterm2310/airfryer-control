@@ -144,9 +144,6 @@
       "zone_fertig_um": {
         "name": "Zone {zone} done at"
       },
-      "zone_solltemperatur": {
-        "name": "Zone {zone} target temperature"
-      },
       "zone_temperatur": {
         "name": "Zone {zone} temperature"
       },
@@ -154,7 +151,12 @@
         "name": "Zone {zone} program"
       },
       "rohdaten": {
-        "name": "Raw data"
+        "name": "Raw data",
+        "state_attributes": {
+          "abgelehnte_abfragen": {
+            "name": "Rejected requests"
+          }
+        }
       }
     },
     "binary_sensor": {
@@ -172,6 +174,19 @@
       "aktualisieren": {
         "name": "Refresh now"
       }
+    },
+    "switch": {
+      "zone_gart": {
+        "name": "Zone {zone} cooking"
+      }
+    },
+    "number": {
+      "zone_temperatur": {
+        "name": "Zone {zone} set temperature"
+      },
+      "zone_garzeit": {
+        "name": "Zone {zone} set cooking time"
+      }
     }
   },
   "exceptions": {
@@ -180,6 +195,15 @@
     },
     "start_nicht_unterstuetzt": {
       "message": "Starting is not (yet) supported on this older model."
+    },
+    "start_gesperrt": {
+      "message": "Cosori does not allow remote start in the EU. Please start on the device."
+    },
+    "nur_beim_garen": {
+      "message": "This only works while the zone is cooking."
+    },
+    "abgelehnt": {
+      "message": "The air fryer rejected the command: {fehler}"
     }
   },
   "services": {

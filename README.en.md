@@ -21,7 +21,8 @@ Built for models the official VeSync integration does **not** know – first of 
 | 🧩 **Two zones** | On the TwinFry, separate sensors for zone 1 and zone 2. Whole drawer without divider = zone 1. |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
 | 🔔 **“Done” event** | `cosori_bedienung_fertig` – for phone notifications, announcements or pausing the TV. |
-| ⏹️ **Stop cooking** | As a dashboard button and as an action. |
+| ⏹️ **Stop cooking** | Button for the whole fryer – and a **switch per zone** (“Zone 1 cooking”: turn off = stop that zone). |
+| 🎛️ **Change temperature & time** | Number fields per zone. While the zone is cooking, new values go straight to the fryer – like in the app. |
 | ▶️ **Start cooking** | Action with zone, temperature, minutes, program (see “Honestly”). |
 | 🐢🐇 **Smart polling** | Idle: every 60 seconds (adjustable). Cooking: every 15 seconds. |
 | 🛡️ **Privacy** | Your password is not stored, identifiers are redacted everywhere. Details below. |
@@ -53,7 +54,9 @@ One device per air fryer. Entity IDs depend on the name in the app (here “Frit
 | `sensor.fritteuse_status` | Overall status (attribute `rohwert` = what the fryer actually reported) |
 | `sensor.fritteuse_time_remaining` | Minutes until done (overall) |
 | `sensor.fritteuse_done_at` | Time when everything is done |
-| `sensor.fritteuse_zone_1_…` / `zone_2_…` | Status, time remaining, done at, target temperature, temperature, program |
+| `sensor.fritteuse_zone_1_…` / `zone_2_…` | Status, time remaining, done at, program (only while cooking) |
+| `switch.fritteuse_zone_1_cooking` / `zone_2_cooking` | On = zone is cooking. **Turn off = stop the zone.** Turning on is blocked (EU), you get a message. |
+| `number.fritteuse_zone_1_set_temperature` / `…_set_cooking_time` | Change temperature (35–240 °C) / minutes while the zone is cooking |
 | `binary_sensor.fritteuse_cooking` | On while preheating, cooking or briefly paused |
 | `button.fritteuse_stop_cooking` | Stop |
 | *Diagnostic:* `binary_sensor.fritteuse_online`, `button.fritteuse_refresh_now`, `sensor.fritteuse_raw_data` | Connection, poll now, last cloud response (without identifiers) |
@@ -117,6 +120,7 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 - **Unofficial.** If Cosori/VeSync change their server, it may break until updated.
 - **Remote start** is partly blocked by Cosori in the EU. You get a clear error if the fryer refuses.
 - **Pause/resume:** command not known for sure yet – no button.
+- **Stopping a single zone and changing temperature/time** are sent as the app is believed to do (`endCook` with zone, `setTimeOrTemp`) – **not yet tried on a real TwinFry**.
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.
 - **Older 3.7/5.8 qt models** (CS…): display only, no start.
 

@@ -144,9 +144,6 @@
       "zone_fertig_um": {
         "name": "Zone {zone} fertig um"
       },
-      "zone_solltemperatur": {
-        "name": "Zone {zone} Solltemperatur"
-      },
       "zone_temperatur": {
         "name": "Zone {zone} Temperatur"
       },
@@ -154,7 +151,12 @@
         "name": "Zone {zone} Programm"
       },
       "rohdaten": {
-        "name": "Rohdaten"
+        "name": "Rohdaten",
+        "state_attributes": {
+          "abgelehnte_abfragen": {
+            "name": "Abgelehnte Abfragen"
+          }
+        }
       }
     },
     "binary_sensor": {
@@ -172,6 +174,19 @@
       "aktualisieren": {
         "name": "Jetzt aktualisieren"
       }
+    },
+    "switch": {
+      "zone_gart": {
+        "name": "Zone {zone} gart"
+      }
+    },
+    "number": {
+      "zone_temperatur": {
+        "name": "Zone {zone} Temperatur einstellen"
+      },
+      "zone_garzeit": {
+        "name": "Zone {zone} Garzeit einstellen"
+      }
     }
   },
   "exceptions": {
@@ -180,6 +195,15 @@
     },
     "start_nicht_unterstuetzt": {
       "message": "Starten geht bei diesem älteren Modell (noch) nicht."
+    },
+    "start_gesperrt": {
+      "message": "Starten aus der Ferne erlaubt Cosori in der EU nicht. Bitte am Gerät starten."
+    },
+    "nur_beim_garen": {
+      "message": "Das geht nur, solange die Zone gart."
+    },
+    "abgelehnt": {
+      "message": "Die Fritteuse hat den Befehl abgelehnt: {fehler}"
     }
   },
   "services": {
