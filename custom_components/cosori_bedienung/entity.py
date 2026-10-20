@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -34,3 +37,25 @@ class CosoriEntity(CoordinatorEntity[CosoriCoordinator]):
     @property
     def available(self) -> bool:
         return super().available and self._cid in self.coordinator.fryers
+
+
+@callback
+def async_remove_stale(
+    hass: HomeAssistant, entry: ConfigEntry, platform: str, keep: set[str | None]
+) -> None:
+    """Alte Entitäten löschen, die es nach einem Update nicht mehr gibt.
+
+    Für Doofe: Sonst stünden z. B. nach der Umstellung auf Zonen die alten
+    Sensoren als „nicht mehr bereitgestellt“ in der Liste herum.
+    """
+    coordinator: CosoriCoordinator = entry.runtime_data
+    if any(
+        not f.online or (not f.raw_status and not f.raw_multi)
+        for f in coordinator.fryers.values()
+    ):
+        # Ohne frische Daten wissen wir nicht sicher, was es gibt → nichts löschen
+        return
+    registry = er.async_get(hass)
+    for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if reg.domain == platform and reg.unique_id not in keep:
+            registry.async_remove(reg.entity_id)
