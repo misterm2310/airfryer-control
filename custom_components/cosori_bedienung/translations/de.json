@@ -1,0 +1,253 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Cosori-Fritteuse verbinden",
+        "description": "Melde dich mit demselben Konto an wie in der VeSync-App. Dein Passwort wird nicht gespeichert, nur sein MD5-Wert (den braucht VeSync zum Anmelden).",
+        "data": {
+          "email": "E-Mail",
+          "passwort": "Passwort",
+          "region": "Region"
+        },
+        "data_description": {
+          "region": "EU für Deutschland und Europa, US für Nordamerika."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Neu anmelden",
+        "description": "VeSync hat die Anmeldung für {email} abgelehnt. Bitte gib das Passwort erneut ein.",
+        "data": {
+          "passwort": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "anmeldung_falsch": "E-Mail oder Passwort stimmt nicht.",
+      "keine_verbindung": "VeSync-Server nicht erreichbar. Später nochmal versuchen.",
+      "keine_fritteuse": "In diesem Konto ist keine Heißluftfritteuse. Erst in der VeSync-App hinzufügen.",
+      "unbekannt": "Unerwarteter Fehler – siehe Protokoll."
+    },
+    "abort": {
+      "already_configured": "Dieses Konto ist schon eingerichtet.",
+      "reauth_successful": "Wieder angemeldet. 🍟"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen",
+        "data": {
+          "intervall": "Abfrage-Takt, wenn die Fritteuse nichts tut",
+          "zeiteinheit": "Zeitangaben der Fritteuse"
+        },
+        "data_description": {
+          "intervall": "Solange sie arbeitet, wird immer alle 15 Sekunden nachgefragt.",
+          "zeiteinheit": "Nur ändern, wenn die Restzeit 60-mal zu groß oder zu klein angezeigt wird."
+        }
+      }
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "eu": "EU (Europa)",
+        "us": "US (Nordamerika)"
+      }
+    },
+    "zeiteinheit": {
+      "options": {
+        "auto": "Automatisch",
+        "sekunden": "Sekunden",
+        "minuten": "Minuten"
+      }
+    },
+    "zone": {
+      "options": {
+        "1": "Zone 1",
+        "2": "Zone 2",
+        "beide": "Beide Zonen",
+        "ganz": "Ganze Schublade (ohne Trennwand)"
+      }
+    },
+    "programm": {
+      "options": {
+        "airfry": "Heißluft (Air Fry)",
+        "roast": "Braten (Roast)",
+        "bake": "Backen (Bake)",
+        "broil": "Grillen (Broil)",
+        "reheat": "Aufwärmen (Reheat)",
+        "dehydrate": "Dörren (Dehydrate)",
+        "preheat": "Vorheizen (Preheat)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Zustand",
+        "state": {
+          "aus": "Aus",
+          "bereit": "Bereit",
+          "vorheizen": "Heizt vor",
+          "vorgeheizt": "Vorgeheizt",
+          "gart": "Gart",
+          "pausiert": "Pausiert",
+          "schublade_offen": "Schublade offen",
+          "fertig": "Fertig",
+          "warmhalten": "Hält warm",
+          "offline": "Offline",
+          "unbekannt": "Unbekannt"
+        },
+        "state_attributes": {
+          "rohwert": {
+            "name": "Rohwert"
+          },
+          "letzter_fehler": {
+            "name": "Letzter Fehler"
+          }
+        }
+      },
+      "restzeit": {
+        "name": "Restzeit"
+      },
+      "fertig_um": {
+        "name": "Fertig um"
+      },
+      "solltemperatur": {
+        "name": "Solltemperatur"
+      },
+      "temperatur": {
+        "name": "Temperatur"
+      },
+      "programm": {
+        "name": "Programm"
+      },
+      "zone_status": {
+        "name": "Zone {zone} Zustand",
+        "state": {
+          "aus": "Aus",
+          "bereit": "Bereit",
+          "vorheizen": "Heizt vor",
+          "vorgeheizt": "Vorgeheizt",
+          "gart": "Gart",
+          "pausiert": "Pausiert",
+          "schublade_offen": "Schublade offen",
+          "fertig": "Fertig",
+          "warmhalten": "Hält warm",
+          "offline": "Offline",
+          "unbekannt": "Unbekannt"
+        }
+      },
+      "zone_restzeit": {
+        "name": "Zone {zone} Restzeit"
+      },
+      "zone_fertig_um": {
+        "name": "Zone {zone} fertig um"
+      },
+      "zone_solltemperatur": {
+        "name": "Zone {zone} Solltemperatur"
+      },
+      "zone_temperatur": {
+        "name": "Zone {zone} Temperatur"
+      },
+      "zone_programm": {
+        "name": "Zone {zone} Programm"
+      },
+      "rohdaten": {
+        "name": "Rohdaten"
+      }
+    },
+    "binary_sensor": {
+      "gart": {
+        "name": "Gart gerade"
+      },
+      "online": {
+        "name": "Online"
+      }
+    },
+    "button": {
+      "garen_beenden": {
+        "name": "Garen beenden"
+      },
+      "aktualisieren": {
+        "name": "Jetzt aktualisieren"
+      }
+    }
+  },
+  "exceptions": {
+    "geraet_unbekannt": {
+      "message": "Dieses Gerät gehört nicht zu Cosori Bedienung."
+    },
+    "start_nicht_unterstuetzt": {
+      "message": "Starten geht bei diesem älteren Modell (noch) nicht."
+    }
+  },
+  "services": {
+    "garen_starten": {
+      "name": "Garen starten",
+      "description": "Startet die Fritteuse mit Temperatur, Zeit und Programm. Schublade muss drin sein. In der EU lehnt Cosori das teilweise ab.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse?"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "Zone 1, Zone 2, beide oder die ganze Schublade."
+        },
+        "temperatur": {
+          "name": "Temperatur",
+          "description": "In °C."
+        },
+        "minuten": {
+          "name": "Minuten",
+          "description": "Garzeit."
+        },
+        "programm": {
+          "name": "Programm",
+          "description": "Wie in der App."
+        },
+        "temperatur_zone2": {
+          "name": "Temperatur Zone 2",
+          "description": "Nur bei „Beide Zonen“; leer = wie Zone 1."
+        },
+        "minuten_zone2": {
+          "name": "Minuten Zone 2",
+          "description": "Nur bei „Beide Zonen“; leer = wie Zone 1."
+        },
+        "programm_zone2": {
+          "name": "Programm Zone 2",
+          "description": "Nur bei „Beide Zonen“; leer = wie Zone 1."
+        }
+      }
+    },
+    "garen_beenden": {
+      "name": "Garen beenden",
+      "description": "Beendet den laufenden Garvorgang.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse?"
+        }
+      }
+    },
+    "befehl_senden": {
+      "name": "Befehl senden (für Bastler)",
+      "description": "Nur für Admins: schickt einen beliebigen App-Befehl an die Fritteuse und zeigt die Antwort (ohne Konto-Daten).",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse?"
+        },
+        "methode": {
+          "name": "Methode",
+          "description": "z. B. getAirfryerStatus, getAirfryerMultiStatus, endCook"
+        },
+        "daten": {
+          "name": "Daten",
+          "description": "Zusätzliche Daten als JSON-Objekt."
+        }
+      }
+    }
+  }
+}

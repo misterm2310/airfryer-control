@@ -1,0 +1,99 @@
+garen_starten:
+  fields:
+    geraet:
+      required: true
+      selector:
+        device:
+          integration: cosori_bedienung
+    zone:
+      default: "1"
+      selector:
+        select:
+          translation_key: zone
+          options:
+            - "1"
+            - "2"
+            - "beide"
+            - "ganz"
+    temperatur:
+      required: true
+      default: 200
+      selector:
+        number:
+          min: 35
+          max: 240
+          step: 5
+          unit_of_measurement: "°C"
+    minuten:
+      required: true
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 1440
+          mode: box
+          unit_of_measurement: "min"
+    programm:
+      default: airfry
+      selector:
+        select:
+          translation_key: programm
+          options:
+            - airfry
+            - roast
+            - bake
+            - broil
+            - reheat
+            - dehydrate
+            - preheat
+    temperatur_zone2:
+      selector:
+        number:
+          min: 35
+          max: 240
+          step: 5
+          unit_of_measurement: "°C"
+    minuten_zone2:
+      selector:
+        number:
+          min: 1
+          max: 1440
+          mode: box
+          unit_of_measurement: "min"
+    programm_zone2:
+      selector:
+        select:
+          translation_key: programm
+          options:
+            - airfry
+            - roast
+            - bake
+            - broil
+            - reheat
+            - dehydrate
+            - preheat
+
+garen_beenden:
+  fields:
+    geraet:
+      required: true
+      selector:
+        device:
+          integration: cosori_bedienung
+
+befehl_senden:
+  fields:
+    geraet:
+      required: true
+      selector:
+        device:
+          integration: cosori_bedienung
+    methode:
+      required: true
+      example: getAirfryerStatus
+      selector:
+        text:
+    daten:
+      example: "{}"
+      selector:
+        object:

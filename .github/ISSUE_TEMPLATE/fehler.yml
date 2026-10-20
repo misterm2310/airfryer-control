@@ -1,0 +1,29 @@
+name: 🐞 Fehler melden
+description: Etwas wird falsch angezeigt oder funktioniert nicht.
+labels: ["fehler"]
+body:
+  - type: input
+    id: modell
+    attributes:
+      label: Modell der Fritteuse
+      description: Steht auf dem Typenschild, z. B. CAF-TF101S-AEUR
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version von Cosori Bedienung
+      description: HACS → Cosori Bedienung, z. B. 1.0.0-beta.1
+    validations:
+      required: true
+  - type: textarea
+    id: was
+    attributes:
+      label: Was ist passiert – und was hättest du erwartet?
+    validations:
+      required: true
+  - type: textarea
+    id: diagnose
+    attributes:
+      label: Diagnose
+      description: Geräte & Dienste → Cosori Bedienung → ⋮ → „Diagnose herunterladen“ und die Datei hier hineinziehen. Kennungen sind darin schon geschwärzt.

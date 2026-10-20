@@ -1,0 +1,253 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Cosori air fryer",
+        "description": "Sign in with the same account you use in the VeSync app. Your password is not stored, only its MD5 value (which VeSync needs to log in).",
+        "data": {
+          "email": "Email",
+          "passwort": "Password",
+          "region": "Region"
+        },
+        "data_description": {
+          "region": "EU for Germany and Europe, US for North America."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in again",
+        "description": "VeSync rejected the login for {email}. Please enter the password again.",
+        "data": {
+          "passwort": "Password"
+        }
+      }
+    },
+    "error": {
+      "anmeldung_falsch": "Email or password is wrong.",
+      "keine_verbindung": "Cannot reach the VeSync server. Try again later.",
+      "keine_fritteuse": "No air fryer in this account. Add it in the VeSync app first.",
+      "unbekannt": "Unexpected error – see the log."
+    },
+    "abort": {
+      "already_configured": "This account is already set up.",
+      "reauth_successful": "Signed in again. 🍟"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "intervall": "Polling interval while idle",
+          "zeiteinheit": "Time values of the air fryer"
+        },
+        "data_description": {
+          "intervall": "While cooking, it is always polled every 15 seconds.",
+          "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small."
+        }
+      }
+    }
+  },
+  "selector": {
+    "region": {
+      "options": {
+        "eu": "EU (Europe)",
+        "us": "US (North America)"
+      }
+    },
+    "zeiteinheit": {
+      "options": {
+        "auto": "Automatic",
+        "sekunden": "Seconds",
+        "minuten": "Minutes"
+      }
+    },
+    "zone": {
+      "options": {
+        "1": "Zone 1",
+        "2": "Zone 2",
+        "beide": "Both zones",
+        "ganz": "Whole drawer (no divider)"
+      }
+    },
+    "programm": {
+      "options": {
+        "airfry": "Air Fry",
+        "roast": "Roast",
+        "bake": "Bake",
+        "broil": "Broil",
+        "reheat": "Reheat",
+        "dehydrate": "Dehydrate",
+        "preheat": "Preheat"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "aus": "Off",
+          "bereit": "Ready",
+          "vorheizen": "Preheating",
+          "vorgeheizt": "Preheated",
+          "gart": "Cooking",
+          "pausiert": "Paused",
+          "schublade_offen": "Drawer open",
+          "fertig": "Done",
+          "warmhalten": "Keeping warm",
+          "offline": "Offline",
+          "unbekannt": "Unknown"
+        },
+        "state_attributes": {
+          "rohwert": {
+            "name": "Raw value"
+          },
+          "letzter_fehler": {
+            "name": "Last error"
+          }
+        }
+      },
+      "restzeit": {
+        "name": "Time remaining"
+      },
+      "fertig_um": {
+        "name": "Done at"
+      },
+      "solltemperatur": {
+        "name": "Target temperature"
+      },
+      "temperatur": {
+        "name": "Temperature"
+      },
+      "programm": {
+        "name": "Program"
+      },
+      "zone_status": {
+        "name": "Zone {zone} status",
+        "state": {
+          "aus": "Off",
+          "bereit": "Ready",
+          "vorheizen": "Preheating",
+          "vorgeheizt": "Preheated",
+          "gart": "Cooking",
+          "pausiert": "Paused",
+          "schublade_offen": "Drawer open",
+          "fertig": "Done",
+          "warmhalten": "Keeping warm",
+          "offline": "Offline",
+          "unbekannt": "Unknown"
+        }
+      },
+      "zone_restzeit": {
+        "name": "Zone {zone} time remaining"
+      },
+      "zone_fertig_um": {
+        "name": "Zone {zone} done at"
+      },
+      "zone_solltemperatur": {
+        "name": "Zone {zone} target temperature"
+      },
+      "zone_temperatur": {
+        "name": "Zone {zone} temperature"
+      },
+      "zone_programm": {
+        "name": "Zone {zone} program"
+      },
+      "rohdaten": {
+        "name": "Raw data"
+      }
+    },
+    "binary_sensor": {
+      "gart": {
+        "name": "Cooking"
+      },
+      "online": {
+        "name": "Online"
+      }
+    },
+    "button": {
+      "garen_beenden": {
+        "name": "Stop cooking"
+      },
+      "aktualisieren": {
+        "name": "Refresh now"
+      }
+    }
+  },
+  "exceptions": {
+    "geraet_unbekannt": {
+      "message": "This device does not belong to Cosori Bedienung."
+    },
+    "start_nicht_unterstuetzt": {
+      "message": "Starting is not (yet) supported on this older model."
+    }
+  },
+  "services": {
+    "garen_starten": {
+      "name": "Start cooking",
+      "description": "Starts the air fryer with temperature, time and program. The drawer must be inserted. In the EU, Cosori may reject this.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer?"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "Zone 1, zone 2, both or the whole drawer."
+        },
+        "temperatur": {
+          "name": "Temperature",
+          "description": "In °C."
+        },
+        "minuten": {
+          "name": "Minutes",
+          "description": "Cooking time."
+        },
+        "programm": {
+          "name": "Program",
+          "description": "As in the app."
+        },
+        "temperatur_zone2": {
+          "name": "Temperature zone 2",
+          "description": "Only for “Both zones”; empty = same as zone 1."
+        },
+        "minuten_zone2": {
+          "name": "Minutes zone 2",
+          "description": "Only for “Both zones”; empty = same as zone 1."
+        },
+        "programm_zone2": {
+          "name": "Program zone 2",
+          "description": "Only for “Both zones”; empty = same as zone 1."
+        }
+      }
+    },
+    "garen_beenden": {
+      "name": "Stop cooking",
+      "description": "Stops the current cooking.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer?"
+        }
+      }
+    },
+    "befehl_senden": {
+      "name": "Send command (for tinkerers)",
+      "description": "Admins only: sends any app command to the air fryer and shows the response (without account data).",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer?"
+        },
+        "methode": {
+          "name": "Method",
+          "description": "e.g. getAirfryerStatus, getAirfryerMultiStatus, endCook"
+        },
+        "daten": {
+          "name": "Data",
+          "description": "Extra data as JSON object."
+        }
+      }
+    }
+  }
+}
