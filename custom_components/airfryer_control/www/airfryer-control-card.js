@@ -362,6 +362,7 @@ class AirfryerControlTicker extends HTMLElement {
     </style>
     <ha-card><div class="box"><ha-icon icon="mdi:chef-hat"></ha-icon><div class="win"><div class="wrap"><span class="txt">${esc(text)}</span><span class="txt">${esc(text)}</span></div></div><ha-icon icon="mdi:chef-hat"></ha-icon></div></ha-card>`;
     this._measured = false;
+    this._tries = 0;
     this._measure();
   }
 
@@ -375,7 +376,7 @@ class AirfryerControlTicker extends HTMLElement {
       const speed = Math.min(200, Math.max(20, Number(this._config?.speed) || 60));
       wrap.style.animationDuration = `${Math.max(8, Math.round(w / speed))}s`;
       this._measured = true;
-    } else if (!this._retry) {
+    } else if (!this._retry && (this._tries = (this._tries || 0) + 1) <= 5) { // nur kurz erneut versuchen (versteckte Karte hat Breite 0) – danach beim nächsten Update
       this._retry = requestAnimationFrame(() => { this._retry = 0; this._measure(); });
     }
   }
