@@ -91,7 +91,6 @@ hide_when_idle: true
 extra_entities:
   - sensor.einkaufsliste_kochtimer
 speed: 60      # Pixel pro Sekunde (20–200)
-font_size: 16
 ```
 
 Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.

@@ -291,7 +291,7 @@ class AirfryerControlTicker extends HTMLElement {
     this._hass = hass;
     const parts = this._parts();
     const sig = parts.items.join("|") + parts.done + (this._config?.language || "") + (this._config?.speed || "");
-    if (sig === this._sig) return;
+    if (sig === this._sig) { this._measure(); return; }
     this._sig = sig;
     this._render();
   }
@@ -343,7 +343,7 @@ class AirfryerControlTicker extends HTMLElement {
     const base = items.length ? items.join(" +++ ") : tr(hass, "👨‍🍳 Kein Kochtimer aktiv", "👨‍🍳 No cooking timer active");
     const piece = `+++ ${base} `;
     const plain = piece.length;
-    const n = Math.max(5, Math.ceil(260 / plain));
+    const n = Math.max(5, Math.ceil(320 / plain));
     const text = piece.repeat(n);
     const dur = Math.max(8, Math.round(((plain * n * 11) / 100) * (60 / (Number(this._config.speed) || 60))));
     const color = done ? "#E53935" : "#26A69A";
@@ -355,12 +355,29 @@ class AirfryerControlTicker extends HTMLElement {
       .box ha-icon + .win + ha-icon { animation-delay:.5s; }
       .win { flex:1; min-width:0; overflow:hidden; display:flex; align-items:center; }
       .wrap { white-space:nowrap; display:flex; animation:ac_tick ${dur}s linear infinite; }
-      .txt { font-family:Roboto,sans-serif; font-size:${Number(this._config.font_size || 16)}px; font-weight:500; line-height:20px; padding-right:20px; color:var(--primary-text-color); }
+      .txt { font-family:Roboto,sans-serif; font-size:16px; font-weight:500; line-height:20px; padding-right:20px; color:var(--primary-text-color); }
       @keyframes ac_pulse { 0% { opacity:1 } 50% { opacity:.3 } 100% { opacity:1 } }
       @keyframes ac_tick { from { transform:translateX(0) } to { transform:translateX(-50%) } }
       @media (prefers-reduced-motion: reduce) { .wrap { animation:none; } .box ha-icon { animation:none; } }
     </style>
     <ha-card><div class="box"><ha-icon icon="mdi:chef-hat"></ha-icon><div class="win"><div class="wrap"><span class="txt">${esc(text)}</span><span class="txt">${esc(text)}</span></div></div><ha-icon icon="mdi:chef-hat"></ha-icon></div></ha-card>`;
+    this._measured = false;
+    this._measure();
+  }
+
+  // Dauer aus der echten Textbreite: Breite ÷ Tempo (Pixel pro Sekunde). So läuft jeder Text gleich schnell.
+  _measure() {
+    if (this._measured || !this.shadowRoot) return;
+    const wrap = this.shadowRoot.querySelector(".wrap");
+    const one = wrap?.firstElementChild;
+    const w = one ? one.getBoundingClientRect().width : 0;
+    if (w > 0) {
+      const speed = Math.min(200, Math.max(20, Number(this._config?.speed) || 60));
+      wrap.style.animationDuration = `${Math.max(8, Math.round(w / speed))}s`;
+      this._measured = true;
+    } else if (!this._retry) {
+      this._retry = requestAnimationFrame(() => { this._retry = 0; this._measure(); });
+    }
   }
 }
 
@@ -395,14 +412,12 @@ const tickLabels = {
   hide_when_idle: ["Ausblenden, wenn nichts läuft", "Hide when idle"],
   speed: ["Tempo (Pixel pro Sekunde)", "Speed (pixels per second)"],
   language: ["Sprache", "Language"],
-  font_size: ["Schriftgröße", "Font size"],
 };
 customElements.define("airfryer-control-ticker-editor", makeEditor(
   () => [
     { name: "extra_entities", selector: { entity: { multiple: true, domain: "sensor" } } },
     { name: "hide_when_idle", selector: { boolean: {} } },
     { name: "speed", selector: { number: { min: 20, max: 200, step: 5, mode: "box" } } },
-    { name: "font_size", selector: { number: { min: 12, max: 28, mode: "box" } } },
     { name: "language", selector: { select: { mode: "dropdown", options: [{ value: "auto", label: "Auto (Home Assistant)" }, { value: "de", label: "Deutsch" }, { value: "en", label: "English" }] } } },
   ],
   (h, n) => { const l = tickLabels[n]; return l ? tr(h, l[0], l[1]) : n; }));
