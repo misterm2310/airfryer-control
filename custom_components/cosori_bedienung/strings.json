@@ -61,23 +61,14 @@
         "minuten": "Minutes"
       }
     },
-    "zone": {
-      "options": {
-        "1": "Zone 1",
-        "2": "Zone 2",
-        "beide": "Both zones",
-        "ganz": "Whole drawer (no divider)"
-      }
-    },
     "programm": {
       "options": {
-        "airfry": "Air Fry",
-        "roast": "Roast",
-        "bake": "Bake",
-        "broil": "Broil",
-        "reheat": "Reheat",
-        "dehydrate": "Dehydrate",
-        "preheat": "Preheat"
+        "airfry": "Heißluft (Air Fry)",
+        "roast": "Braten (Roast)",
+        "bake": "Backen (Bake)",
+        "grill": "Grillen (Grill)",
+        "reheat": "Aufwärmen (Reheat)",
+        "dry": "Dörren (Dry)"
       }
     }
   },
@@ -176,8 +167,8 @@
       }
     },
     "switch": {
-      "zone_gart": {
-        "name": "Zone {zone} cooking"
+      "zone_senden": {
+        "name": "Zone {zone} senden / beenden"
       }
     },
     "number": {
@@ -186,6 +177,11 @@
       },
       "zone_garzeit": {
         "name": "Zone {zone} set cooking time"
+      }
+    },
+    "select": {
+      "zone_programm_waehlen": {
+        "name": "Zone {zone} Programm"
       }
     }
   },
@@ -196,52 +192,45 @@
     "start_nicht_unterstuetzt": {
       "message": "Starting is not (yet) supported on this older model."
     },
-    "start_gesperrt": {
-      "message": "Cosori does not allow remote start in the EU. Please start on the device."
-    },
-    "nur_beim_garen": {
-      "message": "This only works while the zone is cooking."
-    },
     "abgelehnt": {
       "message": "The air fryer rejected the command: {fehler}"
+    },
+    "senden_abgelehnt": {
+      "message": "Die Fritteuse hat „Senden“ abgelehnt. Probierte Schreibweisen und Codes: {codes}. Schick mir die Zeile gern ins GitHub-Ticket."
     }
   },
   "services": {
-    "garen_starten": {
-      "name": "Start cooking",
-      "description": "Starts the air fryer with temperature, time and program. The drawer must be inserted. In the EU, Cosori may reject this.",
+    "senden_testen": {
+      "name": "Senden testen (für Bastler)",
+      "description": "Nur für Admins: schickt Programm, Temperatur und Zeit an eine Zone, ohne zu starten, und zeigt, welche Schreibweise die Fritteuse angenommen hat.",
       "fields": {
         "geraet": {
-          "name": "Air fryer",
-          "description": "Which air fryer?"
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse?"
         },
         "zone": {
           "name": "Zone",
-          "description": "Zone 1, zone 2, both or the whole drawer."
+          "description": "1 oder 2."
         },
         "temperatur": {
-          "name": "Temperature",
+          "name": "Temperatur",
           "description": "In °C."
         },
         "minuten": {
-          "name": "Minutes",
-          "description": "Cooking time."
+          "name": "Minuten",
+          "description": "Garzeit."
         },
         "programm": {
-          "name": "Program",
-          "description": "As in the app."
+          "name": "Programm",
+          "description": "Wie in der App."
         },
-        "temperatur_zone2": {
-          "name": "Temperature zone 2",
-          "description": "Only for “Both zones”; empty = same as zone 1."
+        "variante": {
+          "name": "Schreibweise",
+          "description": "Leer = der Reihe nach alle probieren, bis eine klappt. Oder genau eine, z. B. multi_c."
         },
-        "minuten_zone2": {
-          "name": "Minutes zone 2",
-          "description": "Only for “Both zones”; empty = same as zone 1."
-        },
-        "programm_zone2": {
-          "name": "Program zone 2",
-          "description": "Only for “Both zones”; empty = same as zone 1."
+        "alle": {
+          "name": "Alle probieren",
+          "description": "An = nicht beim ersten Treffer aufhören."
         }
       }
     },

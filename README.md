@@ -21,9 +21,9 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 | 🧩 **Zwei Zonen** | Bei der TwinFry eigene Sensoren für Zone 1 und Zone 2. Ganze Schublade ohne Trennwand = Zone 1. |
 | 🌡️ **Temperatur & Programm** | Eingestellte Temperatur und Programm (AirFry, Roast …). Eine gemessene Temperatur gibt's nur, wenn die Fritteuse sie meldet (die TwinFry tut das nicht). |
 | 🔔 **Ereignis „fertig“** | `cosori_bedienung_fertig` – für Handy-Nachricht, Alexa-/Google-Durchsage oder „Fernseher pausieren“. |
-| ⏹️ **Garen beenden** | Als Knopf für die ganze Fritteuse – und als **Schalter pro Zone** („Zone 1 gart“: umlegen = Zone beenden). |
-| 🎛️ **Temperatur & Zeit ändern** | Eingabefelder pro Zone. Während die Zone gart, schickst du neue Werte direkt an die Fritteuse – wie in der App. |
-| ▶️ **Garen starten** | Dienst mit Zone, Temperatur, Minuten, Programm (siehe „Ehrlich gesagt“). |
+| 📤 **Senden (wie in der App)** | Pro Zone Programm, Temperatur und Garzeit einstellen und den Schalter **„Zone n senden / beenden“** auf An legen – wie „Senden“ in der VeSync-App. Die Fritteuse wacht auf und wartet, bis du am Gerät auf Start drückst. (Starten aus der Ferne sperrt Cosori in der EU.) |
+| ⏹️ **Garen beenden** | Als Knopf für die ganze Fritteuse – und derselbe Schalter pro Zone: Aus = Zone beenden. |
+| 🎛️ **Temperatur & Zeit ändern** | Eingabefelder pro Zone. Gart die Zone schon, gehen neue Werte direkt an die Fritteuse. |
 | 🐢🐇 **Schlauer Takt** | Tut sie nichts: alle 60 Sekunden nachfragen (einstellbar). Arbeitet sie: alle 15 Sekunden. |
 | 🛡️ **Datenschutz** | Dein Passwort wird nicht gespeichert, Kennungen werden überall geschwärzt. Details unten. |
 
@@ -57,9 +57,10 @@ Pro Fritteuse ein Gerät. Die Namen hängen davon ab, wie deine Fritteuse in der
 | `sensor.fritteuse_restzeit` | Minuten bis fertig (gesamt) |
 | `sensor.fritteuse_fertig_um` | Uhrzeit, wann alles fertig ist |
 | `sensor.fritteuse_zone_1_…` / `zone_2_…` | Zustand, Restzeit, fertig um, Programm (nur beim Garen) |
-| `switch.fritteuse_zone_1_gart` / `zone_2_gart` | An = Zone gart. **Aus schalten = Zone beenden.** Einschalten geht nicht (EU-Sperre), dann kommt eine Meldung. |
-| `number.fritteuse_zone_1_temperatur_einstellen` | Temperatur der Zone (35–240 °C) – ändern, während sie gart |
-| `number.fritteuse_zone_1_garzeit_einstellen` | Garzeit der Zone in Minuten – ändern, während sie gart |
+| `select.fritteuse_zone_1_programm` / `zone_2_…` | Programm für „Senden“: Heißluft, Braten, Backen, Grillen, Aufwärmen, Dörren. Beim Wechsel setzt es Temperatur und Zeit auf die Vorschlagswerte der Fritteuse. |
+| `number.fritteuse_zone_1_temperatur_einstellen` | Temperatur der Zone (35–240 °C) – wird beim Senden mitgeschickt |
+| `number.fritteuse_zone_1_garzeit_einstellen` | Garzeit der Zone in Minuten – wird beim Senden mitgeschickt |
+| `switch.fritteuse_zone_1_senden_beenden` / `zone_2_…` | **An = Werte an die Fritteuse senden** (sie wartet dann auf Start am Gerät). **Aus = Zone beenden.** Das Programm, Temperatur und Zeit stehen als Attribute dabei. |
 | `binary_sensor.fritteuse_gart_gerade` | An, solange vorgeheizt, gegart oder kurz pausiert wird |
 | `button.fritteuse_garen_beenden` | Stopp für die ganze Fritteuse |
 | *Diagnose:* `binary_sensor.fritteuse_online`, `button.fritteuse_jetzt_aktualisieren`, `sensor.fritteuse_rohdaten` | Verbindung, sofort nachfragen, letzte Antwort der Cloud (ohne Kennungen) und welche Abfragen die Fritteuse ablehnt |
@@ -92,18 +93,22 @@ cards:
     name: Fertig um
   - type: entities
     entities:
-      - entity: switch.fritteuse_zone_1_gart
-        name: Zone 1 gart
+      - entity: select.fritteuse_zone_1_programm
+        name: Zone 1 Programm
       - entity: number.fritteuse_zone_1_temperatur_einstellen
         name: Zone 1 Temperatur
       - entity: number.fritteuse_zone_1_garzeit_einstellen
         name: Zone 1 Garzeit
-      - entity: switch.fritteuse_zone_2_gart
-        name: Zone 2 gart
+      - entity: switch.fritteuse_zone_1_senden_beenden
+        name: Zone 1 senden / beenden
+      - entity: select.fritteuse_zone_2_programm
+        name: Zone 2 Programm
       - entity: number.fritteuse_zone_2_temperatur_einstellen
         name: Zone 2 Temperatur
       - entity: number.fritteuse_zone_2_garzeit_einstellen
         name: Zone 2 Garzeit
+      - entity: switch.fritteuse_zone_2_senden_beenden
+        name: Zone 2 senden / beenden
   - type: tile
     entity: button.fritteuse_garen_beenden
     name: Alles stoppen
@@ -163,19 +168,9 @@ actions:
 
 | Dienst | Was er tut |
 |---|---|
-| `cosori_bedienung.garen_starten` | Fritteuse starten: `zone` (`1`, `2`, `beide`, `ganz`), `temperatur` (°C), `minuten`, `programm` (`airfry`, `roast`, `bake`, `broil`, `reheat`, `dehydrate`, `preheat`). Bei `beide` optional eigene Werte für Zone 2 (`temperatur_zone2` …). |
+| `cosori_bedienung.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden alle der Reihe nach probiert, bis eine klappt. |
 | `cosori_bedienung.garen_beenden` | Stopp. |
 | `cosori_bedienung.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
-
-```yaml
-action: cosori_bedienung.garen_starten
-data:
-  geraet: <Gerät auswählen>
-  zone: "1"
-  temperatur: 200
-  minuten: 15
-  programm: airfry
-```
 
 ---
 
@@ -203,7 +198,8 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 ## 🙈 Ehrlich gesagt: Was (noch) nicht geht
 
 - **Inoffiziell.** Cosori/VeSync bieten keine offene Schnittstelle. Ändern sie etwas am Server, kann die Integration ausfallen, bis sie angepasst ist.
-- **Starten aus der Ferne:** In der EU erlaubt Cosori das teilweise **nicht** (auch in der App kann man oft nur pausieren/stoppen). Lehnt die Fritteuse ab, bekommst du eine klare Fehlermeldung.
+- **Starten aus der Ferne:** In der EU erlaubt Cosori das **nicht** – darum gibt es keinen Start-Knopf. „Senden“ weckt die Fritteuse nur auf; gestartet wird am Gerät.
+- **„Senden“ ist neu und noch nicht bestätigt.** Welcher Befehl hinter dem „Senden“-Knopf der App steckt, wissen wir noch nicht sicher. Die Integration probiert deshalb mehrere Schreibweisen (alle mit „nicht starten“) und merkt sich die, die die Fritteuse annimmt. Klappt keine, steht die Liste der Fehlercodes in der Meldung – bitte im Ticket melden.
 - **Pausieren/Fortsetzen:** Den Befehl dafür kennen wir noch nicht sicher – darum gibt es (noch) keinen Knopf.
 - **Zone einzeln beenden und Temperatur/Zeit ändern** schicken die Befehle so, wie die App es nach heutigem Wissen tut (`endCook` mit Zone, `setTimeOrTemp`). An der echten TwinFry ist das noch **nicht ausprobiert**. Lehnt sie ab, bekommst du eine Meldung mit dem Grund.
 - **Feldnamen:** Den Stillstand der TwinFry kennen wir aus einer echten Antwort, die Werte **während des Garens** noch nicht. Zeigt ein Sensor Quatsch, schau in `sensor.…_rohdaten` – dort steht, was die Fritteuse wirklich geschickt hat.

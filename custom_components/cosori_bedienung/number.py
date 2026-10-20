@@ -1,14 +1,12 @@
 """Eingabefelder pro Zone: Temperatur und Garzeit.
 
-Für Doofe: Die Felder zeigen, was die Fritteuse gerade eingestellt hat.
-Änderst du einen Wert, während die Zone gart, schicken wir ihn hin – wie
-die App mit „setTimeOrTemp“. Steht die Zone still, gibt's eine Meldung,
-denn ohne Garvorgang gibt es nichts zu ändern (Starten ist ja gesperrt).
+Für Doofe: Die Felder merken sich, was du für die Zone einstellen willst.
+Gesendet wird erst mit dem Schalter „Zone n senden“. Gart die Zone schon,
+schicken wir die Änderung sofort hin – wie die App mit „setTimeOrTemp“.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.number import (
@@ -20,21 +18,23 @@ from homeassistant.components.number import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .api import CosoriError
 from .const import DOMAIN
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import ZoneState, zone_view, zones_for_device
+from .senden import get_plan
 
 
 @dataclass(frozen=True, kw_only=True)
 class ZoneNumberDescription(NumberEntityDescription):
     """Ein Eingabefeld einer Zone."""
 
-    value_fn: Callable[[ZoneState], float | None]
+    plan_key: str
 
 
 NUMBERS: tuple[ZoneNumberDescription, ...] = (
@@ -47,7 +47,7 @@ NUMBERS: tuple[ZoneNumberDescription, ...] = (
         native_max_value=240,
         native_step=5,
         mode=NumberMode.BOX,
-        value_fn=lambda z: z.set_temp,
+        plan_key="temp",
     ),
     ZoneNumberDescription(
         key="garzeit",
@@ -55,10 +55,10 @@ NUMBERS: tuple[ZoneNumberDescription, ...] = (
         device_class=NumberDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.MINUTES,
         native_min_value=1,
-        native_max_value=720,
+        native_max_value=1440,
         native_step=1,
         mode=NumberMode.BOX,
-        value_fn=lambda z: round(z.set_time_s / 60) if z.set_time_s else None,
+        plan_key="minuten",
     ),
 )
 
@@ -84,8 +84,8 @@ def build_change_payload(zs: ZoneState, temp: int | None, minutes: int | None) -
     return {"cookSetTime": int(new_time), "cookSetTemp": int(new_temp), "chamber": zs.zone}
 
 
-class ZoneNumber(CosoriEntity, NumberEntity):
-    """Temperatur oder Garzeit einer Zone."""
+class ZoneNumber(CosoriEntity, NumberEntity, RestoreEntity):
+    """Temperatur oder Garzeit, die für eine Zone gesendet wird."""
 
     entity_description: ZoneNumberDescription
 
@@ -95,17 +95,29 @@ class ZoneNumber(CosoriEntity, NumberEntity):
         self._zone = zone
         self._attr_translation_placeholders = {"zone": str(zone)}
 
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last and last.state not in ("unknown", "unavailable"):
+            try:
+                get_plan(self.coordinator, self._cid, self._zone)[
+                    self.entity_description.plan_key
+                ] = int(float(last.state))
+            except ValueError:
+                pass
+
     @property
-    def native_value(self) -> float | None:
-        zs = zone_view(self.fryer.state, self._zone)
-        if not self.fryer.online or zs is None or not zs.active:
-            return None
-        return self.entity_description.value_fn(zs)
+    def native_value(self) -> float:
+        return get_plan(self.coordinator, self._cid, self._zone)[self.entity_description.plan_key]
 
     async def async_set_native_value(self, value: float) -> None:
+        get_plan(self.coordinator, self._cid, self._zone)[self.entity_description.plan_key] = int(
+            value
+        )
+        self.async_write_ha_state()
         zs = zone_view(self.fryer.state, self._zone)
         if zs is None or not zs.active:
-            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="nur_beim_garen")
+            return  # nur merken – gesendet wird mit dem Schalter
         if self.entity_description.key == "temperatur":
             payload = build_change_payload(zs, int(value), None)
         else:

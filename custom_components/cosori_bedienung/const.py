@@ -30,7 +30,7 @@ REGIONS = ["eu", "us"]
 EVENT_FINISHED = f"{DOMAIN}_fertig"
 
 # Dienste
-SERVICE_START = "garen_starten"
+SERVICE_SEND_TEST = "senden_testen"
 SERVICE_STOP = "garen_beenden"
 SERVICE_RAW = "befehl_senden"
 
@@ -39,17 +39,30 @@ ZONE_1 = 1
 ZONE_2 = 2
 ZONE_WHOLE = 3  # ganze Schublade ohne Trennwand
 
-# Garprogramme, wie die App sie nennt
-# Auswahl im Dienst (klein geschrieben) → Name, den die App schickt
+# Garprogramme der TwinFry, so wie die Fritteuse sie selbst meldet (getPresetRecipe)
+# Auswahl (klein geschrieben) → Name, den die App schickt
 MODES = {
     "airfry": "AirFry",
     "roast": "Roast",
     "bake": "Bake",
-    "broil": "Broil",
+    "grill": "Grill",
     "reheat": "Reheat",
-    "dehydrate": "Dehydrate",
-    "preheat": "Preheat",
+    "dry": "Dry",
 }
+
+# Vorschlagswerte der Fritteuse je Programm: (Temperatur °C, Minuten)
+MODE_DEFAULTS = {
+    "airfry": (200, 20),
+    "roast": (190, 30),
+    "bake": (180, 6),
+    "grill": (240, 5),
+    "reheat": (70, 60),
+    "dry": (55, 360),
+}
+DEFAULT_MODE = "airfry"
+
+# So lange gilt ein „Senden“ als „Fritteuse wartet auf Start am Gerät“
+SENT_VALID_MINUTES = 30
 
 # Normalisierte Zustände (Schlüssel für die Übersetzungen)
 STATE_OFF = "aus"

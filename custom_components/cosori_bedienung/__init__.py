@@ -26,6 +26,7 @@ PLATFORMS = [
     Platform.BUTTON,
     Platform.SWITCH,
     Platform.NUMBER,
+    Platform.SELECT,
 ]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)

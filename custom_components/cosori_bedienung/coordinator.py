@@ -92,6 +92,10 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         self._unit_option = entry.options.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
         self._unsupported: dict[str, set[str]] = {}
         self.fryers: dict[str, FryerData] = {}
+        # Eingaben pro (Fritteuse, Zone): {"temp": °C, "minuten": min, "mode": "airfry"}
+        self.plans: dict[tuple[str, int], dict[str, Any]] = {}
+        # Name der „Senden“-Schreibweise, die die Fritteuse angenommen hat
+        self.send_variant: str | None = None
         super().__init__(
             hass,
             _LOGGER,

@@ -61,23 +61,14 @@
         "minuten": "Minutes"
       }
     },
-    "zone": {
-      "options": {
-        "1": "Zone 1",
-        "2": "Zone 2",
-        "beide": "Both zones",
-        "ganz": "Whole drawer (no divider)"
-      }
-    },
     "programm": {
       "options": {
         "airfry": "Air Fry",
         "roast": "Roast",
         "bake": "Bake",
-        "broil": "Broil",
+        "grill": "Grill",
         "reheat": "Reheat",
-        "dehydrate": "Dehydrate",
-        "preheat": "Preheat"
+        "dry": "Dry"
       }
     }
   },
@@ -176,8 +167,8 @@
       }
     },
     "switch": {
-      "zone_gart": {
-        "name": "Zone {zone} cooking"
+      "zone_senden": {
+        "name": "Zone {zone} send / stop"
       }
     },
     "number": {
@@ -186,6 +177,11 @@
       },
       "zone_garzeit": {
         "name": "Zone {zone} set cooking time"
+      }
+    },
+    "select": {
+      "zone_programm_waehlen": {
+        "name": "Zone {zone} program"
       }
     }
   },
@@ -196,20 +192,17 @@
     "start_nicht_unterstuetzt": {
       "message": "Starting is not (yet) supported on this older model."
     },
-    "start_gesperrt": {
-      "message": "Cosori does not allow remote start in the EU. Please start on the device."
-    },
-    "nur_beim_garen": {
-      "message": "This only works while the zone is cooking."
-    },
     "abgelehnt": {
       "message": "The air fryer rejected the command: {fehler}"
+    },
+    "senden_abgelehnt": {
+      "message": "The air fryer rejected “send”. Tried variants and codes: {codes}. Please post this line in a GitHub issue."
     }
   },
   "services": {
-    "garen_starten": {
-      "name": "Start cooking",
-      "description": "Starts the air fryer with temperature, time and program. The drawer must be inserted. In the EU, Cosori may reject this.",
+    "senden_testen": {
+      "name": "Test sending (for tinkerers)",
+      "description": "Admins only: sends program, temperature and time to a zone without starting and shows which variant the air fryer accepted.",
       "fields": {
         "geraet": {
           "name": "Air fryer",
@@ -217,7 +210,7 @@
         },
         "zone": {
           "name": "Zone",
-          "description": "Zone 1, zone 2, both or the whole drawer."
+          "description": "1 or 2."
         },
         "temperatur": {
           "name": "Temperature",
@@ -231,17 +224,13 @@
           "name": "Program",
           "description": "As in the app."
         },
-        "temperatur_zone2": {
-          "name": "Temperature zone 2",
-          "description": "Only for “Both zones”; empty = same as zone 1."
+        "variante": {
+          "name": "Variant",
+          "description": "Empty = try all in turn until one works. Or exactly one, e.g. multi_c."
         },
-        "minuten_zone2": {
-          "name": "Minutes zone 2",
-          "description": "Only for “Both zones”; empty = same as zone 1."
-        },
-        "programm_zone2": {
-          "name": "Program zone 2",
-          "description": "Only for “Both zones”; empty = same as zone 1."
+        "alle": {
+          "name": "Try all",
+          "description": "On = do not stop at the first hit."
         }
       }
     },

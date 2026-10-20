@@ -1,4 +1,4 @@
-garen_starten:
+senden_testen:
   fields:
     geraet:
       required: true
@@ -6,18 +6,14 @@ garen_starten:
         device:
           integration: cosori_bedienung
     zone:
-      default: "1"
+      default: 1
       selector:
         select:
-          translation_key: zone
           options:
             - "1"
             - "2"
-            - "beide"
-            - "ganz"
     temperatur:
-      required: true
-      default: 200
+      default: 180
       selector:
         number:
           min: 35
@@ -25,8 +21,7 @@ garen_starten:
           step: 5
           unit_of_measurement: "°C"
     minuten:
-      required: true
-      default: 15
+      default: 10
       selector:
         number:
           min: 1
@@ -42,36 +37,17 @@ garen_starten:
             - airfry
             - roast
             - bake
-            - broil
+            - grill
             - reheat
-            - dehydrate
-            - preheat
-    temperatur_zone2:
+            - dry
+    variante:
+      example: multi_c
       selector:
-        number:
-          min: 35
-          max: 240
-          step: 5
-          unit_of_measurement: "°C"
-    minuten_zone2:
+        text:
+    alle:
+      default: false
       selector:
-        number:
-          min: 1
-          max: 1440
-          mode: box
-          unit_of_measurement: "min"
-    programm_zone2:
-      selector:
-        select:
-          translation_key: programm
-          options:
-            - airfry
-            - roast
-            - bake
-            - broil
-            - reheat
-            - dehydrate
-            - preheat
+        boolean:
 
 garen_beenden:
   fields:

@@ -21,9 +21,9 @@ Built for models the official VeSync integration does **not** know – first of 
 | 🧩 **Two zones** | On the TwinFry, separate sensors for zone 1 and zone 2. Whole drawer without divider = zone 1. |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
 | 🔔 **“Done” event** | `cosori_bedienung_fertig` – for phone notifications, announcements or pausing the TV. |
-| ⏹️ **Stop cooking** | Button for the whole fryer – and a **switch per zone** (“Zone 1 cooking”: turn off = stop that zone). |
-| 🎛️ **Change temperature & time** | Number fields per zone. While the zone is cooking, new values go straight to the fryer – like in the app. |
-| ▶️ **Start cooking** | Action with zone, temperature, minutes, program (see “Honestly”). |
+| 📤 **Send (like the app)** | Set program, temperature and time per zone, then turn the switch **“Zone n send / stop”** on – like “Send” in the VeSync app. The fryer wakes up and waits for you to press Start on the device. (Cosori blocks remote start in the EU.) |
+| ⏹️ **Stop cooking** | Button for the whole fryer – and the same switch per zone: off = stop that zone. |
+| 🎛️ **Change temperature & time** | Number fields per zone. If the zone is already cooking, new values go straight to the fryer. |
 | 🐢🐇 **Smart polling** | Idle: every 60 seconds (adjustable). Cooking: every 15 seconds. |
 | 🛡️ **Privacy** | Your password is not stored, identifiers are redacted everywhere. Details below. |
 
@@ -55,8 +55,9 @@ One device per air fryer. Entity IDs depend on the name in the app (here “Frit
 | `sensor.fritteuse_time_remaining` | Minutes until done (overall) |
 | `sensor.fritteuse_done_at` | Time when everything is done |
 | `sensor.fritteuse_zone_1_…` / `zone_2_…` | Status, time remaining, done at, program (only while cooking) |
-| `switch.fritteuse_zone_1_cooking` / `zone_2_cooking` | On = zone is cooking. **Turn off = stop the zone.** Turning on is blocked (EU), you get a message. |
-| `number.fritteuse_zone_1_set_temperature` / `…_set_cooking_time` | Change temperature (35–240 °C) / minutes while the zone is cooking |
+| `select.fritteuse_zone_1_program` / `zone_2_…` | Program used by “send”: Air Fry, Roast, Bake, Grill, Reheat, Dry. Changing it resets temperature and time to the fryer's suggested values. |
+| `number.fritteuse_zone_1_set_temperature` / `…_set_cooking_time` | Temperature (35–240 °C) / minutes – sent along when you send |
+| `switch.fritteuse_zone_1_send_stop` / `zone_2_…` | **On = send the values to the fryer** (it then waits for Start on the device). **Off = stop the zone.** Program, temperature and time are attributes. |
 | `binary_sensor.fritteuse_cooking` | On while preheating, cooking or briefly paused |
 | `button.fritteuse_stop_cooking` | Stop |
 | *Diagnostic:* `binary_sensor.fritteuse_online`, `button.fritteuse_refresh_now`, `sensor.fritteuse_raw_data` | Connection, poll now, last cloud response (without identifiers) |
@@ -98,7 +99,7 @@ actions:
 
 | Action | What it does |
 |---|---|
-| `cosori_bedienung.garen_starten` | Start: `zone` (`1`, `2`, `beide` = both, `ganz` = whole drawer), `temperatur` (°C), `minuten`, `programm` (`airfry`, `roast`, `bake`, `broil`, `reheat`, `dehydrate`, `preheat`); for `beide` optional own values for zone 2. |
+| `cosori_bedienung.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` all are tried in turn until one works. |
 | `cosori_bedienung.garen_beenden` | Stop. |
 | `cosori_bedienung.befehl_senden` | **Tinkerers, admins only:** sends an app command and returns the response (without account data). |
 
@@ -118,7 +119,8 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 ## 🙈 Honestly: what doesn't work (yet)
 
 - **Unofficial.** If Cosori/VeSync change their server, it may break until updated.
-- **Remote start** is partly blocked by Cosori in the EU. You get a clear error if the fryer refuses.
+- **Remote start** is blocked by Cosori in the EU – so there is no start button. “Send” only wakes the fryer; you start on the device.
+- **“Send” is new and not confirmed yet.** We don't know for sure which command the app's “Send” uses. The integration tries several variants (all “do not start”) and remembers the one the fryer accepts. If none works, the error lists the codes – please report them in an issue.
 - **Pause/resume:** command not known for sure yet – no button.
 - **Stopping a single zone and changing temperature/time** are sent as the app is believed to do (`endCook` with zone, `setTimeOrTemp`) – **not yet tried on a real TwinFry**.
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.

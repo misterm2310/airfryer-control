@@ -18,7 +18,7 @@ from custom_components.cosori_bedienung.parser import (
     zone_view,
     zones_for_device,
 )
-from custom_components.cosori_bedienung.services import build_start_payload
+from custom_components.cosori_bedienung.senden import build_variants
 
 
 def test_status_mapping():
@@ -97,17 +97,15 @@ def test_garbage_does_not_crash():
     assert state.zones == {}
 
 
-def test_start_payload_both_zones():
-    payload = build_start_payload("acc", "beide", 200, 12, "airfry", 180, 8, "roast")
-    assert payload["workChamber"] == 4
-    assert payload["cookConfigs"] == [
-        {"cookSetTime": 720, "cookTemp": 200, "mode": "AirFry", "chamber": 1},
-        {"cookSetTime": 480, "cookTemp": 180, "mode": "Roast", "chamber": 2},
+def test_send_variants_never_start_and_carry_values():
+    variants = build_variants("acc", 2, 180, 10, "bake")
+    names = [v.name for v in variants]
+    assert len(names) == len(set(names)) >= 6
+    for v in variants:
+        assert v.payload["readyStart"] is False
+        assert v.payload["accountId"] == "acc"
+    multi = variants[0].payload
+    assert multi["cookConfigs"] == [
+        {"cookSetTime": 600, "cookTemp": 180, "mode": "Bake", "chamber": 2}
     ]
-
-
-def test_start_payload_whole_drawer():
-    payload = build_start_payload("acc", "ganz", 190, 20, "bake")
-    assert payload["workChamber"] == 3
-    assert payload["cookConfigs"][0]["chamber"] == 3
-    assert payload["cookConfigs"][0]["mode"] == "Bake"
+    assert multi["workChamber"] == 2

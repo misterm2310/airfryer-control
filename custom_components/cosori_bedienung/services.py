@@ -1,16 +1,15 @@
 """Dienste (Aktionen) für Automationen und Skripte.
 
 Für Doofe:
-- garen_starten: Fritteuse mit Temperatur, Zeit und Programm loslegen lassen.
 - garen_beenden: Stopp.
+- senden_testen: Für Bastler (nur Admins) – schickt Programm, Temperatur und
+  Zeit an eine Zone (ohne zu starten) und zeigt, welche Schreibweise die
+  Fritteuse angenommen hat.
 - befehl_senden: Für Bastler (nur Admins) – einen beliebigen App-Befehl
-  schicken und die Antwort sehen. Damit finden wir in der Beta heraus,
-  was die Fritteuse alles versteht.
+  schicken und die Antwort sehen.
 """
 
 from __future__ import annotations
-
-from typing import Any
 
 import voluptuous as vol
 
@@ -23,13 +22,11 @@ from .const import (
     DOMAIN,
     MODES,
     SERVICE_RAW,
-    SERVICE_START,
+    SERVICE_SEND_TEST,
     SERVICE_STOP,
-    ZONE_1,
-    ZONE_2,
-    ZONE_WHOLE,
 )
 from .coordinator import CosoriCoordinator, FryerData
+from .senden import async_send
 from .util import redact
 
 ATTR_DEVICE = "geraet"
@@ -37,24 +34,22 @@ ATTR_ZONE = "zone"
 ATTR_TEMP = "temperatur"
 ATTR_MINUTES = "minuten"
 ATTR_MODE = "programm"
-ATTR_TEMP_2 = "temperatur_zone2"
-ATTR_MINUTES_2 = "minuten_zone2"
-ATTR_MODE_2 = "programm_zone2"
+ATTR_VARIANT = "variante"
+ATTR_ALL = "alle"
 ATTR_METHOD = "methode"
 ATTR_DATA = "daten"
 
-ZONES = ["1", "2", "beide", "ganz"]
-
-START_SCHEMA = vol.Schema(
+SEND_TEST_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_DEVICE): cv.string,
-        vol.Optional(ATTR_ZONE, default="1"): vol.In(ZONES),
-        vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=35, max=240)),
-        vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
+        vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2])),
+        vol.Optional(ATTR_TEMP, default=180): vol.All(vol.Coerce(int), vol.Range(min=35, max=240)),
+        vol.Optional(ATTR_MINUTES, default=10): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=1440)
+        ),
         vol.Optional(ATTR_MODE, default="airfry"): vol.In(list(MODES)),
-        vol.Optional(ATTR_TEMP_2): vol.All(vol.Coerce(int), vol.Range(min=35, max=240)),
-        vol.Optional(ATTR_MINUTES_2): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
-        vol.Optional(ATTR_MODE_2): vol.In(list(MODES)),
+        vol.Optional(ATTR_VARIANT): cv.string,
+        vol.Optional(ATTR_ALL, default=False): cv.boolean,
     }
 )
 STOP_SCHEMA = vol.Schema({vol.Required(ATTR_DEVICE): cv.string})
@@ -65,52 +60,6 @@ RAW_SCHEMA = vol.Schema(
         vol.Optional(ATTR_DATA, default=dict): dict,
     }
 )
-
-
-def build_start_payload(
-    account_id: str | None,
-    zone: str,
-    temp: int,
-    minutes: int,
-    mode: str,
-    temp2: int | None = None,
-    minutes2: int | None = None,
-    mode2: str | None = None,
-) -> dict[str, Any]:
-    """Baut den Start-Befehl wie die App (startMultiCook).
-
-    Zeiten gehen in Sekunden raus, Temperaturen in °C.
-    """
-
-    def cfg(chamber: int, t: int, m: int, md: str) -> dict[str, Any]:
-        return {
-            "cookSetTime": m * 60,
-            "cookTemp": t,
-            "mode": MODES.get(md, md),
-            "chamber": chamber,
-        }
-
-    if zone == "beide":
-        configs = [
-            cfg(ZONE_1, temp, minutes, mode),
-            cfg(ZONE_2, temp2 or temp, minutes2 or minutes, mode2 or mode),
-        ]
-        work = 4
-    elif zone == "ganz":
-        configs = [cfg(ZONE_WHOLE, temp, minutes, mode)]
-        work = ZONE_WHOLE
-    else:
-        chamber = ZONE_2 if zone == "2" else ZONE_1
-        configs = [cfg(chamber, temp, minutes, mode)]
-        work = chamber
-    return {
-        "syncType": 0,
-        "workChamber": work,
-        "tempUnit": "celsius",
-        "accountId": account_id or "",
-        "readyStart": True,
-        "cookConfigs": configs,
-    }
 
 
 def _find(hass: HomeAssistant, device_id: str) -> tuple[CosoriCoordinator, FryerData]:
@@ -127,32 +76,6 @@ def _find(hass: HomeAssistant, device_id: str) -> tuple[CosoriCoordinator, Fryer
     raise ServiceValidationError(translation_domain=DOMAIN, translation_key="geraet_unbekannt")
 
 
-async def _start(call: ServiceCall) -> None:
-    coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
-    if fryer.model.startswith("CS"):
-        raise ServiceValidationError(
-            translation_domain=DOMAIN, translation_key="start_nicht_unterstuetzt"
-        )
-    payload = build_start_payload(
-        coordinator.api.account_id,
-        call.data[ATTR_ZONE],
-        call.data[ATTR_TEMP],
-        call.data[ATTR_MINUTES],
-        call.data[ATTR_MODE],
-        call.data.get(ATTR_TEMP_2),
-        call.data.get(ATTR_MINUTES_2),
-        call.data.get(ATTR_MODE_2),
-    )
-    try:
-        await coordinator.api.bypass_v2(fryer.info, "startMultiCook", payload)
-    except CosoriError as err:
-        raise HomeAssistantError(
-            f"Die Fritteuse hat den Start abgelehnt ({err}). Hinweis: In der EU erlaubt "
-            "Cosori das Starten aus der Ferne teils nicht – Schublade rein und am Gerät starten."
-        ) from err
-    await coordinator.async_request_fast_refresh()
-
-
 async def _stop(call: ServiceCall) -> None:
     coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
     try:
@@ -162,11 +85,38 @@ async def _stop(call: ServiceCall) -> None:
     await coordinator.async_request_fast_refresh()
 
 
-async def _raw(call: ServiceCall) -> ServiceResponse:
+async def _require_admin(call: ServiceCall) -> None:
     if call.context.user_id:
         user = await call.hass.auth.async_get_user(call.context.user_id)
         if user is None or not user.is_admin:
             raise Unauthorized()
+
+
+async def _send_test(call: ServiceCall) -> ServiceResponse:
+    await _require_admin(call)
+    coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
+    try:
+        results = await async_send(
+            coordinator,
+            fryer,
+            call.data[ATTR_ZONE],
+            call.data[ATTR_TEMP],
+            call.data[ATTR_MINUTES],
+            call.data[ATTR_MODE],
+            only=call.data.get(ATTR_VARIANT),
+            try_all=call.data[ATTR_ALL],
+        )
+    except CosoriError as err:
+        return {"ok": False, "fehler": str(err), "code": err.code}
+    return {
+        "ok": any(r["ok"] for r in results),
+        "gemerkte_variante": coordinator.send_variant,
+        "versuche": results,
+    }
+
+
+async def _raw(call: ServiceCall) -> ServiceResponse:
+    await _require_admin(call)
     coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
     try:
         result = await coordinator.api.bypass_v2(
@@ -180,10 +130,16 @@ async def _raw(call: ServiceCall) -> ServiceResponse:
 
 def async_register_services(hass: HomeAssistant) -> None:
     """Dienste einmalig anmelden."""
-    if hass.services.has_service(DOMAIN, SERVICE_START):
+    if hass.services.has_service(DOMAIN, SERVICE_STOP):
         return
-    hass.services.async_register(DOMAIN, SERVICE_START, _start, schema=START_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_STOP, _stop, schema=STOP_SCHEMA)
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEND_TEST,
+        _send_test,
+        schema=SEND_TEST_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_RAW,

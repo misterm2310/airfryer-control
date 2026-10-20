@@ -61,23 +61,14 @@
         "minuten": "Minuten"
       }
     },
-    "zone": {
-      "options": {
-        "1": "Zone 1",
-        "2": "Zone 2",
-        "beide": "Beide Zonen",
-        "ganz": "Ganze Schublade (ohne Trennwand)"
-      }
-    },
     "programm": {
       "options": {
         "airfry": "Heißluft (Air Fry)",
         "roast": "Braten (Roast)",
         "bake": "Backen (Bake)",
-        "broil": "Grillen (Broil)",
+        "grill": "Grillen (Grill)",
         "reheat": "Aufwärmen (Reheat)",
-        "dehydrate": "Dörren (Dehydrate)",
-        "preheat": "Vorheizen (Preheat)"
+        "dry": "Dörren (Dry)"
       }
     }
   },
@@ -176,8 +167,8 @@
       }
     },
     "switch": {
-      "zone_gart": {
-        "name": "Zone {zone} gart"
+      "zone_senden": {
+        "name": "Zone {zone} senden / beenden"
       }
     },
     "number": {
@@ -186,6 +177,11 @@
       },
       "zone_garzeit": {
         "name": "Zone {zone} Garzeit einstellen"
+      }
+    },
+    "select": {
+      "zone_programm_waehlen": {
+        "name": "Zone {zone} Programm"
       }
     }
   },
@@ -196,20 +192,17 @@
     "start_nicht_unterstuetzt": {
       "message": "Starten geht bei diesem älteren Modell (noch) nicht."
     },
-    "start_gesperrt": {
-      "message": "Starten aus der Ferne erlaubt Cosori in der EU nicht. Bitte am Gerät starten."
-    },
-    "nur_beim_garen": {
-      "message": "Das geht nur, solange die Zone gart."
-    },
     "abgelehnt": {
       "message": "Die Fritteuse hat den Befehl abgelehnt: {fehler}"
+    },
+    "senden_abgelehnt": {
+      "message": "Die Fritteuse hat „Senden“ abgelehnt. Probierte Schreibweisen und Codes: {codes}. Schick mir die Zeile gern ins GitHub-Ticket."
     }
   },
   "services": {
-    "garen_starten": {
-      "name": "Garen starten",
-      "description": "Startet die Fritteuse mit Temperatur, Zeit und Programm. Schublade muss drin sein. In der EU lehnt Cosori das teilweise ab.",
+    "senden_testen": {
+      "name": "Senden testen (für Bastler)",
+      "description": "Nur für Admins: schickt Programm, Temperatur und Zeit an eine Zone, ohne zu starten, und zeigt, welche Schreibweise die Fritteuse angenommen hat.",
       "fields": {
         "geraet": {
           "name": "Fritteuse",
@@ -217,7 +210,7 @@
         },
         "zone": {
           "name": "Zone",
-          "description": "Zone 1, Zone 2, beide oder die ganze Schublade."
+          "description": "1 oder 2."
         },
         "temperatur": {
           "name": "Temperatur",
@@ -231,17 +224,13 @@
           "name": "Programm",
           "description": "Wie in der App."
         },
-        "temperatur_zone2": {
-          "name": "Temperatur Zone 2",
-          "description": "Nur bei „Beide Zonen“; leer = wie Zone 1."
+        "variante": {
+          "name": "Schreibweise",
+          "description": "Leer = der Reihe nach alle probieren, bis eine klappt. Oder genau eine, z. B. multi_c."
         },
-        "minuten_zone2": {
-          "name": "Minuten Zone 2",
-          "description": "Nur bei „Beide Zonen“; leer = wie Zone 1."
-        },
-        "programm_zone2": {
-          "name": "Programm Zone 2",
-          "description": "Nur bei „Beide Zonen“; leer = wie Zone 1."
+        "alle": {
+          "name": "Alle probieren",
+          "description": "An = nicht beim ersten Treffer aufhören."
         }
       }
     },

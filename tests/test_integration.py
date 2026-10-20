@@ -94,6 +94,7 @@ class FakeApi:
     multi: dict[str, Any] = cooking_multi()
     offline = False
     status_rejected = False
+    reject: set[str] = set()
 
     def __init__(self, session, email, password_md5, region, terminal_id, time_zone="x"):
         self.email = email
@@ -123,6 +124,8 @@ class FakeApi:
             return dict(FakeApi.status)
         if method == "getAirfryerMultiStatus":
             return dict(FakeApi.multi)
+        if method in FakeApi.reject:
+            raise CosoriError(f"„{method}“ vom Gerät abgelehnt (Code 11000000)", 11000000)
         if method == "kaputt":
             raise CosoriError("„kaputt“ abgelehnt", 11000000)
         return {"cid": CID, "ok": 1}
@@ -135,6 +138,7 @@ class FakeApi:
 def fake_api():
     FakeApi.instances = []
     FakeApi.login_error = None
+    FakeApi.reject = set()
     FakeApi.devices = [DEVICE, LAMP]
     FakeApi.status = {"cookStatus": "cooking"}
     FakeApi.multi = cooking_multi()
@@ -290,21 +294,38 @@ async def test_stop_button(hass: HomeAssistant) -> None:
     assert ("endCook", {}) in FakeApi.instances[-1].calls
 
 
-async def test_start_service(hass: HomeAssistant) -> None:
+async def test_start_service_is_gone(hass: HomeAssistant) -> None:
+    await setup(hass)
+    assert not hass.services.has_service(DOMAIN, "garen_starten")
+
+
+async def test_send_test_service_stops_at_first_hit(hass: HomeAssistant) -> None:
+    FakeApi.reject = {"startMultiCook"}
     await setup(hass)
     device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
-    await hass.services.async_call(
+    res = await hass.services.async_call(
         DOMAIN,
-        "garen_starten",
-        {"geraet": device.id, "zone": "2", "temperatur": 180, "minuten": 10, "programm": "bake"},
+        "senden_testen",
+        {"geraet": device.id, "zone": 2, "temperatur": 180, "minuten": 10, "programm": "bake"},
         blocking=True,
+        return_response=True,
     )
-    method, data = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"][0]
-    assert data["workChamber"] == 2
-    assert data["accountId"] == "konto-42"
-    assert data["cookConfigs"] == [
-        {"cookSetTime": 600, "cookTemp": 180, "mode": "Bake", "chamber": 2}
-    ]
+    assert res["ok"] is True
+    assert res["gemerkte_variante"] == "kochmodus_manuell"
+    assert [v["ok"] for v in res["versuche"]] == [False, False, False, True]
+    sent = [c for c in FakeApi.instances[-1].calls if c[0] == "cookMode"]
+    assert len(sent) == 1 and sent[0][1]["chamber"] == 2 and sent[0][1]["readyStart"] is False
+    assert "konto-42" not in str(res)
+
+
+async def test_send_test_single_variant(hass: HomeAssistant) -> None:
+    await setup(hass)
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
+    res = await hass.services.async_call(
+        DOMAIN, "senden_testen", {"geraet": device.id, "variante": "startkochen"},
+        blocking=True, return_response=True,
+    )
+    assert [v["variante"] for v in res["versuche"]] == ["startkochen"]
 
 
 async def test_raw_service(hass: HomeAssistant) -> None:
@@ -360,7 +381,8 @@ async def test_twinfry_real_standby(hass: HomeAssistant, fake_api) -> None:
     reg = er.async_get(hass)
     assert reg.async_get_entity_id("sensor", DOMAIN, f"{CID}_zone1_temperatur") is None
     assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "off"
-    assert hass.states.get(eid(hass, "number", "zone1_temperatur")).state == "unknown"
+    assert hass.states.get(eid(hass, "number", "zone1_temperatur")).state == "200"
+    assert hass.states.get(eid(hass, "select", "zone1_programm_waehlen")).state == "airfry"
     raw = hass.states.get(eid(hass, "sensor", "rohdaten")).attributes
     assert "getAirfryerStatus" in raw["abgelehnte_abfragen"]
     # Die abgelehnte Frage wird danach nicht mehr gestellt
@@ -381,7 +403,7 @@ async def test_twinfry_real_cooking(hass: HomeAssistant, fake_api) -> None:
     assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "on"
     assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "off"
     assert hass.states.get(eid(hass, "number", "zone1_temperatur")).state == "200"
-    assert hass.states.get(eid(hass, "number", "zone1_garzeit")).state == "15"
+    assert hass.states.get(eid(hass, "number", "zone1_garzeit")).state == "20"
 
     api = FakeApi.instances[-1]
     await hass.services.async_call(
@@ -401,21 +423,53 @@ async def test_twinfry_real_cooking(hass: HomeAssistant, fake_api) -> None:
     assert ("endCook", {"chamber": 1}) in api.calls
 
 
-async def test_switch_on_and_number_when_idle_give_clear_message(hass: HomeAssistant, fake_api) -> None:
-    from homeassistant.exceptions import ServiceValidationError
-
+async def test_switch_on_sends_plan_and_off_ends(hass: HomeAssistant, fake_api) -> None:
     fake_api.status_rejected = True
     fake_api.multi = real_twinfry()
     await setup(hass)
-    with pytest.raises(ServiceValidationError):
+    api = FakeApi.instances[-1]
+    await hass.services.async_call(
+        "select", "select_option",
+        {"entity_id": eid(hass, "select", "zone2_programm_waehlen"), "option": "grill"},
+        blocking=True,
+    )
+    # Programmwechsel setzt die Vorschlagswerte der Fritteuse (Grill: 240 °C, 5 min)
+    assert hass.states.get(eid(hass, "number", "zone2_temperatur")).state == "240"
+    assert hass.states.get(eid(hass, "number", "zone2_garzeit")).state == "5"
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": eid(hass, "number", "zone2_temperatur"), "value": 220}, blocking=True,
+    )
+    assert not [c for c in api.calls if c[0] == "setTimeOrTemp"]  # steht still → nur merken
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone2_gart")}, blocking=True
+    )
+    method, data = [c for c in api.calls if c[0] == "startMultiCook"][0]
+    assert data["readyStart"] is False
+    assert data["cookConfigs"] == [
+        {"cookSetTime": 300, "cookTemp": 220, "mode": "Grill", "chamber": 2}
+    ]
+    assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "on"
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": eid(hass, "switch", "zone2_gart")}, blocking=True
+    )
+    assert ("endCook", {"chamber": 2}) in api.calls
+    assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "off"
+
+
+async def test_switch_on_all_rejected_shows_codes(hass: HomeAssistant, fake_api) -> None:
+    from homeassistant.exceptions import HomeAssistantError
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    FakeApi.reject = {"startMultiCook", "cookMode", "startCook"}
+    await setup(hass)
+    with pytest.raises(HomeAssistantError) as err:
         await hass.services.async_call(
             "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
         )
-    with pytest.raises(ServiceValidationError):
-        await hass.services.async_call(
-            "number", "set_value",
-            {"entity_id": eid(hass, "number", "zone2_temperatur"), "value": 180}, blocking=True,
-        )
+    assert "11000000" in str(err.value)
+    assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "off"
 
 
 async def test_old_single_sensors_are_removed(hass: HomeAssistant, fake_api) -> None:
