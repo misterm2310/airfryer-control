@@ -18,7 +18,7 @@ Built for models the official VeSync integration does **not** know – first of 
 |---|---|
 | 🔥 **Status** | Off, Ready, Waiting for start, Preheating, Cooking, Paused, Drawer open, Done, Keeping warm, Offline. |
 | ⏱️ **Time remaining & “done at”** | In minutes and as a time – overall and per zone. |
-| 🧩 **Two zones** | On the TwinFry, separate sensors for zone 1 and zone 2. Whole drawer without divider = zone 1. |
+| 🧩 **Zones** | On the TwinFry, separate entities for zone 1, zone 2 and the **whole drawer** (without divider, the fryer calls it zone 3). |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
 | 🔔 **“Done” event** | `cosori_bedienung_fertig` – for phone notifications, announcements or pausing the TV. |
 | 📤 **Send (like the app)** | Set program, temperature and time per zone, then turn the switch **“Zone n send / stop”** on – like “Send” in the VeSync app. The fryer wakes up and waits for you to press Start on the device. (Cosori blocks remote start in the EU.) |
@@ -54,10 +54,10 @@ One device per air fryer. Entity IDs depend on the name in the app (here “Frit
 | `sensor.fritteuse_status` | Overall status (attribute `rohwert` = what the fryer actually reported) |
 | `sensor.fritteuse_time_remaining` | Minutes until done (overall) |
 | `sensor.fritteuse_done_at` | Time when everything is done |
-| `sensor.fritteuse_zone_1_…` / `zone_2_…` | Status, time remaining, done at, program (only while cooking) |
-| `select.fritteuse_zone_1_program` / `zone_2_…` | Program used by “send”: Air Fry, Roast, Bake, Grill, Reheat, Dry. Changing it resets temperature and time to the fryer's suggested values. |
+| `sensor.fritteuse_zone_1_…` / `zone_2_…` / `zone_3_…` (whole drawer) | Status, time remaining, done at, program (only while cooking) |
+| `select.fritteuse_zone_1_program` / `zone_2_…` / `zone_3_…` | Program used by “send”: Air Fry, Roast, Bake, Grill, Reheat, Dry. Changing it resets temperature and time to the fryer's suggested values. |
 | `number.fritteuse_zone_1_set_temperature` / `…_set_cooking_time` | Temperature (35–240 °C) / minutes – sent along when you send |
-| `switch.fritteuse_zone_1_send_stop` / `zone_2_…` | **On = send the values to the fryer** (it then waits for Start on the device). **Off = stop the zone.** Program, temperature and time are attributes. |
+| `switch.fritteuse_zone_1_send_stop` / `zone_2_…` / `zone_3_…` | **On = send the values to the fryer** (it then waits for Start on the device). **Off = stop the zone.** Program, temperature and time are attributes. |
 | `binary_sensor.fritteuse_cooking` | On while preheating, cooking or briefly paused |
 | `button.fritteuse_stop_cooking` | Stop |
 | *Diagnostic:* `binary_sensor.fritteuse_online`, `button.fritteuse_refresh_now`, `sensor.fritteuse_raw_data` | Connection, poll now, last cloud response (without identifiers) |

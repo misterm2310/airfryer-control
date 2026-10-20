@@ -12,6 +12,7 @@ senden_testen:
           options:
             - "1"
             - "2"
+            - "3"
     temperatur:
       default: 180
       selector:

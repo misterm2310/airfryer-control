@@ -18,7 +18,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import CosoriDeviceOffline, CosoriError
-from .const import DOMAIN, SENT_OPTIMISTIC_SECONDS, STATE_WAITING
+from .const import DOMAIN, SENT_OPTIMISTIC_SECONDS, STATE_WAITING, zone_label
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import zone_view, zones_for_device
@@ -49,7 +49,7 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
         super().__init__(coordinator, cid, f"zone{zone}_gart")
         self._zone = zone
         self._sent_at = None
-        self._attr_translation_placeholders = {"zone": str(zone)}
+        self._attr_translation_placeholders = {"zone": zone_label(coordinator.hass.config.language, zone)}
 
     @property
     def is_on(self) -> bool:

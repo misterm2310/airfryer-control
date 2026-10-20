@@ -55,15 +55,19 @@ def test_twinfry_two_zones():
     assert state.zones[1].current_temp == 185
     assert state.zones[2].mode == "Roast"
     assert state.active
-    assert zones_for_device(state, multizone=True) == [1, 2]
+    assert zones_for_device(state, multizone=True) == [1, 2, 3]
 
 
-def test_whole_drawer_counts_as_zone_one():
-    multi = {"statusList": [{"chamber": 3, "cookStatus": "cooking", "cookLastTime": 120}]}
+def test_whole_drawer_is_its_own_zone_three():
+    multi = {"statusList": [{
+        "chamber": 3, "cookStatus": "ready", "cookSetTime": 1200, "cookTemp": 200,
+        "mode": "AirFry", "currentRemainingTime": 1200,
+    }], "workChamber": 3, "tempUnit": "c"}
     state = parse({}, multi, TIME_UNIT_SECONDS)
-    assert zone_view(state, 1).remaining_s == 120
-    assert zone_view(state, 2) is None
-    assert state.status == STATE_COOKING
+    assert zone_view(state, 3).status == "wartet_auf_start"
+    assert zone_view(state, 3).remaining_s == 1200 and zone_view(state, 3).set_temp == 200
+    assert zone_view(state, 1) is None and zone_view(state, 2) is None
+    assert state.status == "wartet_auf_start"
 
 
 def test_finished_has_no_remaining_time():

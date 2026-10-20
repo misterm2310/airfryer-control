@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import MODE_DEFAULTS, MODES
+from .const import MODE_DEFAULTS, MODES, zone_label
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import zones_for_device
@@ -45,7 +45,7 @@ class ZoneProgramSelect(CosoriEntity, SelectEntity, RestoreEntity):
     def __init__(self, coordinator, cid, zone: int) -> None:
         super().__init__(coordinator, cid, f"zone{zone}_programm_waehlen")
         self._zone = zone
-        self._attr_translation_placeholders = {"zone": str(zone)}
+        self._attr_translation_placeholders = {"zone": zone_label(coordinator.hass.config.language, zone)}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

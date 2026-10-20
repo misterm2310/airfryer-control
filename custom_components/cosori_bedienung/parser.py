@@ -316,14 +316,14 @@ def _combine(states: list[str]) -> str:
 
 
 def zones_for_device(state: FryerState, multizone: bool) -> list[int]:
-    """Welche Zonen-Sensoren sinnvoll sind.
+    """Welche Zonen-Entitäten sinnvoll sind.
 
-    Mehrzonen-Geräte (TwinFry) bekommen Zone 1 und Zone 2 – die „ganze
-    Schublade“ wird dort in Zone 1 mit angezeigt. Ein-Kammer-Geräte haben
-    keine eigenen Zonen-Sensoren (die Hauptsensoren reichen).
+    Mehrzonen-Geräte (TwinFry) bekommen Zone 1, Zone 2 und die ganze Schublade
+    (Zone 3, ohne Trennwand). Ein-Kammer-Geräte haben keine eigenen
+    Zonen-Entitäten (die Hauptsensoren reichen).
     """
     if multizone or ZONE_2 in state.zones or ZONE_WHOLE in state.zones:
-        return [ZONE_1, ZONE_2]
+        return [ZONE_1, ZONE_2, ZONE_WHOLE]
     return []
 
 
@@ -333,7 +333,5 @@ def reports_current_temp(state: FryerState) -> bool:
 
 
 def zone_view(state: FryerState, zone: int) -> ZoneState | None:
-    """Zone für die Anzeige: Ganze Schublade (3) zählt als Zone 1."""
-    if zone == ZONE_1 and ZONE_1 not in state.zones and ZONE_WHOLE in state.zones:
-        return state.zones[ZONE_WHOLE]
+    """Zustand einer Zone (None = die Fritteuse hat sie gerade nicht gemeldet)."""
     return state.zones.get(zone)

@@ -115,7 +115,7 @@
         "name": "Programm"
       },
       "zone_status": {
-        "name": "Zone {zone} Zustand",
+        "name": "{zone} Zustand",
         "state": {
           "aus": "Aus",
           "bereit": "Bereit",
@@ -132,16 +132,16 @@
         }
       },
       "zone_restzeit": {
-        "name": "Zone {zone} Restzeit"
+        "name": "{zone} Restzeit"
       },
       "zone_fertig_um": {
-        "name": "Zone {zone} fertig um"
+        "name": "{zone} fertig um"
       },
       "zone_temperatur": {
-        "name": "Zone {zone} Temperatur"
+        "name": "{zone} Temperatur"
       },
       "zone_programm": {
-        "name": "Zone {zone} Programm"
+        "name": "{zone} Programm"
       },
       "rohdaten": {
         "name": "Rohdaten",
@@ -170,20 +170,20 @@
     },
     "switch": {
       "zone_senden": {
-        "name": "Zone {zone} senden / beenden"
+        "name": "{zone} senden / beenden"
       }
     },
     "number": {
       "zone_temperatur": {
-        "name": "Zone {zone} Temperatur einstellen"
+        "name": "{zone} Temperatur einstellen"
       },
       "zone_garzeit": {
-        "name": "Zone {zone} Garzeit einstellen"
+        "name": "{zone} Garzeit einstellen"
       }
     },
     "select": {
       "zone_programm_waehlen": {
-        "name": "Zone {zone} Programm"
+        "name": "{zone} Programm"
       }
     }
   },
@@ -212,7 +212,7 @@
         },
         "zone": {
           "name": "Zone",
-          "description": "1 oder 2."
+          "description": "1, 2 oder 3 (ganze Schublade)."
         },
         "temperatur": {
           "name": "Temperatur",

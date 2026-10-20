@@ -532,3 +532,48 @@ async def test_stop_button_zone_without_program_is_not_an_error(hass: HomeAssist
         "button", "press", {"entity_id": eid(hass, "button", "garen_beenden")}, blocking=True
     )
     assert ("endCook", {"chamber": 1}) in api.calls and ("endCook", {"chamber": 2}) in api.calls
+
+
+def whole_drawer(status: str = "ready") -> dict[str, Any]:
+    """Echte Antwort der TwinFry ohne Trennwand (19:02, 20.10.2026)."""
+    return {
+        "statusList": [{
+            "cookStatus": status, "startTime": 0, "recipeType": 3, "recipeId": 14,
+            "recipeName": "Heißluft-Frittieren", "upc": "", "holdTime": 0,
+            "cookSetTime": 1200, "cookTemp": 200, "mode": "AirFry",
+            "currentRemainingTime": 1200, "totalTimeRemaining": 1200, "chamber": 3,
+        }],
+        "tempUnit": "c", "syncType": 0, "workChamber": 3,
+    }
+
+
+async def test_whole_drawer_has_own_entities(hass: HomeAssistant, fake_api) -> None:
+    fake_api.status_rejected = True
+    fake_api.multi = whole_drawer()
+    await setup(hass)
+    assert hass.states.get(eid(hass, "sensor", "zone3_status")).state == "wartet_auf_start"
+    assert hass.states.get(eid(hass, "sensor", "zone3_restzeit")).state == "20"
+    assert hass.states.get(eid(hass, "sensor", "zone3_programm")).state == "AirFry"
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "bereit"
+    assert hass.states.get(eid(hass, "sensor", "zone2_status")).state == "bereit"
+    assert hass.states.get(eid(hass, "switch", "zone3_gart")).state == "on"
+    assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "off"
+    state = hass.states.get(eid(hass, "switch", "zone3_gart"))
+    assert "Whole drawer" in state.attributes["friendly_name"] or "Ganze Schublade" in state.attributes["friendly_name"]
+
+
+async def test_whole_drawer_send_and_end(hass: HomeAssistant, fake_api) -> None:
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    await setup(hass)
+    api = FakeApi.instances[-1]
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone3_gart")}, blocking=True
+    )
+    _, data = [c for c in api.calls if c[0] == "startMultiCook"][0]
+    assert data["workChamber"] == 3 and data["readyStart"] is True
+    assert data["cookConfigs"][0]["chamber"] == 3
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": eid(hass, "switch", "zone3_gart")}, blocking=True
+    )
+    assert ("endCook", {"chamber": 3}) in api.calls

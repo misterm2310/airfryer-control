@@ -18,7 +18,7 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 |---|---|
 | 🔥 **Zustand** | Aus, Bereit, Wartet auf Start, Heizt vor, Gart, Pausiert, Schublade offen, Fertig, Hält warm, Offline. |
 | ⏱️ **Restzeit & „Fertig um“** | In Minuten und als Uhrzeit – gesamt und für jede Zone. |
-| 🧩 **Zwei Zonen** | Bei der TwinFry eigene Sensoren für Zone 1 und Zone 2. Ganze Schublade ohne Trennwand = Zone 1. |
+| 🧩 **Zonen** | Bei der TwinFry eigene Entitäten für Zone 1, Zone 2 und die **ganze Schublade** (ohne Trennwand, die Fritteuse nennt sie Zone 3). |
 | 🌡️ **Temperatur & Programm** | Eingestellte Temperatur und Programm (AirFry, Roast …). Eine gemessene Temperatur gibt's nur, wenn die Fritteuse sie meldet (die TwinFry tut das nicht). |
 | 🔔 **Ereignis „fertig“** | `cosori_bedienung_fertig` – für Handy-Nachricht, Alexa-/Google-Durchsage oder „Fernseher pausieren“. |
 | 📤 **Senden (wie in der App)** | Pro Zone Programm, Temperatur und Garzeit einstellen und den Schalter **„Zone n senden / beenden“** auf An legen – wie „Senden“ in der VeSync-App. Die Fritteuse wacht auf und wartet, bis du am Gerät auf Start drückst. (Starten aus der Ferne sperrt Cosori in der EU.) |
@@ -56,11 +56,11 @@ Pro Fritteuse ein Gerät. Die Namen hängen davon ab, wie deine Fritteuse in der
 | `sensor.fritteuse_zustand` | Gesamtzustand (Attribut `rohwert` = was die Fritteuse wirklich gemeldet hat) |
 | `sensor.fritteuse_restzeit` | Minuten bis fertig (gesamt) |
 | `sensor.fritteuse_fertig_um` | Uhrzeit, wann alles fertig ist |
-| `sensor.fritteuse_zone_1_…` / `zone_2_…` | Zustand, Restzeit, fertig um, Programm (nur beim Garen) |
-| `select.fritteuse_zone_1_programm` / `zone_2_…` | Programm für „Senden“: Heißluft, Braten, Backen, Grillen, Aufwärmen, Dörren. Beim Wechsel setzt es Temperatur und Zeit auf die Vorschlagswerte der Fritteuse. |
+| `sensor.fritteuse_zone_1_…` / `zone_2_…` / `zone_3_…` (ganze Schublade) | Zustand, Restzeit, fertig um, Programm (nur beim Garen) |
+| `select.fritteuse_zone_1_programm` / `zone_2_…` / `zone_3_…` | Programm für „Senden“: Heißluft, Braten, Backen, Grillen, Aufwärmen, Dörren. Beim Wechsel setzt es Temperatur und Zeit auf die Vorschlagswerte der Fritteuse. |
 | `number.fritteuse_zone_1_temperatur_einstellen` | Temperatur der Zone (35–240 °C) – wird beim Senden mitgeschickt |
 | `number.fritteuse_zone_1_garzeit_einstellen` | Garzeit der Zone in Minuten – wird beim Senden mitgeschickt |
-| `switch.fritteuse_zone_1_senden_beenden` / `zone_2_…` | **An = Werte an die Fritteuse senden** (sie wartet dann auf Start am Gerät). **Aus = Zone beenden.** Das Programm, Temperatur und Zeit stehen als Attribute dabei. |
+| `switch.fritteuse_zone_1_senden_beenden` / `zone_2_…` / `zone_3_…` | **An = Werte an die Fritteuse senden** (sie wartet dann auf Start am Gerät). **Aus = Zone beenden.** Das Programm, Temperatur und Zeit stehen als Attribute dabei. |
 | `binary_sensor.fritteuse_gart_gerade` | An, solange vorgeheizt, gegart oder kurz pausiert wird |
 | `button.fritteuse_garen_beenden` | Stopp für die ganze Fritteuse |
 | *Diagnose:* `binary_sensor.fritteuse_online`, `button.fritteuse_jetzt_aktualisieren`, `sensor.fritteuse_rohdaten` | Verbindung, sofort nachfragen, letzte Antwort der Cloud (ohne Kennungen) und welche Abfragen die Fritteuse ablehnt |
@@ -126,7 +126,7 @@ Kommt, sobald etwas aufhört zu garen. Mit dabei:
 |---|---|---|
 | `geraet` | `Fritteuse` | Name aus der App |
 | `modell` | `CAF-TF101S-AEUR` | Modell |
-| `zone` | `1`, `2`, `3` oder `alle` | Welche Zone fertig ist (`alle` = die ganze Fritteuse) |
+| `zone` | `1`, `2`, `3` oder `alle` | Welche Zone fertig ist (`3` = ganze Schublade, `alle` = die ganze Fritteuse) |
 | `zustand` | `fertig` | Zustand danach (`fertig`, `bereit`, `warmhalten` …) |
 | `programm` | `AirFry` | Programm der Zone (falls bekannt) |
 

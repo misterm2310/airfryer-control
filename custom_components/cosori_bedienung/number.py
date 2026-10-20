@@ -23,7 +23,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .api import CosoriError
-from .const import DOMAIN
+from .const import DOMAIN, zone_label
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import ZoneState, zone_view, zones_for_device
@@ -93,7 +93,7 @@ class ZoneNumber(CosoriEntity, NumberEntity, RestoreEntity):
         super().__init__(coordinator, cid, f"zone{zone}_{description.key}")
         self.entity_description = description
         self._zone = zone
-        self._attr_translation_placeholders = {"zone": str(zone)}
+        self._attr_translation_placeholders = {"zone": zone_label(coordinator.hass.config.language, zone)}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

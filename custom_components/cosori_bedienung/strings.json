@@ -115,7 +115,7 @@
         "name": "Program"
       },
       "zone_status": {
-        "name": "Zone {zone} status",
+        "name": "{zone} status",
         "state": {
           "aus": "Off",
           "bereit": "Ready",
@@ -132,16 +132,16 @@
         }
       },
       "zone_restzeit": {
-        "name": "Zone {zone} time remaining"
+        "name": "{zone} time remaining"
       },
       "zone_fertig_um": {
-        "name": "Zone {zone} done at"
+        "name": "{zone} done at"
       },
       "zone_temperatur": {
-        "name": "Zone {zone} temperature"
+        "name": "{zone} temperature"
       },
       "zone_programm": {
-        "name": "Zone {zone} program"
+        "name": "{zone} program"
       },
       "rohdaten": {
         "name": "Raw data",
@@ -170,20 +170,20 @@
     },
     "switch": {
       "zone_senden": {
-        "name": "Zone {zone} senden / beenden"
+        "name": "{zone} senden / beenden"
       }
     },
     "number": {
       "zone_temperatur": {
-        "name": "Zone {zone} set temperature"
+        "name": "{zone} set temperature"
       },
       "zone_garzeit": {
-        "name": "Zone {zone} set cooking time"
+        "name": "{zone} set cooking time"
       }
     },
     "select": {
       "zone_programm_waehlen": {
-        "name": "Zone {zone} Programm"
+        "name": "{zone} Programm"
       }
     }
   },
@@ -212,7 +212,7 @@
         },
         "zone": {
           "name": "Zone",
-          "description": "1 oder 2."
+          "description": "1, 2 oder 3 (ganze Schublade)."
         },
         "temperatur": {
           "name": "Temperatur",

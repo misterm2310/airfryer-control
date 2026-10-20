@@ -19,7 +19,7 @@ from homeassistant.const import EntityCategory, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ALL_STATES, DOMAIN, STATE_OFFLINE
+from .const import ALL_STATES, DOMAIN, STATE_OFFLINE, zone_label
 from .coordinator import CosoriCoordinator, FryerData
 from .entity import CosoriEntity, async_remove_stale
 from .parser import ZoneState, reports_current_temp, zone_view, zones_for_device
@@ -201,7 +201,7 @@ class ZoneSensor(CosoriEntity, SensorEntity):
         self.entity_description = description
         self._zone = zone
         if not single:
-            self._attr_translation_placeholders = {"zone": str(zone)}
+            self._attr_translation_placeholders = {"zone": zone_label(coordinator.hass.config.language, zone)}
 
     @property
     def _zone_state(self) -> ZoneState | None:

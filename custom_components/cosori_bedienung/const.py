@@ -39,6 +39,13 @@ ZONE_1 = 1
 ZONE_2 = 2
 ZONE_WHOLE = 3  # ganze Schublade ohne Trennwand
 
+def zone_label(language: str | None, zone: int) -> str:
+    """Name der Zone für Entitäten: „Zone 1“, „Zone 2“, „Ganze Schublade“."""
+    if zone == ZONE_WHOLE:
+        return "Ganze Schublade" if (language or "de").startswith("de") else "Whole drawer"
+    return f"Zone {zone}"
+
+
 # Garprogramme der TwinFry, so wie die Fritteuse sie selbst meldet (getPresetRecipe)
 # Auswahl (klein geschrieben) → Name, den die App schickt
 MODES = {
