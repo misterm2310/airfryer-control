@@ -7,14 +7,14 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .coordinator import CosoriCoordinator
+from .coordinator import AirfryerCoordinator
 from .core.util import redact
 
 
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     fryers = []
     for fryer in coordinator.fryers.values():
         state = fryer.state

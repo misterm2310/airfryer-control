@@ -29,7 +29,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .core.api import CosoriApi, CosoriAuthError, CosoriError, hash_password, is_air_fryer
+from .core.api import AirfryerApi, AirfryerAuthError, AirfryerError, hash_password, is_air_fryer
 from .const import (
     CONF_EMAIL,
     CONF_PASSWORD_HASH,
@@ -72,7 +72,7 @@ def _user_schema(defaults: Mapping[str, Any]) -> vol.Schema:
     )
 
 
-class CosoriConfigFlow(ConfigFlow, domain=DOMAIN):
+class AirfryerConfigFlow(ConfigFlow, domain=DOMAIN):
     """Einrichtungs-Assistent."""
 
     VERSION = 1
@@ -81,15 +81,15 @@ class CosoriConfigFlow(ConfigFlow, domain=DOMAIN):
         self, email: str, password_md5: str, region: str, terminal_id: str
     ) -> tuple[dict[str, str], int]:
         """Anmelden und Fritteusen zählen. Gibt (Fehler, Anzahl) zurück."""
-        api = CosoriApi(
+        api = AirfryerApi(
             async_get_clientsession(self.hass), email, password_md5, region, terminal_id
         )
         try:
             await api.login()
             devices = await api.get_devices()
-        except CosoriAuthError:
+        except AirfryerAuthError:
             return {"base": "anmeldung_falsch"}, 0
-        except CosoriError as err:
+        except AirfryerError as err:
             _LOGGER.warning("Einrichtung: %s", err)
             return {"base": "keine_verbindung"}, 0
         except Exception:  # noqa: BLE001
@@ -165,10 +165,10 @@ class CosoriConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
-        return CosoriOptionsFlow()
+        return AirfryerOptionsFlow()
 
 
-class CosoriOptionsFlow(OptionsFlow):
+class AirfryerOptionsFlow(OptionsFlow):
     """Konfigurieren: Abfrage-Takt und Zeiteinheit."""
 
     async def async_step_init(

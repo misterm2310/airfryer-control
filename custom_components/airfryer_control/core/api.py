@@ -44,7 +44,7 @@ CODE_APP_TOO_OLD = -11012022
 AUTH_ERROR_CODES = {-11001000, -11003000, -11012002, 4001004, -11001001}
 
 
-class CosoriError(Exception):
+class AirfryerError(Exception):
     """Allgemeiner Fehler beim Reden mit der Cloud."""
 
     def __init__(self, message: str, code: int | None = None) -> None:
@@ -52,15 +52,15 @@ class CosoriError(Exception):
         self.code = code
 
 
-class CosoriAuthError(CosoriError):
+class AirfryerAuthError(AirfryerError):
     """E-Mail oder Passwort falsch bzw. Anmeldung abgelaufen."""
 
 
-class CosoriConnectionError(CosoriError):
+class AirfryerConnectionError(AirfryerError):
     """Server nicht erreichbar."""
 
 
-class CosoriDeviceOffline(CosoriError):
+class AirfryerDeviceOffline(AirfryerError):
     """Die Fritteuse ist gerade nicht online (Stecker raus, WLAN weg …)."""
 
 
@@ -85,7 +85,7 @@ def is_air_fryer(device: dict[str, Any]) -> bool:
     return "fryer" in module.lower() or "airfryer" in dev_type.lower()
 
 
-class CosoriApi:
+class AirfryerApi:
     """Ein Konto bei VeSync."""
 
     def __init__(
@@ -161,14 +161,14 @@ class CosoriApi:
                 url, json=body, headers=hdrs, timeout=TIMEOUT
             ) as resp:
                 if resp.status == 401:
-                    raise CosoriAuthError("Anmeldung abgelaufen (HTTP 401)")
+                    raise AirfryerAuthError("Anmeldung abgelaufen (HTTP 401)")
                 if resp.status >= 400:
-                    raise CosoriConnectionError(f"Server antwortet mit HTTP {resp.status}")
+                    raise AirfryerConnectionError(f"Server antwortet mit HTTP {resp.status}")
                 data = await resp.json(content_type=None)
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            raise CosoriConnectionError(f"VeSync-Server nicht erreichbar: {err}") from err
+            raise AirfryerConnectionError(f"VeSync-Server nicht erreichbar: {err}") from err
         if not isinstance(data, dict):
-            raise CosoriConnectionError("Unerwartete Antwort vom Server")
+            raise AirfryerConnectionError("Unerwartete Antwort vom Server")
         return data
 
     # ---------------------------------------------------------------- Anmelden
@@ -193,11 +193,11 @@ class CosoriApi:
         result = res.get("result") or {}
         if code != CODE_OK or not result.get("authorizeCode"):
             if code == CODE_APP_TOO_OLD:
-                raise CosoriError(
+                raise AirfryerError(
                     "VeSync meldet „App-Version zu alt“ – bitte Update der Integration abwarten",
                     code,
                 )
-            raise CosoriAuthError(
+            raise AirfryerAuthError(
                 f"Anmeldung abgelehnt: {res.get('msg')} (Code {code})", code
             )
         authorize_code = result["authorizeCode"]
@@ -231,7 +231,7 @@ class CosoriApi:
             )
             result = res.get("result") or {}
         if res.get("code") != CODE_OK or not result.get("token"):
-            raise CosoriAuthError(
+            raise AirfryerAuthError(
                 f"Anmeldung fehlgeschlagen: {res.get('msg')} (Code {res.get('code')})",
                 res.get("code"),
             )
@@ -282,7 +282,7 @@ class CosoriApi:
 
         res = await self._with_relogin(_do)
         if res.get("code") != CODE_OK:
-            raise CosoriError(
+            raise AirfryerError(
                 f"Geräteliste nicht lesbar: {res.get('msg')} (Code {res.get('code')})",
                 res.get("code"),
             )
@@ -294,8 +294,8 @@ class CosoriApi:
     ) -> dict[str, Any]:
         """Einen Befehl an ein Gerät schicken (so macht es die App).
 
-        Gibt das innere Ergebnis zurück. Wirft CosoriDeviceOffline, wenn die
-        Fritteuse nicht erreichbar ist, sonst CosoriError mit Code.
+        Gibt das innere Ergebnis zurück. Wirft AirfryerDeviceOffline, wenn die
+        Fritteuse nicht erreichbar ist, sonst AirfryerError mit Code.
         """
         await self._ensure_login()
 
@@ -356,18 +356,18 @@ class CosoriApi:
     def _unwrap(res: dict[str, Any], method: str) -> dict[str, Any]:
         code = res.get("code")
         if code in (CODE_DEVICE_OFFLINE, CODE_DEVICE_TIMEOUT):
-            raise CosoriDeviceOffline(
+            raise AirfryerDeviceOffline(
                 f"Fritteuse antwortet nicht ({res.get('msg')})", code
             )
         if code != CODE_OK:
-            raise CosoriError(
+            raise AirfryerError(
                 f"„{method}“ abgelehnt: {res.get('msg')} (Code {code})", code
             )
         result = res.get("result")
         if isinstance(result, dict):
             inner_code = result.get("code")
             if inner_code not in (None, 0):
-                raise CosoriError(
+                raise AirfryerError(
                     f"„{method}“ vom Gerät abgelehnt (Code {inner_code})", inner_code
                 )
             inner = result.get("result")
@@ -380,7 +380,7 @@ class CosoriApi:
         """Anfrage schicken; ist das Token abgelaufen, einmal neu anmelden."""
         try:
             res = await func()
-        except CosoriAuthError:
+        except AirfryerAuthError:
             res = {"code": -11001000}
         if res.get("code") in AUTH_ERROR_CODES:
             _LOGGER.debug("Token abgelaufen – melde neu an")

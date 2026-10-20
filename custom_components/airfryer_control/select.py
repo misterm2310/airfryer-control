@@ -15,8 +15,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import MODE_DEFAULTS, MODES, zone_label
-from .coordinator import CosoriCoordinator
-from .entity import CosoriEntity, async_remove_stale
+from .coordinator import AirfryerCoordinator
+from .entity import AirfryerEntity, async_remove_stale
 from .core.parser import zones_for_device
 from .senden import get_plan
 
@@ -24,7 +24,7 @@ from .senden import get_plan
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     entities: list[SelectEntity] = []
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
@@ -35,7 +35,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class ZoneProgramSelect(CosoriEntity, SelectEntity, RestoreEntity):
+class ZoneProgramSelect(AirfryerEntity, SelectEntity, RestoreEntity):
     """Programm, das beim Senden an die Zone geht."""
 
     _attr_translation_key = "zone_programm_waehlen"

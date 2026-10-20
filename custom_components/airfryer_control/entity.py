@@ -9,15 +9,15 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
-from .coordinator import CosoriCoordinator, FryerData
+from .coordinator import AirfryerCoordinator, FryerData
 
 
-class CosoriEntity(CoordinatorEntity[CosoriCoordinator]):
+class AirfryerEntity(CoordinatorEntity[AirfryerCoordinator]):
     """Eine Entität, die zu genau einer Fritteuse gehört."""
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator: CosoriCoordinator, cid: str, key: str) -> None:
+    def __init__(self, coordinator: AirfryerCoordinator, cid: str, key: str) -> None:
         super().__init__(coordinator)
         self._cid = cid
         self._attr_unique_id = f"{cid}_{key}"
@@ -48,7 +48,7 @@ def async_remove_stale(
     Für Doofe: Sonst stünden z. B. nach der Umstellung auf Zonen die alten
     Sensoren als „nicht mehr bereitgestellt“ in der Liste herum.
     """
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     if any(
         not f.online or (not f.raw_status and not f.raw_multi)
         for f in coordinator.fryers.values()

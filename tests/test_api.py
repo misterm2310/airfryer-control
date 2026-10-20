@@ -8,10 +8,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from custom_components.airfryer_control.core.api import (
-    CosoriApi,
-    CosoriAuthError,
-    CosoriDeviceOffline,
-    CosoriError,
+    AirfryerApi,
+    AirfryerAuthError,
+    AirfryerDeviceOffline,
+    AirfryerError,
     hash_password,
     is_air_fryer,
 )
@@ -24,8 +24,8 @@ DEVICES = "/cloud/v2/deviceManaged/devices"
 BYPASS = "/cloud/v2/deviceManaged/bypassV2"
 
 
-def api(hass: HomeAssistant, region: str = "eu") -> CosoriApi:
-    return CosoriApi(
+def api(hass: HomeAssistant, region: str = "eu") -> AirfryerApi:
+    return AirfryerApi(
         async_get_clientsession(hass), "a@b.de", hash_password("pw"), region, "TERM"
     )
 
@@ -54,7 +54,7 @@ async def test_login_sends_md5_never_plaintext(hass, aioclient_mock) -> None:
 
 async def test_login_wrong_password(hass, aioclient_mock) -> None:
     aioclient_mock.post(EU + AUTH, json={"code": -11201000, "msg": "password error"})
-    with pytest.raises(CosoriAuthError):
+    with pytest.raises(AirfryerAuthError):
         await api(hass).login()
 
 
@@ -102,14 +102,14 @@ async def test_devices_and_status(hass, aioclient_mock) -> None:
 async def test_device_offline(hass, aioclient_mock) -> None:
     ok_login(aioclient_mock)
     aioclient_mock.post(EU + BYPASS, json={"code": -11302030, "msg": "device timeout"})
-    with pytest.raises(CosoriDeviceOffline):
+    with pytest.raises(AirfryerDeviceOffline):
         await api(hass).bypass_v2({"cid": "x"}, "getAirfryerStatus")
 
 
 async def test_device_rejects_command(hass, aioclient_mock) -> None:
     ok_login(aioclient_mock)
     aioclient_mock.post(EU + BYPASS, json={"code": 0, "result": {"code": 11000000}})
-    with pytest.raises(CosoriError) as err:
+    with pytest.raises(AirfryerError) as err:
         await api(hass).bypass_v2({"cid": "x"}, "startMultiCook", {})
     assert err.value.code == 11000000
 
@@ -121,7 +121,7 @@ async def test_relogin_on_expired_token(hass, aioclient_mock) -> None:
     aioclient_mock.clear_requests()
     ok_login(aioclient_mock)
     aioclient_mock.post(EU + BYPASS, json={"code": -11001000, "msg": "token expired"})
-    with pytest.raises(CosoriError):
+    with pytest.raises(AirfryerError):
         await client.bypass_v2({"cid": "x"}, "getAirfryerStatus")
     paths = [str(c[1]) for c in aioclient_mock.mock_calls]
     assert any(AUTH in p for p in paths), "Es wurde nicht neu angemeldet"

@@ -16,7 +16,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from .core.api import CosoriDeviceOffline, CosoriError
+from .core.api import AirfryerDeviceOffline, AirfryerError
 from .const import (
     DEFAULT_MODE,
     MODE_DEFAULTS,
@@ -25,14 +25,14 @@ from .const import (
     TEMP_MAX_DEFAULT,
     TEMP_MIN_DEFAULT,
 )
-from .coordinator import CosoriCoordinator, FryerData
+from .coordinator import AirfryerCoordinator, FryerData
 from .core.parser import zones_for_device
 from .core.util import redact
 
 PAUSE_SECONDS = 1.0
 
 
-def get_plan(coordinator: CosoriCoordinator, cid: str, zone: int) -> dict[str, Any]:
+def get_plan(coordinator: AirfryerCoordinator, cid: str, zone: int) -> dict[str, Any]:
     """Die Eingaben einer Zone (Programm, Temperatur, Minuten) – mit Vorschlagswerten."""
     plan = coordinator.plans.get((cid, zone))
     if plan is None:
@@ -115,7 +115,7 @@ def build_variants(
 
 
 async def async_send(
-    coordinator: CosoriCoordinator,
+    coordinator: AirfryerCoordinator,
     fryer: FryerData,
     zone: int,
     temp: int,
@@ -145,9 +145,9 @@ async def async_send(
         entry: dict[str, Any] = {"variante": variant.name, "methode": variant.method}
         try:
             answer = await coordinator.api.bypass_v2(fryer.info, variant.method, variant.payload)
-        except CosoriDeviceOffline:
+        except AirfryerDeviceOffline:
             raise
-        except CosoriError as err:
+        except AirfryerError as err:
             entry.update(ok=False, code=err.code, fehler=str(err))
             results.append(entry)
             continue
@@ -165,7 +165,7 @@ NO_PROGRAM_CODE = 11923000  # „Zone hat kein Programm“ → ist schon aus
 
 
 async def async_end(
-    coordinator: CosoriCoordinator, fryer: FryerData, zone: int | None = None
+    coordinator: AirfryerCoordinator, fryer: FryerData, zone: int | None = None
 ) -> None:
     """Zone(n) beenden. Ohne ``zone`` werden alle Zonen beendet.
 
@@ -177,15 +177,15 @@ async def async_end(
         await coordinator.async_request_fast_refresh()
         return
     zones = [zone] if zone else zones_for_device(fryer.state, fryer.multizone)
-    errors: list[CosoriError] = []
+    errors: list[AirfryerError] = []
     done = 0
     for z in zones:
         try:
             await coordinator.api.bypass_v2(fryer.info, "endCook", {"chamber": z})
             done += 1
-        except CosoriDeviceOffline:
+        except AirfryerDeviceOffline:
             raise
-        except CosoriError as err:
+        except AirfryerError as err:
             if err.code == NO_PROGRAM_CODE:
                 done += 1
             else:

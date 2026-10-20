@@ -17,7 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .core.api import CosoriDeviceOffline, CosoriError
+from .core.api import AirfryerDeviceOffline, AirfryerError
 from .const import (
     CODE_VALUE_NOT_ALLOWED,
     DOMAIN,
@@ -25,8 +25,8 @@ from .const import (
     STATE_WAITING,
     zone_label,
 )
-from .coordinator import CosoriCoordinator
-from .entity import CosoriEntity, async_remove_stale
+from .coordinator import AirfryerCoordinator
+from .entity import AirfryerEntity, async_remove_stale
 from .core.parser import zone_view, zones_for_device
 from .senden import async_end, async_send, clamp_temp, get_plan
 
@@ -34,7 +34,7 @@ from .senden import async_end, async_send, clamp_temp, get_plan
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     entities: list[SwitchEntity] = []
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
@@ -45,7 +45,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class ZoneSwitch(CosoriEntity, SwitchEntity):
+class ZoneSwitch(AirfryerEntity, SwitchEntity):
     """An = Werte senden / Zone aktiv. Aus = Zone beenden."""
 
     _attr_translation_key = "zone_senden"
@@ -91,7 +91,7 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
                 plan["minuten"],
                 plan["mode"],
             )
-        except CosoriDeviceOffline as err:
+        except AirfryerDeviceOffline as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="abgelehnt",
@@ -122,7 +122,7 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
         chamber = zs.zone if zs else self._zone
         try:
             await async_end(self.coordinator, self.fryer, chamber)
-        except CosoriError as err:
+        except AirfryerError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="abgelehnt",

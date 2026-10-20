@@ -10,8 +10,6 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 
 > 🧪 **Beta!** Die Integration ist neu. Cosori legt die Daten der Fritteuse nirgends offen. Vieles ist aus dem offenen ioBroker-Adapter und pyvesync abgeleitet und **noch nicht an jeder echten Fritteuse geprüft**. Wenn etwas komisch angezeigt wird: Sag Bescheid (siehe unten), dann bessern wir nach.
 
-> 🔁 **Umgezogen von „Cosori Bedienung“?** Die Integration heißt jetzt **Airfryer Control** (interner Name `airfryer_control`). Alte Version in HACS entfernen, Home Assistant neu starten, neue installieren und die Integration neu einrichten. Die Entitäten behalten ihre Namen (`sensor.cosori_zone_1_zustand` …), Dienste und das Ereignis heißen jetzt `airfryer_control.…` und `airfryer_control_fertig`.
-
 ---
 
 ## ✨ Was kann das Ding?
@@ -35,7 +33,7 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 ## 📦 Installation
 
 1. **HACS** öffnen → oben rechts **⋮ → Benutzerdefinierte Repositories**.
-2. `https://github.com/misterm2310/cosori-bedienung` eintragen, Typ **Integration**, **Hinzufügen**.
+2. `https://github.com/misterm2310/airfryer-control` eintragen, Typ **Integration**, **Hinzufügen**.
 3. Nach **Airfryer Control** suchen → ⋮ → **Neu herunterladen** → **„Beta-Versionen anzeigen“** einschalten → neueste Version wählen → **Herunterladen**.
 4. **Home Assistant neu starten.**
 5. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Airfryer Control.**
@@ -232,8 +230,8 @@ Sie ist und bleibt **kostenlos**. Wenn du magst, kannst du mir ganz freiwillig e
 
 ## 💡 Ideen, Wünsche und Fehler
 
-- **Idee oder Wunsch?** Schreib sie bei den [Diskussionen](https://github.com/misterm2310/cosori-bedienung/discussions).
-- **Etwas funktioniert nicht?** Mach ein [Issue](https://github.com/misterm2310/cosori-bedienung/issues) auf. Am hilfreichsten: Modellnummer, Version und die Datei aus **Geräte & Dienste → Airfryer Control → ⋮ → Diagnose herunterladen** (Kennungen sind dort schon geschwärzt).
+- **Idee oder Wunsch?** Schreib sie bei den [Diskussionen](https://github.com/misterm2310/airfryer-control/discussions).
+- **Etwas funktioniert nicht?** Mach ein [Issue](https://github.com/misterm2310/airfryer-control/issues) auf. Am hilfreichsten: Modellnummer, Version und die Datei aus **Geräte & Dienste → Airfryer Control → ⋮ → Diagnose herunterladen** (Kennungen sind dort schon geschwärzt).
 
 ---
 

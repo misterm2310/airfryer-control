@@ -10,8 +10,6 @@ Built for models the official VeSync integration does **not** know – first of 
 
 > 🧪 **Beta!** This integration is new. Cosori does not publish how its air fryers talk. Much of it is derived from the open ioBroker adapter and pyvesync and **has not been checked on every real air fryer yet**. If something looks odd, tell us (see below) and we'll fix it.
 
-> 🔁 **Moving from “Cosori Bedienung”?** The integration is now called **Airfryer Control** (internal name `airfryer_control`). Remove the old version in HACS, restart Home Assistant, install the new one and set the integration up again. Entities keep their names (`sensor.cosori_zone_1_zustand` …); services and the event are now `airfryer_control.…` and `airfryer_control_fertig`.
-
 ---
 
 ## ✨ What can it do?
@@ -35,7 +33,7 @@ Built for models the official VeSync integration does **not** know – first of 
 ## 📦 Installation
 
 1. Open **HACS** → top right **⋮ → Custom repositories**.
-2. Add `https://github.com/misterm2310/cosori-bedienung`, type **Integration**.
+2. Add `https://github.com/misterm2310/airfryer-control`, type **Integration**.
 3. Search **Airfryer Control** → ⋮ → **Redownload** → enable **“Show beta versions”** → pick the newest → **Download**.
 4. **Restart Home Assistant.**
 5. **Settings → Devices & services → Add integration → Airfryer Control.**
@@ -141,7 +139,7 @@ It is and stays **free**. If you like, you can send a small voluntary donation v
 
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-0070BA?logo=paypal&logoColor=white)](https://paypal.me/MarcoStrickmann)
 
-Ideas → [Discussions](https://github.com/misterm2310/cosori-bedienung/discussions) · Bugs → [Issues](https://github.com/misterm2310/cosori-bedienung/issues) (please attach **Download diagnostics**, identifiers are already redacted).
+Ideas → [Discussions](https://github.com/misterm2310/airfryer-control/discussions) · Bugs → [Issues](https://github.com/misterm2310/airfryer-control/issues) (please attach **Download diagnostics**, identifiers are already redacted).
 
 ## 🙌 Credits & legal
 

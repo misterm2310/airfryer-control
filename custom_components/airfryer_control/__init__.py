@@ -15,9 +15,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from .core.api import CosoriApi, CosoriAuthError, CosoriError
+from .core.api import AirfryerApi, AirfryerAuthError, AirfryerError
 from .const import CONF_EMAIL, CONF_PASSWORD_HASH, CONF_REGION, CONF_TERMINAL_ID, DOMAIN
-from .coordinator import CosoriCoordinator
+from .coordinator import AirfryerCoordinator
 from .services import async_register_services
 
 PLATFORMS = [
@@ -31,7 +31,7 @@ PLATFORMS = [
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-type CosoriConfigEntry = ConfigEntry[CosoriCoordinator]
+type AirfryerConfigEntry = ConfigEntry[AirfryerCoordinator]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -40,8 +40,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: CosoriConfigEntry) -> bool:
-    api = CosoriApi(
+async def async_setup_entry(hass: HomeAssistant, entry: AirfryerConfigEntry) -> bool:
+    api = AirfryerApi(
         async_get_clientsession(hass),
         entry.data[CONF_EMAIL],
         entry.data[CONF_PASSWORD_HASH],
@@ -51,12 +51,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: CosoriConfigEntry) -> bo
     )
     try:
         await api.login()
-    except CosoriAuthError as err:
+    except AirfryerAuthError as err:
         raise ConfigEntryAuthFailed(str(err)) from err
-    except CosoriError as err:
+    except AirfryerError as err:
         raise ConfigEntryNotReady(str(err)) from err
 
-    coordinator = CosoriCoordinator(hass, entry, api)
+    coordinator = AirfryerCoordinator(hass, entry, api)
     try:
         await coordinator.async_load_devices()
     except UpdateFailed as err:
@@ -69,10 +69,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: CosoriConfigEntry) -> bo
     return True
 
 
-async def _async_reload(hass: HomeAssistant, entry: CosoriConfigEntry) -> None:
+async def _async_reload(hass: HomeAssistant, entry: AirfryerConfigEntry) -> None:
     """Optionen geändert → neu laden."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: CosoriConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: AirfryerConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

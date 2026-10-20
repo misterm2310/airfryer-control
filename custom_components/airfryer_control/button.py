@@ -9,16 +9,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .core.api import CosoriError
-from .coordinator import CosoriCoordinator
-from .entity import CosoriEntity
+from .core.api import AirfryerError
+from .coordinator import AirfryerCoordinator
+from .entity import AirfryerEntity
 from .senden import async_end
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     entities: list[ButtonEntity] = []
     for cid in coordinator.fryers:
         entities.append(StopButton(coordinator, cid))
@@ -26,7 +26,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class StopButton(CosoriEntity, ButtonEntity):
+class StopButton(AirfryerEntity, ButtonEntity):
     """Beendet den laufenden Garvorgang (wie „Stopp“ in der App)."""
 
     _attr_translation_key = "garen_beenden"
@@ -37,12 +37,12 @@ class StopButton(CosoriEntity, ButtonEntity):
     async def async_press(self) -> None:
         try:
             await async_end(self.coordinator, self.fryer)
-        except CosoriError as err:
+        except AirfryerError as err:
             raise HomeAssistantError(f"Fritteuse hat „Beenden“ abgelehnt: {err}") from err
         await self.coordinator.async_request_fast_refresh()
 
 
-class RefreshButton(CosoriEntity, ButtonEntity):
+class RefreshButton(AirfryerEntity, ButtonEntity):
     """Sofort nachfragen statt auf den nächsten Takt zu warten."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC

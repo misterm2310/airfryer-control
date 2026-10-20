@@ -20,8 +20,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ALL_STATES, DOMAIN, STATE_OFFLINE, zone_label
-from .coordinator import CosoriCoordinator, FryerData
-from .entity import CosoriEntity, async_remove_stale
+from .coordinator import AirfryerCoordinator, FryerData
+from .entity import AirfryerEntity, async_remove_stale
 from .core.parser import ZoneState, reports_current_temp, zone_view, zones_for_device
 from .core.util import redact
 
@@ -137,7 +137,7 @@ ZONE_SENSORS: tuple[ZoneSensorDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     entities: list[SensorEntity] = []
     for cid, fryer in coordinator.fryers.items():
         entities += [FryerSensor(coordinator, cid, d) for d in FRYER_SENSORS]
@@ -162,7 +162,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class FryerSensor(CosoriEntity, SensorEntity):
+class FryerSensor(AirfryerEntity, SensorEntity):
     """Sensor über die ganze Fritteuse."""
 
     entity_description: FryerSensorDescription
@@ -186,7 +186,7 @@ class FryerSensor(CosoriEntity, SensorEntity):
         return attrs
 
 
-class ZoneSensor(CosoriEntity, SensorEntity):
+class ZoneSensor(AirfryerEntity, SensorEntity):
     """Sensor für eine Zone (oder für die einzige Kammer)."""
 
     entity_description: ZoneSensorDescription
@@ -225,7 +225,7 @@ class ZoneSensor(CosoriEntity, SensorEntity):
         return {"rohwert": zs.status_raw if zs else None}
 
 
-class RawDataSensor(CosoriEntity, SensorEntity):
+class RawDataSensor(AirfryerEntity, SensorEntity):
     """Diagnose: was die Cloud zuletzt geschickt hat (ohne Konto-Daten).
 
     Hilft in der Beta beim Nachbessern: Wenn ein Wert falsch angezeigt wird,

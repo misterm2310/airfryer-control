@@ -22,10 +22,10 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .core.api import CosoriError
+from .core.api import AirfryerError
 from .const import DOMAIN, zone_label
-from .coordinator import CosoriCoordinator
-from .entity import CosoriEntity, async_remove_stale
+from .coordinator import AirfryerCoordinator
+from .entity import AirfryerEntity, async_remove_stale
 from .core.parser import ZoneState, zone_view, zones_for_device
 from .senden import clamp_temp, get_plan, temp_limits
 
@@ -66,7 +66,7 @@ NUMBERS: tuple[ZoneNumberDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     entities: list[NumberEntity] = []
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
@@ -84,7 +84,7 @@ def build_change_payload(zs: ZoneState, temp: int | None, minutes: int | None) -
     return {"cookSetTime": int(new_time), "cookSetTemp": int(new_temp), "chamber": zs.zone}
 
 
-class ZoneNumber(CosoriEntity, NumberEntity, RestoreEntity):
+class ZoneNumber(AirfryerEntity, NumberEntity, RestoreEntity):
     """Temperatur oder Garzeit, die für eine Zone gesendet wird."""
 
     entity_description: ZoneNumberDescription
@@ -139,7 +139,7 @@ class ZoneNumber(CosoriEntity, NumberEntity, RestoreEntity):
             payload = build_change_payload(zs, None, int(value))
         try:
             await self.coordinator.api.bypass_v2(self.fryer.info, "setTimeOrTemp", payload)
-        except CosoriError as err:
+        except AirfryerError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="abgelehnt",

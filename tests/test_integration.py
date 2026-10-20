@@ -20,9 +20,9 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from custom_components.airfryer_control.core.api import (
-    CosoriAuthError,
-    CosoriDeviceOffline,
-    CosoriError,
+    AirfryerAuthError,
+    AirfryerDeviceOffline,
+    AirfryerError,
     hash_password,
 )
 from custom_components.airfryer_control.const import DOMAIN, EVENT_FINISHED
@@ -118,19 +118,19 @@ class FakeApi:
     async def bypass_v2(self, device, method, data=None):
         self.calls.append((method, data))
         if FakeApi.offline:
-            raise CosoriDeviceOffline("offline", -11300030)
+            raise AirfryerDeviceOffline("offline", -11300030)
         if method == "getAirfryerStatus":
             if FakeApi.status_rejected:
-                raise CosoriError("„getAirfryerStatus“ vom Gerät abgelehnt (Code 11030000)", 11030000)
+                raise AirfryerError("„getAirfryerStatus“ vom Gerät abgelehnt (Code 11030000)", 11030000)
             return dict(FakeApi.status)
         if method == "getAirfryerMultiStatus":
             return dict(FakeApi.multi)
         if method in FakeApi.reject:
-            raise CosoriError(
+            raise AirfryerError(
                 f"„{method}“ vom Gerät abgelehnt (Code {FakeApi.reject_code})", FakeApi.reject_code
             )
         if method == "kaputt":
-            raise CosoriError("„kaputt“ abgelehnt", 11000000)
+            raise AirfryerError("„kaputt“ abgelehnt", 11000000)
         return {"cid": CID, "ok": 1}
 
     async def bypass_v1_status(self, device):
@@ -149,8 +149,8 @@ def fake_api():
     FakeApi.offline = False
     FakeApi.status_rejected = False
     with (
-        patch("custom_components.airfryer_control.CosoriApi", FakeApi),
-        patch("custom_components.airfryer_control.config_flow.CosoriApi", FakeApi),
+        patch("custom_components.airfryer_control.AirfryerApi", FakeApi),
+        patch("custom_components.airfryer_control.config_flow.AirfryerApi", FakeApi),
     ):
         yield FakeApi
 
@@ -202,7 +202,7 @@ async def test_config_flow_stores_only_hash(hass: HomeAssistant) -> None:
 
 
 async def test_config_flow_wrong_password(hass: HomeAssistant, fake_api) -> None:
-    fake_api.login_error = CosoriAuthError("nein")
+    fake_api.login_error = AirfryerAuthError("nein")
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -235,7 +235,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
 
 
 async def test_reauth_when_login_fails(hass: HomeAssistant, fake_api) -> None:
-    fake_api.login_error = CosoriAuthError("abgelaufen")
+    fake_api.login_error = AirfryerAuthError("abgelaufen")
     entry = make_entry()
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
@@ -530,7 +530,7 @@ async def test_waiting_zone_is_polled_every_5_seconds(hass: HomeAssistant, fake_
 
 
 async def test_stop_button_zone_without_program_is_not_an_error(hass: HomeAssistant) -> None:
-    from custom_components.airfryer_control.core.api import CosoriError as _E
+    from custom_components.airfryer_control.core.api import AirfryerError as _E
 
     await setup(hass)
     api = FakeApi.instances[-1]

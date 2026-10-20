@@ -19,11 +19,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .core.api import (
-    CosoriApi,
-    CosoriAuthError,
-    CosoriConnectionError,
-    CosoriDeviceOffline,
-    CosoriError,
+    AirfryerApi,
+    AirfryerAuthError,
+    AirfryerConnectionError,
+    AirfryerDeviceOffline,
+    AirfryerError,
     is_air_fryer,
 )
 from .const import (
@@ -83,12 +83,12 @@ class FryerData:
         return str(self.info.get("deviceType") or "Heißluftfritteuse")
 
 
-class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
+class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
     """Ein Koordinator pro VeSync-Konto."""
 
     config_entry: ConfigEntry
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: CosoriApi) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: AirfryerApi) -> None:
         self.api = api
         self._interval = int(entry.options.get(OPT_INTERVAL, DEFAULT_INTERVAL))
         self._unit_option = entry.options.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
@@ -110,9 +110,9 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         """Geräteliste holen (einmal beim Start)."""
         try:
             devices = await self.api.get_devices()
-        except CosoriAuthError as err:
+        except AirfryerAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
-        except CosoriError as err:
+        except AirfryerError as err:
             raise UpdateFailed(str(err)) from err
         for dev in devices:
             if not is_air_fryer(dev) or not dev.get("cid"):
@@ -133,9 +133,9 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             try:
                 await self._update_fryer(fryer)
                 any_ok = True
-            except CosoriAuthError as err:
+            except AirfryerAuthError as err:
                 raise ConfigEntryAuthFailed(str(err)) from err
-            except CosoriConnectionError as err:
+            except AirfryerConnectionError as err:
                 last_conn_error = err
                 fryer.last_error = str(err)
         if not any_ok and last_conn_error is not None:
@@ -182,7 +182,7 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                 fryer.raw_multi = multi or {}
             fryer.online = True
             fryer.last_error = None
-        except CosoriDeviceOffline as err:
+        except AirfryerDeviceOffline as err:
             fryer.online = False
             fryer.last_error = str(err)
             fryer.state = FryerState(status=STATE_OFFLINE)
@@ -191,9 +191,9 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             if was_online:
                 _LOGGER.info("%s ist offline: %s", fryer.name, err)
             return
-        except (CosoriAuthError, CosoriConnectionError):
+        except (AirfryerAuthError, AirfryerConnectionError):
             raise
-        except CosoriError as err:
+        except AirfryerError as err:
             fryer.last_error = str(err)
             _LOGGER.warning("%s: %s", fryer.name, err)
             return
@@ -224,9 +224,9 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             return None
         try:
             data = await self.api.bypass_v2(fryer.info, method)
-        except (CosoriDeviceOffline, CosoriAuthError, CosoriConnectionError):
+        except (AirfryerDeviceOffline, AirfryerAuthError, AirfryerConnectionError):
             raise
-        except CosoriError as err:
+        except AirfryerError as err:
             _LOGGER.debug("%s kennt „%s“ nicht: %s", fryer.name, method, err)
             unsupported.add(method)
             fryer.method_errors[method] = str(err)

@@ -11,14 +11,14 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import CosoriCoordinator
-from .entity import CosoriEntity
+from .coordinator import AirfryerCoordinator
+from .entity import AirfryerEntity
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: CosoriCoordinator = entry.runtime_data
+    coordinator: AirfryerCoordinator = entry.runtime_data
     entities: list[BinarySensorEntity] = []
     for cid in coordinator.fryers:
         entities.append(RunningSensor(coordinator, cid))
@@ -26,7 +26,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class RunningSensor(CosoriEntity, BinarySensorEntity):
+class RunningSensor(AirfryerEntity, BinarySensorEntity):
     """An, solange vorgeheizt, gegart oder kurz pausiert wird."""
 
     _attr_device_class = BinarySensorDeviceClass.RUNNING
@@ -40,7 +40,7 @@ class RunningSensor(CosoriEntity, BinarySensorEntity):
         return self.fryer.online and self.fryer.state.active
 
 
-class OnlineSensor(CosoriEntity, BinarySensorEntity):
+class OnlineSensor(AirfryerEntity, BinarySensorEntity):
     """Ist die Fritteuse mit der Cloud verbunden?"""
 
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY

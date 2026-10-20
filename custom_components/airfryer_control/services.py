@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
-from .core.api import CosoriError
+from .core.api import AirfryerError
 from .const import (
     DOMAIN,
     MODES,
@@ -25,7 +25,7 @@ from .const import (
     SERVICE_SEND_TEST,
     SERVICE_STOP,
 )
-from .coordinator import CosoriCoordinator, FryerData
+from .coordinator import AirfryerCoordinator, FryerData
 from .senden import async_end, async_send
 from .core.util import redact
 
@@ -62,7 +62,7 @@ RAW_SCHEMA = vol.Schema(
 )
 
 
-def _find(hass: HomeAssistant, device_id: str) -> tuple[CosoriCoordinator, FryerData]:
+def _find(hass: HomeAssistant, device_id: str) -> tuple[AirfryerCoordinator, FryerData]:
     device = dr.async_get(hass).async_get(device_id)
     if device is None:
         raise ServiceValidationError(
@@ -70,7 +70,7 @@ def _find(hass: HomeAssistant, device_id: str) -> tuple[CosoriCoordinator, Fryer
         )
     cid = next((ident[1] for ident in device.identifiers if ident[0] == DOMAIN), None)
     for entry in hass.config_entries.async_loaded_entries(DOMAIN):
-        coordinator: CosoriCoordinator = entry.runtime_data
+        coordinator: AirfryerCoordinator = entry.runtime_data
         if cid in coordinator.fryers:
             return coordinator, coordinator.fryers[cid]
     raise ServiceValidationError(translation_domain=DOMAIN, translation_key="geraet_unbekannt")
@@ -80,7 +80,7 @@ async def _stop(call: ServiceCall) -> None:
     coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
     try:
         await async_end(coordinator, fryer)
-    except CosoriError as err:
+    except AirfryerError as err:
         raise HomeAssistantError(f"Fritteuse hat „Beenden“ abgelehnt: {err}") from err
     await coordinator.async_request_fast_refresh()
 
@@ -106,7 +106,7 @@ async def _send_test(call: ServiceCall) -> ServiceResponse:
             only=call.data.get(ATTR_VARIANT),
             try_all=call.data[ATTR_ALL],
         )
-    except CosoriError as err:
+    except AirfryerError as err:
         return {"ok": False, "fehler": str(err), "code": err.code}
     return {
         "ok": any(r["ok"] for r in results),
@@ -122,7 +122,7 @@ async def _raw(call: ServiceCall) -> ServiceResponse:
         result = await coordinator.api.bypass_v2(
             fryer.info, call.data[ATTR_METHOD], call.data[ATTR_DATA]
         )
-    except CosoriError as err:
+    except AirfryerError as err:
         return {"ok": False, "fehler": str(err), "code": err.code}
     await coordinator.async_request_fast_refresh()
     return {"ok": True, "antwort": redact(result)}
