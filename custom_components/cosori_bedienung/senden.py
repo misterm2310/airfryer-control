@@ -3,9 +3,11 @@
 Für Doofe: In der App gibst du Korb, Programm, Temperatur und Zeit ein und
 drückst unten „Senden“. Die Fritteuse wacht auf und wartet, bis du am Gerät
 auf Start drückst. Der Befehl dafür ist `startMultiCook` mit Rezept-Angaben und
-`readyStart: false` (so macht es auch die Schwester-Fritteuse in pyvesync).
-ACHTUNG: Mit `readyStart: true` STARTET die TwinFry sofort – diese Schreibweise
-wird darum nie automatisch geschickt, nur wenn man sie ausdrücklich verlangt.
+`readyStart: true` (so macht es auch die Schwester-Fritteuse in pyvesync).
+Gemessen an Marcos TwinFry (20.10.2026): `readyStart: true` = bereitstellen, die Zone
+steht danach auf „ready“ und wartet auf Start am Gerät. `readyStart: false` = die
+Fritteuse STARTET sofort! Diese Form wird darum nie automatisch geschickt, nur wenn
+man sie ausdrücklich verlangt.
 """
 
 from __future__ import annotations
@@ -51,12 +53,12 @@ def build_variants(
     *,
     include_start: bool = False,
 ) -> list[SendVariant]:
-    """Schreibweisen für „Senden“ – nie mit Start, außer include_start ist ausdrücklich an."""
+    """Schreibweisen für „Senden“ (bereitstellen) – mit Start nur, wenn include_start an ist."""
     app_mode = MODES.get(mode, mode)
     secs = int(minutes) * 60
     acc = account_id or ""
 
-    def multi(unit: str, work: int, *, ready: bool = False) -> dict[str, Any]:
+    def multi(unit: str, work: int, *, ready: bool = True) -> dict[str, Any]:
         config: dict[str, Any] = {
             "cookSetTime": secs,
             "cookTemp": int(temp),
@@ -75,8 +77,8 @@ def build_variants(
             "workChamber": work,
             "tempUnit": unit,
             "accountId": acc,
-            # false = nur senden (Zone steht dann auf „ready“ und wartet auf Start am Gerät).
-            # true = die TwinFry STARTET sofort!
+            # true = nur bereitstellen (Zone steht dann auf „ready“ und wartet auf Start am Gerät).
+            # false = die TwinFry STARTET sofort!
             "readyStart": ready,
             "cookConfigs": [config],
         }
@@ -87,9 +89,9 @@ def build_variants(
         SendVariant("multi_app_zone0", "startMultiCook", multi("c", 0)),
     ]
     if include_start:
-        # Nur auf ausdrücklichen Wunsch (Dienst „Senden testen“ mit variante): startet wirklich!
+        # Nur auf ausdrücklichen Wunsch (Dienst „Senden testen“ mit variante): STARTET wirklich!
         safe.append(
-            SendVariant("multi_app_startet", "startMultiCook", multi("c", zone, ready=True))
+            SendVariant("multi_app_startet", "startMultiCook", multi("c", zone, ready=False))
         )
     return safe
 

@@ -228,7 +228,7 @@
         },
         "variante": {
           "name": "Variant",
-          "description": "Empty = try the safe variants in turn until one works (multi_app, multi_app_celsius, multi_app_zone0). “multi_app_startet” really STARTS the TwinFry – only if you want that."
+          "description": "Empty = try the safe variants in turn until one works (multi_app, multi_app_celsius, multi_app_zone0). “multi_app_startet” really STARTS the TwinFry right away – only if you want that."
         },
         "alle": {
           "name": "Try all",

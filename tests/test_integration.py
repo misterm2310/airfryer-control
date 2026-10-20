@@ -316,7 +316,7 @@ async def test_send_test_service_never_starts_by_itself(hass: HomeAssistant) -> 
         "multi_app", "multi_app_celsius", "multi_app_zone0"
     ]
     sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"]
-    assert len(sent) == 3 and all(c[1]["readyStart"] is False for c in sent)
+    assert len(sent) == 3 and all(c[1]["readyStart"] is True for c in sent)
     assert "konto-42" not in str(res)
 
 
@@ -329,7 +329,7 @@ async def test_send_test_explicit_start_variant(hass: HomeAssistant) -> None:
     )
     assert [v["variante"] for v in res["versuche"]] == ["multi_app_startet"]
     sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"]
-    assert sent[0][1]["readyStart"] is True
+    assert sent[0][1]["readyStart"] is False  # startet wirklich – nur auf ausdrücklichen Wunsch
 
 
 async def test_raw_service(hass: HomeAssistant) -> None:
@@ -450,7 +450,7 @@ async def test_switch_on_sends_plan_and_off_ends(hass: HomeAssistant, fake_api) 
     )
     method, data = [c for c in api.calls if c[0] == "startMultiCook"][0]
     assert data["workChamber"] == 2 and data["accountId"] == "konto-42"
-    assert data["readyStart"] is False
+    assert data["readyStart"] is True
     assert data["cookConfigs"] == [
         {"cookSetTime": 300, "cookTemp": 220, "mode": "Grill", "chamber": 2,
          "recipeId": 14, "recipeName": "Grill", "recipeType": 3, "shakeTime": 0}

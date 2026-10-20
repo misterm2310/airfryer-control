@@ -103,7 +103,7 @@ def test_send_variants_never_start_by_default():
     assert names == ["multi_app", "multi_app_celsius", "multi_app_zone0"]
     for v in variants:
         assert v.method == "startMultiCook"
-        assert v.payload["readyStart"] is False  # nur senden, nie starten
+        assert v.payload["readyStart"] is True  # bereitstellen (TwinFry wartet auf Start am Gerät)
         assert v.payload["accountId"] == "acc"
     first = variants[0]
     assert first.payload["workChamber"] == 2 and first.payload["tempUnit"] == "c"
@@ -118,8 +118,8 @@ def test_send_variants_never_start_by_default():
 def test_start_variant_only_when_explicitly_requested():
     explicit = build_variants("acc", 1, 180, 10, "airfry", include_start=True)
     assert explicit[-1].name == "multi_app_startet"
-    assert explicit[-1].payload["readyStart"] is True
-    assert all(v.payload["readyStart"] is False for v in explicit[:-1])
+    assert explicit[-1].payload["readyStart"] is False  # false = TwinFry startet sofort
+    assert all(v.payload["readyStart"] is True for v in explicit[:-1])
 
 
 def test_ready_means_waiting_for_start():
