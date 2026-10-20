@@ -1,6 +1,6 @@
 <img src="docs/icon.png" width="96" align="right" alt="Icon">
 
-# 🍟 Cosori Bedienung für Home Assistant
+# 🍟 Airfryer Control für Home Assistant
 
 🇬🇧 **English?** → [README in English](README.en.md)
 
@@ -10,6 +10,8 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 
 > 🧪 **Beta!** Die Integration ist neu. Cosori legt die Daten der Fritteuse nirgends offen. Vieles ist aus dem offenen ioBroker-Adapter und pyvesync abgeleitet und **noch nicht an jeder echten Fritteuse geprüft**. Wenn etwas komisch angezeigt wird: Sag Bescheid (siehe unten), dann bessern wir nach.
 
+> 🔁 **Umgezogen von „Cosori Bedienung“?** Die Integration heißt jetzt **Airfryer Control** (interner Name `airfryer_control`). Alte Version in HACS entfernen, Home Assistant neu starten, neue installieren und die Integration neu einrichten. Die Entitäten behalten ihre Namen (`sensor.cosori_zone_1_zustand` …), Dienste und das Ereignis heißen jetzt `airfryer_control.…` und `airfryer_control_fertig`.
+
 ---
 
 ## ✨ Was kann das Ding?
@@ -18,10 +20,10 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 |---|---|
 | 🔥 **Zustand** | Aus, Bereit, Wartet auf Start, Heizt vor, Gart, Pausiert, Schublade offen, Fertig, Hält warm, Offline. |
 | ⏱️ **Restzeit & „Fertig um“** | In Minuten und als Uhrzeit – gesamt und für jede Zone. |
-| 🧩 **Zonen** | Bei der TwinFry eigene Entitäten für Zone 1, Zone 2 und die **ganze Schublade** (ohne Trennwand, die Fritteuse nennt sie Zone 3). |
+| 🧩 **Zonen** | Bei der TwinFry eigene Entitäten für Zone 1, Zone 2 und die **Grandzone** (die ganze Schublade ohne Trennwand, die Fritteuse nennt sie Zone 3). |
 | 🌡️ **Grenzen** | Die Temperatur passt sich dem Programm an: Heißluft 120–205 °C, Braten 120–205 °C, Backen 80–205 °C, Grillen 205–240 °C, Aufwärmen 40–205 °C. Passt ein Wert nicht, sagt die Integration es dir im Klartext. |
 | 🌡️ **Temperatur & Programm** | Eingestellte Temperatur und Programm (AirFry, Roast …). Eine gemessene Temperatur gibt's nur, wenn die Fritteuse sie meldet (die TwinFry tut das nicht). |
-| 🔔 **Ereignis „fertig“** | `cosori_bedienung_fertig` – für Handy-Nachricht, Alexa-/Google-Durchsage oder „Fernseher pausieren“. |
+| 🔔 **Ereignis „fertig“** | `airfryer_control_fertig` – für Handy-Nachricht, Alexa-/Google-Durchsage oder „Fernseher pausieren“. |
 | 📤 **Senden (wie in der App)** | Pro Zone Programm, Temperatur und Garzeit einstellen und den Schalter **„Zone n senden / beenden“** auf An legen – wie „Senden“ in der VeSync-App. Die Fritteuse wacht auf und wartet, bis du am Gerät auf Start drückst. (Starten aus der Ferne sperrt Cosori in der EU.) |
 | ⏹️ **Garen beenden** | Als Knopf für die ganze Fritteuse – und derselbe Schalter pro Zone: Aus = Zone beenden. |
 | 🎛️ **Temperatur & Zeit ändern** | Eingabefelder pro Zone. Gart die Zone schon, gehen neue Werte direkt an die Fritteuse. |
@@ -34,14 +36,14 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 
 1. **HACS** öffnen → oben rechts **⋮ → Benutzerdefinierte Repositories**.
 2. `https://github.com/misterm2310/cosori-bedienung` eintragen, Typ **Integration**, **Hinzufügen**.
-3. Nach **Cosori Bedienung** suchen → ⋮ → **Neu herunterladen** → **„Beta-Versionen anzeigen“** einschalten → neueste Version wählen → **Herunterladen**.
+3. Nach **Airfryer Control** suchen → ⋮ → **Neu herunterladen** → **„Beta-Versionen anzeigen“** einschalten → neueste Version wählen → **Herunterladen**.
 4. **Home Assistant neu starten.**
-5. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Cosori Bedienung.**
+5. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Airfryer Control.**
 6. Mit **demselben Konto wie in der VeSync-App** anmelden, Region **EU** (Deutschland/Europa) wählen – fertig. 🎉
 
 <details><summary>Ohne HACS (von Hand)</summary>
 
-Den Ordner `custom_components/cosori_bedienung` nach `/config/custom_components/cosori_bedienung` kopieren und Home Assistant neu starten.
+Den Ordner `custom_components/airfryer_control` nach `/config/custom_components/airfryer_control` kopieren und Home Assistant neu starten.
 </details>
 
 > 💡 **Tipp:** Die Fritteuse muss zuerst in der VeSync-App eingerichtet sein. Die App kannst du weiter benutzen – beides geht gleichzeitig.
@@ -57,7 +59,7 @@ Pro Fritteuse ein Gerät. Die Namen hängen davon ab, wie deine Fritteuse in der
 | `sensor.fritteuse_zustand` | Gesamtzustand (Attribut `rohwert` = was die Fritteuse wirklich gemeldet hat) |
 | `sensor.fritteuse_restzeit` | Minuten bis fertig (gesamt) |
 | `sensor.fritteuse_fertig_um` | Uhrzeit, wann alles fertig ist |
-| `sensor.fritteuse_zone_1_…` / `zone_2_…` / `zone_3_…` (ganze Schublade) | Zustand, Restzeit, fertig um, Programm (nur beim Garen) |
+| `sensor.fritteuse_zone_1_…` / `zone_2_…` / `zone_3_…` (Grandzone) | Zustand, Restzeit, fertig um, Programm (nur beim Garen) |
 | `select.fritteuse_zone_1_programm` / `zone_2_…` / `zone_3_…` | Programm für „Senden“: Heißluft, Braten, Backen, Grillen, Aufwärmen, Dörren. Beim Wechsel setzt es Temperatur und Zeit auf die Vorschlagswerte der Fritteuse. |
 | `number.fritteuse_zone_1_temperatur_einstellen` | Temperatur der Zone (35–240 °C) – wird beim Senden mitgeschickt |
 | `number.fritteuse_zone_1_garzeit_einstellen` | Garzeit der Zone in Minuten – wird beim Senden mitgeschickt |
@@ -119,7 +121,7 @@ cards:
 
 ## 🤖 Für Automationen
 
-### 🔔 Das Ereignis `cosori_bedienung_fertig`
+### 🔔 Das Ereignis `airfryer_control_fertig`
 
 Kommt, sobald etwas aufhört zu garen. Mit dabei:
 
@@ -127,7 +129,7 @@ Kommt, sobald etwas aufhört zu garen. Mit dabei:
 |---|---|---|
 | `geraet` | `Fritteuse` | Name aus der App |
 | `modell` | `CAF-TF101S-AEUR` | Modell |
-| `zone` | `1`, `2`, `3` oder `alle` | Welche Zone fertig ist (`3` = ganze Schublade, `alle` = die ganze Fritteuse) |
+| `zone` | `1`, `2`, `3` oder `alle` | Welche Zone fertig ist (`3` = Grandzone, `alle` = die ganze Fritteuse) |
 | `zustand` | `fertig` | Zustand danach (`fertig`, `bereit`, `warmhalten` …) |
 | `programm` | `AirFry` | Programm der Zone (falls bekannt) |
 
@@ -139,7 +141,7 @@ description: "Schickt eine Nachricht aufs Handy, sobald die Cosori-Fritteuse kom
 mode: single
 triggers:
   - trigger: event
-    event_type: cosori_bedienung_fertig
+    event_type: airfryer_control_fertig
     event_data:
       zone: alle
 conditions:
@@ -169,9 +171,9 @@ actions:
 
 | Dienst | Was er tut |
 |---|---|
-| `cosori_bedienung.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
-| `cosori_bedienung.garen_beenden` | Stopp. |
-| `cosori_bedienung.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
+| `airfryer_control.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
+| `airfryer_control.garen_beenden` | Stopp. |
+| `airfryer_control.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
 
 ---
 
@@ -210,7 +212,7 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 
 ## ❓ Häufige Fragen
 
-**Die Restzeit ist 60-mal zu groß oder zu klein.** Geräte & Dienste → Cosori Bedienung → **Konfigurieren** → „Zeitangaben der Fritteuse“ auf **Sekunden** oder **Minuten** stellen.
+**Die Restzeit ist 60-mal zu groß oder zu klein.** Geräte & Dienste → Airfryer Control → **Konfigurieren** → „Zeitangaben der Fritteuse“ auf **Sekunden** oder **Minuten** stellen.
 
 **Der Zustand steht auf „Offline“.** Die Fritteuse ist für die Cloud nicht erreichbar (Stecker, WLAN). Geht's in der App? Wenn ja: einmal `button.…_jetzt_aktualisieren` drücken.
 
@@ -222,7 +224,7 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 
 ---
 
-## 💙 Gefällt dir Cosori Bedienung?
+## 💙 Gefällt dir Airfryer Control?
 
 Sie ist und bleibt **kostenlos**. Wenn du magst, kannst du mir ganz freiwillig eine kleine Spende per PayPal schicken: [paypal.me/MarcoStrickmann](https://paypal.me/MarcoStrickmann). Danke! 🙏
 
@@ -231,7 +233,7 @@ Sie ist und bleibt **kostenlos**. Wenn du magst, kannst du mir ganz freiwillig e
 ## 💡 Ideen, Wünsche und Fehler
 
 - **Idee oder Wunsch?** Schreib sie bei den [Diskussionen](https://github.com/misterm2310/cosori-bedienung/discussions).
-- **Etwas funktioniert nicht?** Mach ein [Issue](https://github.com/misterm2310/cosori-bedienung/issues) auf. Am hilfreichsten: Modellnummer, Version und die Datei aus **Geräte & Dienste → Cosori Bedienung → ⋮ → Diagnose herunterladen** (Kennungen sind dort schon geschwärzt).
+- **Etwas funktioniert nicht?** Mach ein [Issue](https://github.com/misterm2310/cosori-bedienung/issues) auf. Am hilfreichsten: Modellnummer, Version und die Datei aus **Geräte & Dienste → Airfryer Control → ⋮ → Diagnose herunterladen** (Kennungen sind dort schon geschwärzt).
 
 ---
 

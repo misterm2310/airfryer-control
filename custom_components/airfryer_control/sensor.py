@@ -22,8 +22,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import ALL_STATES, DOMAIN, STATE_OFFLINE, zone_label
 from .coordinator import CosoriCoordinator, FryerData
 from .entity import CosoriEntity, async_remove_stale
-from .parser import ZoneState, reports_current_temp, zone_view, zones_for_device
-from .util import redact
+from .core.parser import ZoneState, reports_current_temp, zone_view, zones_for_device
+from .core.util import redact
 
 
 def _minutes(seconds: int | None) -> int | None:

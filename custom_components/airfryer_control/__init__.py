@@ -1,4 +1,4 @@
-"""Cosori Bedienung – Cosori-Heißluftfritteusen (z. B. Dual Blaze TwinFry) in Home Assistant.
+"""Airfryer Control – Cosori-Heißluftfritteusen (z. B. Dual Blaze TwinFry) in Home Assistant.
 
 Für Doofe: Beim Start meldet sich die Integration mit deinem VeSync-Konto an,
 sucht deine Fritteusen und legt für jede ein Gerät mit Sensoren und Knöpfen an.
@@ -15,7 +15,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from .api import CosoriApi, CosoriAuthError, CosoriError
+from .core.api import CosoriApi, CosoriAuthError, CosoriError
 from .const import CONF_EMAIL, CONF_PASSWORD_HASH, CONF_REGION, CONF_TERMINAL_ID, DOMAIN
 from .coordinator import CosoriCoordinator
 from .services import async_register_services

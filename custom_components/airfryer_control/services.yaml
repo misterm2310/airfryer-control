@@ -4,7 +4,7 @@ senden_testen:
       required: true
       selector:
         device:
-          integration: cosori_bedienung
+          integration: airfryer_control
     zone:
       default: 1
       selector:
@@ -56,7 +56,7 @@ garen_beenden:
       required: true
       selector:
         device:
-          integration: cosori_bedienung
+          integration: airfryer_control
 
 befehl_senden:
   fields:
@@ -64,7 +64,7 @@ befehl_senden:
       required: true
       selector:
         device:
-          integration: cosori_bedienung
+          integration: airfryer_control
     methode:
       required: true
       example: getAirfryerStatus

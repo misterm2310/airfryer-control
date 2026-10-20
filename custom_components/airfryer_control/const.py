@@ -1,8 +1,8 @@
-"""Konstanten für Cosori Bedienung."""
+"""Konstanten für Airfryer Control."""
 
 from __future__ import annotations
 
-DOMAIN = "cosori_bedienung"
+DOMAIN = "airfryer_control"
 MANUFACTURER = "Cosori"
 
 # Einstellungen im Config-Eintrag
@@ -17,6 +17,7 @@ OPT_TIME_UNIT = "zeiteinheit"
 
 DEFAULT_INTERVAL = 60  # Sekunden, wenn die Fritteuse nichts tut
 FAST_INTERVAL = 15  # Sekunden, solange sie arbeitet
+WAITING_INTERVAL = 5  # Sekunden, solange eine Zone auf „Start“ am Gerät wartet
 MIN_INTERVAL = 30
 MAX_INTERVAL = 600
 
@@ -40,9 +41,9 @@ ZONE_2 = 2
 ZONE_WHOLE = 3  # ganze Schublade ohne Trennwand
 
 def zone_label(language: str | None, zone: int) -> str:
-    """Name der Zone für Entitäten: „Zone 1“, „Zone 2“, „Ganze Schublade“."""
+    """Name der Zone für Entitäten: „Zone 1“, „Zone 2“, „Grandzone“."""
     if zone == ZONE_WHOLE:
-        return "Ganze Schublade" if (language or "de").startswith("de") else "Whole drawer"
+        return "Grandzone"
     return f"Zone {zone}"
 
 

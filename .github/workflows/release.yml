@@ -28,7 +28,7 @@ jobs:
 
       - name: Version auslesen
         id: version
-        run: echo "tag=v$(jq -r .version custom_components/cosori_bedienung/manifest.json)" >> "$GITHUB_OUTPUT"
+        run: echo "tag=v$(jq -r .version custom_components/airfryer_control/manifest.json)" >> "$GITHUB_OUTPUT"
 
       - name: Release anlegen (nur wenn es die Version noch nicht gibt)
         env:

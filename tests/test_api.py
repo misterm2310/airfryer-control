@@ -7,7 +7,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from custom_components.cosori_bedienung.api import (
+from custom_components.airfryer_control.core.api import (
     CosoriApi,
     CosoriAuthError,
     CosoriDeviceOffline,

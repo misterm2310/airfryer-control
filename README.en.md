@@ -1,6 +1,6 @@
 <img src="docs/icon.png" width="96" align="right" alt="Icon">
 
-# 🍟 Cosori Bedienung for Home Assistant
+# 🍟 Airfryer Control for Home Assistant
 
 🇩🇪 **Deutsch?** → [README auf Deutsch](README.md)
 
@@ -10,6 +10,8 @@ Built for models the official VeSync integration does **not** know – first of 
 
 > 🧪 **Beta!** This integration is new. Cosori does not publish how its air fryers talk. Much of it is derived from the open ioBroker adapter and pyvesync and **has not been checked on every real air fryer yet**. If something looks odd, tell us (see below) and we'll fix it.
 
+> 🔁 **Moving from “Cosori Bedienung”?** The integration is now called **Airfryer Control** (internal name `airfryer_control`). Remove the old version in HACS, restart Home Assistant, install the new one and set the integration up again. Entities keep their names (`sensor.cosori_zone_1_zustand` …); services and the event are now `airfryer_control.…` and `airfryer_control_fertig`.
+
 ---
 
 ## ✨ What can it do?
@@ -18,10 +20,10 @@ Built for models the official VeSync integration does **not** know – first of 
 |---|---|
 | 🔥 **Status** | Off, Ready, Waiting for start, Preheating, Cooking, Paused, Drawer open, Done, Keeping warm, Offline. |
 | ⏱️ **Time remaining & “done at”** | In minutes and as a time – overall and per zone. |
-| 🧩 **Zones** | On the TwinFry, separate entities for zone 1, zone 2 and the **whole drawer** (without divider, the fryer calls it zone 3). |
+| 🧩 **Zones** | On the TwinFry, separate entities for zone 1, zone 2 and the **Grandzone** (the whole drawer without divider, the fryer calls it zone 3). |
 | 🌡️ **Limits** | Temperature follows the program: Air Fry 120–205 °C, Roast 120–205 °C, Bake 80–205 °C, Grill 205–240 °C, Reheat 40–205 °C. If a value is not accepted, the integration tells you in plain words. |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
-| 🔔 **“Done” event** | `cosori_bedienung_fertig` – for phone notifications, announcements or pausing the TV. |
+| 🔔 **“Done” event** | `airfryer_control_fertig` – for phone notifications, announcements or pausing the TV. |
 | 📤 **Send (like the app)** | Set program, temperature and time per zone, then turn the switch **“Zone n send / stop”** on – like “Send” in the VeSync app. The fryer wakes up and waits for you to press Start on the device. (Cosori blocks remote start in the EU.) |
 | ⏹️ **Stop cooking** | Button for the whole fryer – and the same switch per zone: off = stop that zone. |
 | 🎛️ **Change temperature & time** | Number fields per zone. If the zone is already cooking, new values go straight to the fryer. |
@@ -34,14 +36,14 @@ Built for models the official VeSync integration does **not** know – first of 
 
 1. Open **HACS** → top right **⋮ → Custom repositories**.
 2. Add `https://github.com/misterm2310/cosori-bedienung`, type **Integration**.
-3. Search **Cosori Bedienung** → ⋮ → **Redownload** → enable **“Show beta versions”** → pick the newest → **Download**.
+3. Search **Airfryer Control** → ⋮ → **Redownload** → enable **“Show beta versions”** → pick the newest → **Download**.
 4. **Restart Home Assistant.**
-5. **Settings → Devices & services → Add integration → Cosori Bedienung.**
+5. **Settings → Devices & services → Add integration → Airfryer Control.**
 6. Sign in with **the same account as in the VeSync app**, choose region **EU** or **US** – done. 🎉
 
 <details><summary>Without HACS (manual)</summary>
 
-Copy `custom_components/cosori_bedienung` to `/config/custom_components/cosori_bedienung` and restart Home Assistant.
+Copy `custom_components/airfryer_control` to `/config/custom_components/airfryer_control` and restart Home Assistant.
 </details>
 
 ---
@@ -55,7 +57,7 @@ One device per air fryer. Entity IDs depend on the name in the app (here “Frit
 | `sensor.fritteuse_status` | Overall status (attribute `rohwert` = what the fryer actually reported) |
 | `sensor.fritteuse_time_remaining` | Minutes until done (overall) |
 | `sensor.fritteuse_done_at` | Time when everything is done |
-| `sensor.fritteuse_zone_1_…` / `zone_2_…` / `zone_3_…` (whole drawer) | Status, time remaining, done at, program (only while cooking) |
+| `sensor.fritteuse_zone_1_…` / `zone_2_…` / `zone_3_…` (Grandzone) | Status, time remaining, done at, program (only while cooking) |
 | `select.fritteuse_zone_1_program` / `zone_2_…` / `zone_3_…` | Program used by “send”: Air Fry, Roast, Bake, Grill, Reheat, Dry. Changing it resets temperature and time to the fryer's suggested values. |
 | `number.fritteuse_zone_1_set_temperature` / `…_set_cooking_time` | Temperature (35–240 °C) / minutes – sent along when you send |
 | `switch.fritteuse_zone_1_send_stop` / `zone_2_…` / `zone_3_…` | **On = send the values to the fryer** (it then waits for Start on the device). **Off = stop the zone.** Program, temperature and time are attributes. |
@@ -67,7 +69,7 @@ One device per air fryer. Entity IDs depend on the name in the app (here “Frit
 
 ## 🤖 Automations
 
-The event `cosori_bedienung_fertig` carries `geraet` (name), `modell`, `zone` (`1`, `2`, `3` or `alle` = whole fryer), `zustand` and `programm`.
+The event `airfryer_control_fertig` carries `geraet` (name), `modell`, `zone` (`1`, `2`, `3` or `alle` = whole fryer), `zustand` and `programm`.
 
 ```yaml
 alias: Air fryer – food is ready
@@ -75,7 +77,7 @@ description: "Sends a phone notification as soon as the Cosori air fryer is comp
 mode: single
 triggers:
   - trigger: event
-    event_type: cosori_bedienung_fertig
+    event_type: airfryer_control_fertig
     event_data:
       zone: alle
 conditions:
@@ -100,9 +102,9 @@ actions:
 
 | Action | What it does |
 |---|---|
-| `cosori_bedienung.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). |
-| `cosori_bedienung.garen_beenden` | Stop. |
-| `cosori_bedienung.befehl_senden` | **Tinkerers, admins only:** sends an app command and returns the response (without account data). |
+| `airfryer_control.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). |
+| `airfryer_control.garen_beenden` | Stop. |
+| `airfryer_control.befehl_senden` | **Tinkerers, admins only:** sends an app command and returns the response (without account data). |
 
 ---
 
@@ -127,7 +129,7 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.
 - **Older 3.7/5.8 qt models** (CS…): display only, no start.
 
-**Time remaining 60× too large/small?** Devices & services → Cosori Bedienung → **Configure** → “Time values of the air fryer” → seconds or minutes.
+**Time remaining 60× too large/small?** Devices & services → Airfryer Control → **Configure** → “Time values of the air fryer” → seconds or minutes.
 
 **When are new versions released?** Official releases on **Sundays**, beta versions on other days (HACS → ⋮ → Redownload → “Show beta versions”).
 

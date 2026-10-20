@@ -12,8 +12,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version von Cosori Bedienung
-      description: HACS → Cosori Bedienung, z. B. 1.0.0-beta.1
+      label: Version von Airfryer Control
+      description: HACS → Airfryer Control, z. B. 1.0.0-beta.1
     validations:
       required: true
   - type: textarea
@@ -26,4 +26,4 @@ body:
     id: diagnose
     attributes:
       label: Diagnose
-      description: Geräte & Dienste → Cosori Bedienung → ⋮ → „Diagnose herunterladen“ und die Datei hier hineinziehen. Kennungen sind darin schon geschwärzt.
+      description: Geräte & Dienste → Airfryer Control → ⋮ → „Diagnose herunterladen“ und die Datei hier hineinziehen. Kennungen sind darin schon geschwärzt.

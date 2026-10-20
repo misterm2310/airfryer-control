@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .const import (
+from ..const import (
     ACTIVE_STATES,
     STATE_COOKING,
     STATE_DRAWER_OPEN,

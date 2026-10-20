@@ -189,7 +189,7 @@
   },
   "exceptions": {
     "geraet_unbekannt": {
-      "message": "This device does not belong to Cosori Bedienung."
+      "message": "This device does not belong to Airfryer Control."
     },
     "start_nicht_unterstuetzt": {
       "message": "Starting is not (yet) supported on this older model."
@@ -215,7 +215,7 @@
         },
         "zone": {
           "name": "Zone",
-          "description": "1, 2 oder 3 (ganze Schublade)."
+          "description": "1, 2 oder 3 (Grandzone = ganze Schublade ohne Trennwand)."
         },
         "temperatur": {
           "name": "Temperatur",

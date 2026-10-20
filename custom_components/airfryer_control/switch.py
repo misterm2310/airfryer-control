@@ -17,7 +17,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import CosoriDeviceOffline, CosoriError
+from .core.api import CosoriDeviceOffline, CosoriError
 from .const import (
     CODE_VALUE_NOT_ALLOWED,
     DOMAIN,
@@ -27,7 +27,7 @@ from .const import (
 )
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
-from .parser import zone_view, zones_for_device
+from .core.parser import zone_view, zones_for_device
 from .senden import async_end, async_send, clamp_temp, get_plan
 
 

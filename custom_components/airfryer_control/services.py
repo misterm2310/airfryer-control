@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
-from .api import CosoriError
+from .core.api import CosoriError
 from .const import (
     DOMAIN,
     MODES,
@@ -27,7 +27,7 @@ from .const import (
 )
 from .coordinator import CosoriCoordinator, FryerData
 from .senden import async_end, async_send
-from .util import redact
+from .core.util import redact
 
 ATTR_DEVICE = "geraet"
 ATTR_ZONE = "zone"

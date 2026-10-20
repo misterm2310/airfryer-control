@@ -16,7 +16,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from .api import CosoriDeviceOffline, CosoriError
+from .core.api import CosoriDeviceOffline, CosoriError
 from .const import (
     DEFAULT_MODE,
     MODE_DEFAULTS,
@@ -26,8 +26,8 @@ from .const import (
     TEMP_MIN_DEFAULT,
 )
 from .coordinator import CosoriCoordinator, FryerData
-from .parser import zones_for_device
-from .util import redact
+from .core.parser import zones_for_device
+from .core.util import redact
 
 PAUSE_SECONDS = 1.0
 

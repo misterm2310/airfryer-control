@@ -29,7 +29,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .api import CosoriApi, CosoriAuthError, CosoriError, hash_password, is_air_fryer
+from .core.api import CosoriApi, CosoriAuthError, CosoriError, hash_password, is_air_fryer
 from .const import (
     CONF_EMAIL,
     CONF_PASSWORD_HASH,

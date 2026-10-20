@@ -17,7 +17,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from .const import MODE_DEFAULTS, MODES, zone_label
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
-from .parser import zones_for_device
+from .core.parser import zones_for_device
 from .senden import get_plan
 
 

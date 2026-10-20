@@ -1,6 +1,6 @@
 """Tests für den Übersetzer der Cloud-Antworten (ohne Home Assistant)."""
 
-from custom_components.cosori_bedienung.const import (
+from custom_components.airfryer_control.const import (
     STATE_COOKING,
     STATE_FINISHED,
     STATE_PAUSED,
@@ -11,14 +11,14 @@ from custom_components.cosori_bedienung.const import (
     TIME_UNIT_MINUTES,
     TIME_UNIT_SECONDS,
 )
-from custom_components.cosori_bedienung.parser import (
+from custom_components.airfryer_control.core.parser import (
     guess_unit,
     map_status,
     parse,
     zone_view,
     zones_for_device,
 )
-from custom_components.cosori_bedienung.senden import build_variants
+from custom_components.airfryer_control.senden import build_variants
 
 
 def test_status_mapping():

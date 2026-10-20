@@ -22,11 +22,11 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .api import CosoriError
+from .core.api import CosoriError
 from .const import DOMAIN, zone_label
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
-from .parser import ZoneState, zone_view, zones_for_device
+from .core.parser import ZoneState, zone_view, zones_for_device
 from .senden import clamp_temp, get_plan, temp_limits
 
 

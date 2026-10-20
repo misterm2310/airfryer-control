@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import CosoriError
+from .core.api import CosoriError
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity
 from .senden import async_end

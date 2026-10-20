@@ -18,7 +18,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import (
+from .core.api import (
     CosoriApi,
     CosoriAuthError,
     CosoriConnectionError,
@@ -31,6 +31,8 @@ from .const import (
     DOMAIN,
     EVENT_FINISHED,
     FAST_INTERVAL,
+    STATE_WAITING,
+    WAITING_INTERVAL,
     OPT_INTERVAL,
     OPT_TIME_UNIT,
     STATE_FINISHED,
@@ -43,7 +45,7 @@ from .const import (
     STATE_STANDBY,
     TIME_UNIT_AUTO,
 )
-from .parser import FryerState, guess_unit, parse
+from .core.parser import FryerState, guess_unit, parse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -141,7 +143,16 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
 
         # Arbeitet eine Fritteuse? Dann öfter nachfragen.
         busy = any(f.online and f.state.active for f in self.fryers.values())
-        wanted = timedelta(seconds=FAST_INTERVAL if busy else self._interval)
+        # Wartet eine Zone auf den Start am Gerät? Dann noch schneller, damit „Fertig um“ gleich kommt.
+        waiting = any(
+            f.online and any(z.status == STATE_WAITING for z in f.state.zones.values())
+            for f in self.fryers.values()
+        )
+        if waiting:
+            seconds = WAITING_INTERVAL
+        else:
+            seconds = FAST_INTERVAL if busy else self._interval
+        wanted = timedelta(seconds=seconds)
         if self.update_interval != wanted:
             self.update_interval = wanted
         return self.fryers

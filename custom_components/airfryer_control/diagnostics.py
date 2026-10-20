@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .coordinator import CosoriCoordinator
-from .util import redact
+from .core.util import redact
 
 
 async def async_get_config_entry_diagnostics(

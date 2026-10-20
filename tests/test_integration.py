@@ -19,14 +19,14 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from custom_components.cosori_bedienung.api import (
+from custom_components.airfryer_control.core.api import (
     CosoriAuthError,
     CosoriDeviceOffline,
     CosoriError,
     hash_password,
 )
-from custom_components.cosori_bedienung.const import DOMAIN, EVENT_FINISHED
-from custom_components.cosori_bedienung.diagnostics import (
+from custom_components.airfryer_control.const import DOMAIN, EVENT_FINISHED
+from custom_components.airfryer_control.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 
@@ -149,8 +149,8 @@ def fake_api():
     FakeApi.offline = False
     FakeApi.status_rejected = False
     with (
-        patch("custom_components.cosori_bedienung.CosoriApi", FakeApi),
-        patch("custom_components.cosori_bedienung.config_flow.CosoriApi", FakeApi),
+        patch("custom_components.airfryer_control.CosoriApi", FakeApi),
+        patch("custom_components.airfryer_control.config_flow.CosoriApi", FakeApi),
     ):
         yield FakeApi
 
@@ -518,8 +518,19 @@ async def test_ready_shows_waiting_and_switch_on(hass: HomeAssistant, fake_api) 
     assert hass.states.get(eid(hass, "binary_sensor", "gart")).state == "off"
 
 
+async def test_waiting_zone_is_polled_every_5_seconds(hass: HomeAssistant, fake_api) -> None:
+    """Wartet eine Zone auf den Start, fragt die Integration besonders oft nach."""
+    from datetime import timedelta
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry("ready", remaining=600, set_time=600, temp=180)
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    assert coordinator.update_interval == timedelta(seconds=5)
+
+
 async def test_stop_button_zone_without_program_is_not_an_error(hass: HomeAssistant) -> None:
-    from custom_components.cosori_bedienung.api import CosoriError as _E
+    from custom_components.airfryer_control.core.api import CosoriError as _E
 
     await setup(hass)
     api = FakeApi.instances[-1]
@@ -563,7 +574,7 @@ async def test_whole_drawer_has_own_entities(hass: HomeAssistant, fake_api) -> N
     assert hass.states.get(eid(hass, "switch", "zone3_gart")).state == "on"
     assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "off"
     state = hass.states.get(eid(hass, "switch", "zone3_gart"))
-    assert "Whole drawer" in state.attributes["friendly_name"] or "Ganze Schublade" in state.attributes["friendly_name"]
+    assert "Grandzone" in state.attributes["friendly_name"]
 
 
 async def test_whole_drawer_send_and_end(hass: HomeAssistant, fake_api) -> None:
@@ -599,8 +610,8 @@ async def test_value_not_allowed_gives_friendly_message(hass: HomeAssistant, fak
 
 
 def test_program_temperature_limits() -> None:
-    from custom_components.cosori_bedienung.const import MODE_DEFAULTS
-    from custom_components.cosori_bedienung.senden import clamp_temp, temp_limits
+    from custom_components.airfryer_control.const import MODE_DEFAULTS
+    from custom_components.airfryer_control.senden import clamp_temp, temp_limits
 
     assert temp_limits("airfry") == (120, 205)
     assert temp_limits("grill") == (205, 240)
