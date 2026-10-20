@@ -16,7 +16,7 @@ Built for models the official VeSync integration does **not** know – first of 
 
 | Feature | How |
 |---|---|
-| 🔥 **Status** | Off, Ready, Preheating, Cooking, Paused, Drawer open, Done, Keeping warm, Offline. |
+| 🔥 **Status** | Off, Ready, Waiting for start, Preheating, Cooking, Paused, Drawer open, Done, Keeping warm, Offline. |
 | ⏱️ **Time remaining & “done at”** | In minutes and as a time – overall and per zone. |
 | 🧩 **Two zones** | On the TwinFry, separate sensors for zone 1 and zone 2. Whole drawer without divider = zone 1. |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
@@ -120,7 +120,7 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 
 - **Unofficial.** If Cosori/VeSync change their server, it may break until updated.
 - **Remote start** is blocked by Cosori in the EU – so there is no start button. “Send” only wakes the fryer; you start on the device.
-- **“Send” is new and not confirmed yet.** We don't know for sure which command the app's “Send” uses. The integration tries several variants (all “do not start”) and remembers the one the fryer accepts. If none works, the error lists the codes – please report them in an issue.
+- **“Send” is new.** The command (`startMultiCook`) comes from a sister fryer (Cosori Turbo Tower Pro, pyvesync) and is **not yet confirmed** on the TwinFry. Only **Air Fry** is confirmed so far; for Bake, Roast, Grill, Reheat and Dry the recipe number is a guess. If the fryer refuses, the integration tries older variants and shows the error codes – please report them in an issue.
 - **Pause/resume:** command not known for sure yet – no button.
 - **Stopping a single zone and changing temperature/time** are sent as the app is believed to do (`endCook` with zone, `setTimeOrTemp`) – **not yet tried on a real TwinFry**.
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.

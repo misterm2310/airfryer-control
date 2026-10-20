@@ -87,7 +87,8 @@
           "fertig": "Done",
           "warmhalten": "Keeping warm",
           "offline": "Offline",
-          "unbekannt": "Unknown"
+          "unbekannt": "Unknown",
+          "wartet_auf_start": "Waiting for start"
         },
         "state_attributes": {
           "rohwert": {
@@ -126,7 +127,8 @@
           "fertig": "Done",
           "warmhalten": "Keeping warm",
           "offline": "Offline",
-          "unbekannt": "Unknown"
+          "unbekannt": "Unknown",
+          "wartet_auf_start": "Waiting for start"
         }
       },
       "zone_restzeit": {

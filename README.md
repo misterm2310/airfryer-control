@@ -16,7 +16,7 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 
 | Funktion | So klappt's |
 |---|---|
-| 🔥 **Zustand** | Aus, Bereit, Heizt vor, Gart, Pausiert, Schublade offen, Fertig, Hält warm, Offline. |
+| 🔥 **Zustand** | Aus, Bereit, Wartet auf Start, Heizt vor, Gart, Pausiert, Schublade offen, Fertig, Hält warm, Offline. |
 | ⏱️ **Restzeit & „Fertig um“** | In Minuten und als Uhrzeit – gesamt und für jede Zone. |
 | 🧩 **Zwei Zonen** | Bei der TwinFry eigene Sensoren für Zone 1 und Zone 2. Ganze Schublade ohne Trennwand = Zone 1. |
 | 🌡️ **Temperatur & Programm** | Eingestellte Temperatur und Programm (AirFry, Roast …). Eine gemessene Temperatur gibt's nur, wenn die Fritteuse sie meldet (die TwinFry tut das nicht). |
@@ -199,7 +199,7 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 
 - **Inoffiziell.** Cosori/VeSync bieten keine offene Schnittstelle. Ändern sie etwas am Server, kann die Integration ausfallen, bis sie angepasst ist.
 - **Starten aus der Ferne:** In der EU erlaubt Cosori das **nicht** – darum gibt es keinen Start-Knopf. „Senden“ weckt die Fritteuse nur auf; gestartet wird am Gerät.
-- **„Senden“ ist neu und noch nicht bestätigt.** Welcher Befehl hinter dem „Senden“-Knopf der App steckt, wissen wir noch nicht sicher. Die Integration probiert deshalb mehrere Schreibweisen (alle mit „nicht starten“) und merkt sich die, die die Fritteuse annimmt. Klappt keine, steht die Liste der Fehlercodes in der Meldung – bitte im Ticket melden.
+- **„Senden“ ist neu.** Der Befehl (`startMultiCook`) stammt von einer Schwester-Fritteuse (Cosori Turbo Tower Pro, pyvesync) und ist an der TwinFry noch **nicht bestätigt**. Bestätigt ist bisher nur das Programm **Heißluft (AirFry)**; bei Backen, Braten, Grillen, Aufwärmen und Dörren ist die Rezept-Nummer geraten. Lehnt die Fritteuse ab, probiert die Integration ältere Schreibweisen und zeigt die Fehlercodes – bitte im Ticket melden.
 - **Pausieren/Fortsetzen:** Den Befehl dafür kennen wir noch nicht sicher – darum gibt es (noch) keinen Knopf.
 - **Zone einzeln beenden und Temperatur/Zeit ändern** schicken die Befehle so, wie die App es nach heutigem Wissen tut (`endCook` mit Zone, `setTimeOrTemp`). An der echten TwinFry ist das noch **nicht ausprobiert**. Lehnt sie ab, bekommst du eine Meldung mit dem Grund.
 - **Feldnamen:** Den Stillstand der TwinFry kennen wir aus einer echten Antwort, die Werte **während des Garens** noch nicht. Zeigt ein Sensor Quatsch, schau in `sensor.…_rohdaten` – dort steht, was die Fritteuse wirklich geschickt hat.

@@ -2,9 +2,9 @@
 
 Für Doofe: In der App gibst du Korb, Programm, Temperatur und Zeit ein und
 drückst unten „Senden“. Die Fritteuse wacht auf und wartet, bis du am Gerät
-auf Start drückst. Welcher Befehl das genau ist, wissen wir noch nicht sicher.
-Darum probieren wir hier der Reihe nach mehrere Schreibweisen durch (alle mit
-„nicht starten“) und merken uns die, die die Fritteuse annimmt.
+auf Start drückst. Der Befehl dafür ist `startMultiCook` mit Rezept-Angaben
+(so macht es auch die Schwester-Fritteuse in pyvesync). Zur Sicherheit probieren wir
+bei Ablehnung noch ältere Schreibweisen durch und merken uns die, die klappt.
 """
 
 from __future__ import annotations
@@ -43,21 +43,35 @@ class SendVariant:
 def build_variants(
     account_id: str | None, zone: int, temp: int, minutes: int, mode: str
 ) -> list[SendVariant]:
-    """Alle Schreibweisen, die wir ausprobieren – nie mit „sofort starten“."""
+    """Alle Schreibweisen, die wir ausprobieren (die erste ist die bestätigte Form der App)."""
     app_mode = MODES.get(mode, mode)
     secs = int(minutes) * 60
     acc = account_id or ""
 
-    def multi(unit: str, work: int) -> dict[str, Any]:
+    def multi(unit: str, work: int, *, app: bool = False, ready: bool = False) -> dict[str, Any]:
+        config: dict[str, Any] = {
+            "cookSetTime": secs,
+            "cookTemp": int(temp),
+            "mode": app_mode,
+            "chamber": zone,
+        }
+        if app:
+            # Wie die Schwester-Fritteuse (Turbo Tower Pro) in pyvesync: mit Rezept-Angaben
+            config.update(
+                recipeId=14,
+                recipeName="Air Fry" if mode == "airfry" else app_mode,
+                recipeType=3,
+                shakeTime=0,
+            )
         return {
             "syncType": 0,
             "workChamber": work,
             "tempUnit": unit,
             "accountId": acc,
-            "readyStart": False,
-            "cookConfigs": [
-                {"cookSetTime": secs, "cookTemp": int(temp), "mode": app_mode, "chamber": zone}
-            ],
+            # „true“ heißt hier: Programm bereitstellen (Zone steht dann auf „ready“ und wartet
+            # auf den Start-Knopf am Gerät) – ein Fernstart ist das nicht.
+            "readyStart": ready,
+            "cookConfigs": [config],
         }
 
     cook_mode_base = {
@@ -95,6 +109,8 @@ def build_variants(
         "tempUnit": "c",
     }
     return [
+        SendVariant("multi_app", "startMultiCook", multi("c", zone, app=True, ready=True)),
+        SendVariant("multi_app_ohne_ready", "startMultiCook", multi("c", zone, app=True)),
         SendVariant("multi_c", "startMultiCook", multi("c", zone)),
         SendVariant("multi_celsius", "startMultiCook", multi("celsius", zone)),
         SendVariant("multi_arbeitszone0", "startMultiCook", multi("c", 0)),

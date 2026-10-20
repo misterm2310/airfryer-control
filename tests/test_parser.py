@@ -97,15 +97,32 @@ def test_garbage_does_not_crash():
     assert state.zones == {}
 
 
-def test_send_variants_never_start_and_carry_values():
+def test_send_variants_first_is_app_form():
     variants = build_variants("acc", 2, 180, 10, "bake")
     names = [v.name for v in variants]
     assert len(names) == len(set(names)) >= 6
-    for v in variants:
-        assert v.payload["readyStart"] is False
-        assert v.payload["accountId"] == "acc"
-    multi = variants[0].payload
-    assert multi["cookConfigs"] == [
-        {"cookSetTime": 600, "cookTemp": 180, "mode": "Bake", "chamber": 2}
+    assert all(v.payload["accountId"] == "acc" for v in variants)
+    first = variants[0]
+    assert first.name == "multi_app" and first.method == "startMultiCook"
+    assert first.payload["readyStart"] is True  # = bereitstellen, kein Fernstart
+    assert first.payload["workChamber"] == 2 and first.payload["tempUnit"] == "c"
+    assert first.payload["cookConfigs"] == [
+        {"cookSetTime": 600, "cookTemp": 180, "mode": "Bake", "chamber": 2,
+         "recipeId": 14, "recipeName": "Bake", "recipeType": 3, "shakeTime": 0}
     ]
-    assert multi["workChamber"] == 2
+    airfry = build_variants("acc", 1, 200, 15, "airfry")[0].payload["cookConfigs"][0]
+    assert airfry["recipeName"] == "Air Fry" and airfry["cookSetTime"] == 900
+
+
+def test_ready_means_waiting_for_start():
+    multi = {"statusList": [
+        {"chamber": 1, "cookStatus": "ready", "cookSetTime": 600, "cookTemp": 180,
+         "mode": "AirFry", "currentRemainingTime": 600},
+        {"chamber": 2, "cookStatus": "standby", "currentRemainingTime": 0},
+    ], "tempUnit": "c"}
+    state = parse({}, multi, TIME_UNIT_SECONDS)
+    assert state.zones[1].status == "wartet_auf_start"
+    assert state.zones[1].remaining_s == 600 and state.zones[1].mode == "AirFry"
+    assert state.zones[2].status == "bereit"
+    assert state.status == "wartet_auf_start"
+    assert not state.active

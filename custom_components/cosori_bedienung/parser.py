@@ -26,6 +26,7 @@ from .const import (
     STATE_PREHEATED,
     STATE_STANDBY,
     STATE_UNKNOWN,
+    STATE_WAITING,
     TIME_UNIT_MINUTES,
     TIME_UNIT_SECONDS,
     ZONE_1,
@@ -39,7 +40,7 @@ STATUS_MAP: dict[str, str] = {
     "poweroff": STATE_OFF,
     "standby": STATE_STANDBY,
     "idle": STATE_STANDBY,
-    "ready": STATE_STANDBY,
+    "ready": STATE_WAITING,  # Programm gesendet, wartet auf Start am Gerät
     "free": STATE_STANDBY,
     "cooking": STATE_COOKING,
     "cook": STATE_COOKING,
@@ -110,7 +111,12 @@ class ZoneState:
     @property
     def busy(self) -> bool:
         """Arbeitet die Zone oder ist gerade fertig (dann ist das Programm interessant)?"""
-        return self.status in ACTIVE_STATES | {STATE_FINISHED, STATE_KEEP_WARM, STATE_PREHEATED}
+        return self.status in ACTIVE_STATES | {
+            STATE_FINISHED,
+            STATE_KEEP_WARM,
+            STATE_PREHEATED,
+            STATE_WAITING,
+        }
 
 
 @dataclass
@@ -299,6 +305,7 @@ def _combine(states: list[str]) -> str:
         STATE_KEEP_WARM,
         STATE_FINISHED,
         STATE_PREHEATED,
+        STATE_WAITING,
         STATE_STANDBY,
         STATE_OFF,
     ]

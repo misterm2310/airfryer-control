@@ -18,7 +18,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import CosoriDeviceOffline, CosoriError
-from .const import DOMAIN, SENT_VALID_MINUTES
+from .const import DOMAIN, SENT_OPTIMISTIC_SECONDS, STATE_WAITING
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import zone_view, zones_for_device
@@ -57,11 +57,11 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
         if not self.fryer.online:
             return False
         zs = zone_view(self.fryer.state, self._zone)
-        if zs and zs.active:
+        if zs and (zs.active or zs.status == STATE_WAITING):
             return True
         if self._sent_at is not None:
             age = (dt_util.utcnow() - self._sent_at).total_seconds()
-            return age < SENT_VALID_MINUTES * 60
+            return age < SENT_OPTIMISTIC_SECONDS
         return False
 
     @property

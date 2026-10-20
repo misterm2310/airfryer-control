@@ -61,14 +61,15 @@ MODE_DEFAULTS = {
 }
 DEFAULT_MODE = "airfry"
 
-# So lange gilt ein „Senden“ als „Fritteuse wartet auf Start am Gerät“
-SENT_VALID_MINUTES = 30
+# So lange zeigt der Schalter nach „Senden“ sofort An, bis die Fritteuse ihren Zustand meldet
+SENT_OPTIMISTIC_SECONDS = 90
 
 # Normalisierte Zustände (Schlüssel für die Übersetzungen)
 STATE_OFF = "aus"
 STATE_STANDBY = "bereit"
 STATE_PREHEAT = "vorheizen"
 STATE_PREHEATED = "vorgeheizt"
+STATE_WAITING = "wartet_auf_start"
 STATE_COOKING = "gart"
 STATE_PAUSED = "pausiert"
 STATE_DRAWER_OPEN = "schublade_offen"
@@ -82,6 +83,7 @@ ALL_STATES = [
     STATE_STANDBY,
     STATE_PREHEAT,
     STATE_PREHEATED,
+    STATE_WAITING,
     STATE_COOKING,
     STATE_PAUSED,
     STATE_DRAWER_OPEN,

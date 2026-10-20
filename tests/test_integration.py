@@ -312,9 +312,9 @@ async def test_send_test_service_stops_at_first_hit(hass: HomeAssistant) -> None
     )
     assert res["ok"] is True
     assert res["gemerkte_variante"] == "kochmodus_manuell"
-    assert [v["ok"] for v in res["versuche"]] == [False, False, False, True]
+    assert [v["ok"] for v in res["versuche"]] == [False] * 5 + [True]
     sent = [c for c in FakeApi.instances[-1].calls if c[0] == "cookMode"]
-    assert len(sent) == 1 and sent[0][1]["chamber"] == 2 and sent[0][1]["readyStart"] is False
+    assert len(sent) == 1 and sent[0][1]["chamber"] == 2
     assert "konto-42" not in str(res)
 
 
@@ -445,9 +445,10 @@ async def test_switch_on_sends_plan_and_off_ends(hass: HomeAssistant, fake_api) 
         "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone2_gart")}, blocking=True
     )
     method, data = [c for c in api.calls if c[0] == "startMultiCook"][0]
-    assert data["readyStart"] is False
+    assert data["workChamber"] == 2 and data["accountId"] == "konto-42"
     assert data["cookConfigs"] == [
-        {"cookSetTime": 300, "cookTemp": 220, "mode": "Grill", "chamber": 2}
+        {"cookSetTime": 300, "cookTemp": 220, "mode": "Grill", "chamber": 2,
+         "recipeId": 14, "recipeName": "Grill", "recipeType": 3, "shakeTime": 0}
     ]
     assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "on"
     await hass.services.async_call(
@@ -494,3 +495,15 @@ async def test_nothing_removed_while_offline(hass: HomeAssistant, fake_api) -> N
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert reg.async_get(old.entity_id) is not None
+
+
+async def test_ready_shows_waiting_and_switch_on(hass: HomeAssistant, fake_api) -> None:
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry("ready", remaining=600, set_time=600, temp=180)
+    await setup(hass)
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "wartet_auf_start"
+    assert hass.states.get(eid(hass, "sensor", "zone2_status")).state == "bereit"
+    assert hass.states.get(eid(hass, "sensor", "zone1_programm")).state == "AirFry"
+    assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "on"
+    assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "off"
+    assert hass.states.get(eid(hass, "binary_sensor", "gart")).state == "off"
