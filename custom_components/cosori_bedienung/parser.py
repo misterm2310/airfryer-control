@@ -71,6 +71,7 @@ STATUS_MAP: dict[str, str] = {
 
 STATUS_KEYS = ("cookStatus", "workStatus", "deviceStatus", "status", "runStatus")
 REMAIN_KEYS = (
+    "currentRemainingTime",  # TwinFry (getAirfryerMultiStatus), Sekunden
     "cookLastTime",
     "remainTime",
     "remainingTime",
@@ -100,10 +101,16 @@ class ZoneState:
     set_temp: float | int | None = None
     current_temp: float | int | None = None
     mode: str | None = None
+    reports_current_temp: bool = False
 
     @property
     def active(self) -> bool:
         return self.status in ACTIVE_STATES
+
+    @property
+    def busy(self) -> bool:
+        """Arbeitet die Zone oder ist gerade fertig (dann ist das Programm interessant)?"""
+        return self.status in ACTIVE_STATES | {STATE_FINISHED, STATE_KEEP_WARM, STATE_PREHEATED}
 
 
 @dataclass
@@ -178,6 +185,7 @@ def _zone_from(data: dict[str, Any], zone: int, unit: str) -> ZoneState:
     zs.set_time_s = _seconds(_first(data, SET_TIME_KEYS), unit)
     zs.set_temp = _temp(_first(data, SET_TEMP_KEYS))
     zs.current_temp = _temp(_first(data, CUR_TEMP_KEYS))
+    zs.reports_current_temp = any(key in data for key in CUR_TEMP_KEYS)
     mode = _first(data, MODE_KEYS)
     zs.mode = None if mode is None or isinstance(mode, (dict, list)) else str(mode)
     # „Fertig“ oder „bereit“ heißt: keine Restzeit mehr
@@ -310,6 +318,11 @@ def zones_for_device(state: FryerState, multizone: bool) -> list[int]:
     if multizone or ZONE_2 in state.zones or ZONE_WHOLE in state.zones:
         return [ZONE_1, ZONE_2]
     return []
+
+
+def reports_current_temp(state: FryerState) -> bool:
+    """Meldet die Fritteuse überhaupt eine gemessene Temperatur? (TwinFry: nein)"""
+    return any(z.reports_current_temp for z in state.zones.values())
 
 
 def zone_view(state: FryerState, zone: int) -> ZoneState | None:

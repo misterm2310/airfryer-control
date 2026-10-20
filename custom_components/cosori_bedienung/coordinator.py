@@ -48,6 +48,8 @@ from .parser import FryerState, guess_unit, parse
 _LOGGER = logging.getLogger(__name__)
 
 RUNNING = {STATE_COOKING, STATE_PREHEAT}
+METHOD_STATUS = "getAirfryerStatus"
+METHOD_MULTI = "getAirfryerMultiStatus"
 DONE_STATES = {STATE_FINISHED, STATE_STANDBY, STATE_KEEP_WARM, STATE_OFF, STATE_PREHEATED}
 
 
@@ -64,6 +66,7 @@ class FryerData:
     finish_at: datetime | None = None
     zone_finish_at: dict[int, datetime | None] = field(default_factory=dict)
     multizone: bool = False
+    method_errors: dict[str, str] = field(default_factory=dict)
 
     @property
     def cid(self) -> str:
@@ -87,7 +90,7 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         self.api = api
         self._interval = int(entry.options.get(OPT_INTERVAL, DEFAULT_INTERVAL))
         self._unit_option = entry.options.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
-        self._multi_supported: dict[str, bool] = {}
+        self._unsupported: dict[str, set[str]] = {}
         self.fryers: dict[str, FryerData] = {}
         super().__init__(
             hass,
@@ -147,17 +150,29 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             if fryer.model.startswith("CS"):
                 fryer.raw_status = await self.api.bypass_v1_status(fryer.info)
                 fryer.raw_multi = {}
+                fryer.method_errors = {}
             else:
-                fryer.raw_status = await self.api.bypass_v2(fryer.info, "getAirfryerStatus")
-                fryer.raw_multi = await self._get_multi(fryer)
+                # Beide Fragen getrennt stellen: Die TwinFry kennt z. B. nur die
+                # Mehrzonen-Frage und lehnt die normale ab. Eine Absage darf die
+                # andere Antwort nicht blockieren.
+                status = await self._ask(fryer, METHOD_STATUS)
+                multi = await self._ask(fryer, METHOD_MULTI)
+                if status is None and multi is None:
+                    # Beides abgelehnt → nächstes Mal wieder beides probieren
+                    self._unsupported.pop(fryer.cid, None)
+                    fryer.last_error = "; ".join(fryer.method_errors.values()) or None
+                    _LOGGER.warning("%s: keine Statusabfrage klappt: %s", fryer.name, fryer.last_error)
+                    return
+                fryer.raw_status = status or {}
+                fryer.raw_multi = multi or {}
             fryer.online = True
             fryer.last_error = None
         except CosoriDeviceOffline as err:
             fryer.online = False
             fryer.last_error = str(err)
-            new = FryerState(status=STATE_OFFLINE)
-            fryer.state = new
+            fryer.state = FryerState(status=STATE_OFFLINE)
             fryer.finish_at = None
+            fryer.zone_finish_at = {}
             if was_online:
                 _LOGGER.info("%s ist offline: %s", fryer.name, err)
             return
@@ -180,21 +195,25 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             )
         self._fire_events(fryer, previous, new)
 
-    async def _get_multi(self, fryer: FryerData) -> dict[str, Any]:
-        """Mehrzonen-Status (TwinFry). Kann ein Gerät das nicht, merken wir uns das."""
-        if self._multi_supported.get(fryer.cid) is False:
-            return {}
+    async def _ask(self, fryer: FryerData, method: str) -> dict[str, Any] | None:
+        """Eine Statusfrage stellen. None = Gerät kennt die Frage nicht.
+
+        Lehnt die Fritteuse eine Frage ab, merken wir uns das und fragen sie
+        bis zum nächsten Neustart nicht mehr (spart Anfragen).
+        """
+        unsupported = self._unsupported.setdefault(fryer.cid, set())
+        if method in unsupported:
+            return None
         try:
-            data = await self.api.bypass_v2(fryer.info, "getAirfryerMultiStatus")
-        except CosoriDeviceOffline:
-            raise
-        except (CosoriAuthError, CosoriConnectionError):
+            data = await self.api.bypass_v2(fryer.info, method)
+        except (CosoriDeviceOffline, CosoriAuthError, CosoriConnectionError):
             raise
         except CosoriError as err:
-            _LOGGER.debug("%s kann keinen Mehrzonen-Status: %s", fryer.name, err)
-            self._multi_supported[fryer.cid] = False
-            return {}
-        self._multi_supported[fryer.cid] = True
+            _LOGGER.debug("%s kennt „%s“ nicht: %s", fryer.name, method, err)
+            unsupported.add(method)
+            fryer.method_errors[method] = str(err)
+            return None
+        fryer.method_errors.pop(method, None)
         return data
 
     def _fire_events(self, fryer: FryerData, old: FryerState, new: FryerState) -> None:
