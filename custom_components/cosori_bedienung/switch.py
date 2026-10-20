@@ -18,11 +18,17 @@ from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import CosoriDeviceOffline, CosoriError
-from .const import DOMAIN, SENT_OPTIMISTIC_SECONDS, STATE_WAITING, zone_label
+from .const import (
+    CODE_VALUE_NOT_ALLOWED,
+    DOMAIN,
+    SENT_OPTIMISTIC_SECONDS,
+    STATE_WAITING,
+    zone_label,
+)
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import zone_view, zones_for_device
-from .senden import async_end, async_send, get_plan
+from .senden import async_end, async_send, clamp_temp, get_plan
 
 
 async def async_setup_entry(
@@ -75,6 +81,7 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         plan = get_plan(self.coordinator, self._cid, self._zone)
+        plan["temp"] = clamp_temp(plan["mode"], plan["temp"])
         try:
             results = await async_send(
                 self.coordinator,
@@ -91,6 +98,16 @@ class ZoneSwitch(CosoriEntity, SwitchEntity):
                 translation_placeholders={"fehler": str(err)},
             ) from err
         if not any(r["ok"] for r in results):
+            if any(r.get("code") == CODE_VALUE_NOT_ALLOWED for r in results):
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="wert_nicht_erlaubt",
+                    translation_placeholders={
+                        "programm": plan["mode"],
+                        "temp": str(plan["temp"]),
+                        "minuten": str(plan["minuten"]),
+                    },
+                )
             codes = ", ".join(f"{r['variante']}: {r.get('code')}" for r in results)
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

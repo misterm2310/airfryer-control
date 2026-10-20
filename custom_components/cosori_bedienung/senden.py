@@ -17,7 +17,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from .api import CosoriDeviceOffline, CosoriError
-from .const import DEFAULT_MODE, MODE_DEFAULTS, MODES
+from .const import (
+    DEFAULT_MODE,
+    MODE_DEFAULTS,
+    MODE_TEMP_RANGE,
+    MODES,
+    TEMP_MAX_DEFAULT,
+    TEMP_MIN_DEFAULT,
+)
 from .coordinator import CosoriCoordinator, FryerData
 from .parser import zones_for_device
 from .util import redact
@@ -33,6 +40,17 @@ def get_plan(coordinator: CosoriCoordinator, cid: str, zone: int) -> dict[str, A
         plan = {"mode": DEFAULT_MODE, "temp": temp, "minuten": minutes}
         coordinator.plans[(cid, zone)] = plan
     return plan
+
+
+def temp_limits(mode: str) -> tuple[int, int]:
+    """Erlaubter Temperaturbereich (°C) für ein Programm."""
+    return MODE_TEMP_RANGE.get(mode, (TEMP_MIN_DEFAULT, TEMP_MAX_DEFAULT))
+
+
+def clamp_temp(mode: str, temp: int) -> int:
+    """Temperatur in den erlaubten Bereich schieben."""
+    low, high = temp_limits(mode)
+    return max(low, min(high, int(temp)))
 
 
 @dataclass(frozen=True)

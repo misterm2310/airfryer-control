@@ -34,9 +34,7 @@ def _minutes(seconds: int | None) -> int | None:
 
 
 def _zone_finish(fryer: FryerData, zone: int) -> datetime | None:
-    """„Fertig um“ einer Zone (ganze Schublade zählt als Zone 1)."""
-    if zone == 1 and 1 not in fryer.state.zones:
-        return fryer.zone_finish_at.get(3)
+    """„Fertig um“ einer Zone (None, wenn die Fritteuse die Zone gerade nicht meldet)."""
     return fryer.zone_finish_at.get(zone)
 
 

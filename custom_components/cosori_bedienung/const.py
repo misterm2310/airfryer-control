@@ -68,6 +68,21 @@ MODE_DEFAULTS = {
 }
 DEFAULT_MODE = "airfry"
 
+# Temperaturbereich je Programm (°C), von Marco aus der VeSync-App abgelesen.
+# Trocknen (dry) ist unbekannt und nimmt den Standardbereich.
+MODE_TEMP_RANGE = {
+    "airfry": (120, 205),
+    "roast": (120, 205),
+    "bake": (80, 205),
+    "grill": (205, 240),
+    "reheat": (40, 205),
+}
+TEMP_MIN_DEFAULT = 35
+TEMP_MAX_DEFAULT = 240
+
+# Code der Fritteuse: „Wert nicht erlaubt“ (Temperatur oder Zeit passt nicht zum Programm)
+CODE_VALUE_NOT_ALLOWED = 11011000
+
 # So lange zeigt der Schalter nach „Senden“ sofort An, bis die Fritteuse ihren Zustand meldet
 SENT_OPTIMISTIC_SECONDS = 90
 

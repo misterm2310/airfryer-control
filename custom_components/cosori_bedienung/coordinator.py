@@ -193,10 +193,13 @@ class CosoriCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         now = dt_util.utcnow()
         running = new.status in RUNNING or any(z.status in RUNNING for z in new.zones.values())
         fryer.finish_at = _stable_finish(fryer.finish_at, new.remaining_s, running, now)
-        for zone, zs in new.zones.items():
-            fryer.zone_finish_at[zone] = _stable_finish(
+        # Nur Zonen, die die Fritteuse gerade meldet – alte Werte fallen weg
+        fryer.zone_finish_at = {
+            zone: _stable_finish(
                 fryer.zone_finish_at.get(zone), zs.remaining_s, zs.status in RUNNING, now
             )
+            for zone, zs in new.zones.items()
+        }
         self._fire_events(fryer, previous, new)
 
     async def _ask(self, fryer: FryerData, method: str) -> dict[str, Any] | None:

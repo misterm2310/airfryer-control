@@ -199,6 +199,9 @@
     },
     "senden_abgelehnt": {
       "message": "Die Fritteuse hat „Senden“ abgelehnt. Probierte Schreibweisen und Codes: {codes}. Schick mir die Zeile gern ins GitHub-Ticket."
+    },
+    "wert_nicht_erlaubt": {
+      "message": "Die Fritteuse nimmt diese Werte für das Programm „{programm}“ nicht an: {temp} °C, {minuten} Min. Ändere Temperatur oder Zeit (Heißluft braucht z. B. mindestens 120 °C) und versuche es nochmal."
     }
   },
   "services": {

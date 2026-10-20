@@ -27,7 +27,7 @@ from .const import DOMAIN, zone_label
 from .coordinator import CosoriCoordinator
 from .entity import CosoriEntity, async_remove_stale
 from .parser import ZoneState, zone_view, zones_for_device
-from .senden import get_plan
+from .senden import clamp_temp, get_plan, temp_limits
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -107,13 +107,28 @@ class ZoneNumber(CosoriEntity, NumberEntity, RestoreEntity):
                 pass
 
     @property
+    def native_min_value(self) -> float:
+        if self.entity_description.key == "temperatur":
+            mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
+            return temp_limits(mode)[0]
+        return super().native_min_value
+
+    @property
+    def native_max_value(self) -> float:
+        if self.entity_description.key == "temperatur":
+            mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
+            return temp_limits(mode)[1]
+        return super().native_max_value
+
+    @property
     def native_value(self) -> float:
         return get_plan(self.coordinator, self._cid, self._zone)[self.entity_description.plan_key]
 
     async def async_set_native_value(self, value: float) -> None:
-        get_plan(self.coordinator, self._cid, self._zone)[self.entity_description.plan_key] = int(
-            value
-        )
+        plan = get_plan(self.coordinator, self._cid, self._zone)
+        if self.entity_description.key == "temperatur":
+            value = clamp_temp(plan["mode"], int(value))
+        plan[self.entity_description.plan_key] = int(value)
         self.async_write_ha_state()
         zs = zone_view(self.fryer.state, self._zone)
         if zs is None or not zs.active:

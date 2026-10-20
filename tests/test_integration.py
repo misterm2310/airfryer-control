@@ -95,6 +95,7 @@ class FakeApi:
     offline = False
     status_rejected = False
     reject: set[str] = set()
+    reject_code = 11000000
 
     def __init__(self, session, email, password_md5, region, terminal_id, time_zone="x"):
         self.email = email
@@ -125,7 +126,9 @@ class FakeApi:
         if method == "getAirfryerMultiStatus":
             return dict(FakeApi.multi)
         if method in FakeApi.reject:
-            raise CosoriError(f"„{method}“ vom Gerät abgelehnt (Code 11000000)", 11000000)
+            raise CosoriError(
+                f"„{method}“ vom Gerät abgelehnt (Code {FakeApi.reject_code})", FakeApi.reject_code
+            )
         if method == "kaputt":
             raise CosoriError("„kaputt“ abgelehnt", 11000000)
         return {"cid": CID, "ok": 1}
@@ -139,6 +142,7 @@ def fake_api():
     FakeApi.instances = []
     FakeApi.login_error = None
     FakeApi.reject = set()
+    FakeApi.reject_code = 11000000
     FakeApi.devices = [DEVICE, LAMP]
     FakeApi.status = {"cookStatus": "cooking"}
     FakeApi.multi = cooking_multi()
@@ -577,3 +581,31 @@ async def test_whole_drawer_send_and_end(hass: HomeAssistant, fake_api) -> None:
         "switch", "turn_off", {"entity_id": eid(hass, "switch", "zone3_gart")}, blocking=True
     )
     assert ("endCook", {"chamber": 3}) in api.calls
+
+
+async def test_value_not_allowed_gives_friendly_message(hass: HomeAssistant, fake_api) -> None:
+    from homeassistant.exceptions import HomeAssistantError
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    await setup(hass)
+    FakeApi.reject_code = 11011000
+    FakeApi.reject = {"startMultiCook"}
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(
+            "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+        )
+    assert "nimmt diese Werte" in str(err.value) or "does not accept" in str(err.value)
+
+
+def test_program_temperature_limits() -> None:
+    from custom_components.cosori_bedienung.const import MODE_DEFAULTS
+    from custom_components.cosori_bedienung.senden import clamp_temp, temp_limits
+
+    assert temp_limits("airfry") == (120, 205)
+    assert temp_limits("grill") == (205, 240)
+    assert clamp_temp("airfry", 100) == 120
+    assert clamp_temp("bake", 300) == 205
+    for mode, (temp, _) in MODE_DEFAULTS.items():
+        low, high = temp_limits(mode)
+        assert low <= temp <= high

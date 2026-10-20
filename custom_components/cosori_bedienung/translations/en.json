@@ -199,6 +199,9 @@
     },
     "senden_abgelehnt": {
       "message": "The air fryer rejected “send”. Tried variants and codes: {codes}. Please post this line in a GitHub issue."
+    },
+    "wert_nicht_erlaubt": {
+      "message": "The air fryer does not accept these values for program “{programm}”: {temp} °C, {minuten} min. Change temperature or time (e.g. Air Fry needs at least 120 °C) and try again."
     }
   },
   "services": {
