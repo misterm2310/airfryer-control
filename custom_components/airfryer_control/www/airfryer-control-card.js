@@ -17,13 +17,14 @@ const isDe = (hass) => String(hass?.language || "de").toLowerCase().startsWith("
 const tr = (hass, de, en) => (isDe(hass) ? de : en);
 
 const COLORS = {
-  gart: "#43A047", vorheizen: "#FB8C00", vorgeheizt: "#FB8C00", wartet_auf_start: "#FB8C00",
+  gart: "#43A047", vorheizen: "#FB8C00", vorgeheizt: "#FB8C00", wartet_auf_start: "#FB8C00", wartet_auf_sync: "#FB8C00",
   fertig: "#E53935", warmhalten: "#8E24AA", pausiert: "#FDD835", schublade_offen: "#FDD835", offline: "#616161",
 };
-const RUNNING = ["gart", "vorheizen", "pausiert", "warmhalten"];
+const RUNNING = ["gart", "vorheizen", "pausiert", "warmhalten", "wartet_auf_sync"];
 const STATE_TEXT = {
   aus: ["Aus", "Off"], bereit: ["Bereit", "Ready"], vorheizen: ["Heizt vor", "Preheating"],
   vorgeheizt: ["Vorgeheizt", "Preheated"], wartet_auf_start: ["Wartet auf Start", "Waiting for start"],
+  wartet_auf_sync: ["Wartet auf Sync-Start", "Waiting for sync start"],
   gart: ["Gart", "Cooking"], pausiert: ["Pausiert", "Paused"], schublade_offen: ["Schublade offen", "Drawer open"],
   fertig: ["FERTIG!", "DONE!"], warmhalten: ["Hält warm", "Keeping warm"], offline: ["Offline", "Offline"],
   unbekannt: ["Unbekannt", "Unknown"],
@@ -79,6 +80,7 @@ const BASE_CSS = `
   ha-card { overflow:hidden; }
   .ac-head { display:flex; align-items:center; gap:10px; padding:14px 16px 6px; }
   .ac-head ha-icon { color:var(--primary-color); --mdc-icon-size:26px; }
+  .ac-logo { width:30px; height:30px; border-radius:8px; flex:none; }
   .ac-head h2 { margin:0; font-size:1.1rem; font-weight:600; flex:1; }
   .ac-dot { width:10px; height:10px; border-radius:50%; background:#43A047; }
   .ac-dot.off { background:#9e9e9e; }
@@ -110,6 +112,12 @@ const BASE_CSS = `
   .ac-step button { width:44px; height:44px; border-radius:50%; border:none; background:var(--secondary-background-color, rgba(127,127,127,.12)); color:inherit; font-size:1.4rem; cursor:pointer; }
   .ac-step b { min-width:84px; text-align:center; font-size:1.3rem; }
   .ac-big { width:100%; border:none; border-radius:12px; padding:14px; font-size:1.05rem; font-weight:700; color:#fff; background:var(--b, #43A047); cursor:pointer; margin-top:8px; }
+  .ac-sync { margin:10px 0 0; padding:10px 12px; border-radius:12px; background:var(--secondary-background-color, rgba(127,127,127,.12)); font-size:.92em; }
+  .ac-sync b { color:var(--primary-color); }
+  .ac-match { width:100%; border:2px solid var(--primary-color); background:none; color:var(--primary-color); border-radius:12px; padding:10px; font:inherit; font-weight:600; cursor:pointer; margin-top:10px; }
+  .ac-pair { display:flex; gap:8px; }
+  .ac-pair .ac-match { flex:1; }
+  .ac-match:disabled { opacity:.4; cursor:default; }
   .ac-note { font-size:.85em; opacity:.7; margin:6px 0 0; text-align:center; }
   .elcredits { text-align:center; } .elcredits p { margin:8px 0; }
   .ellogo { background:#fff; border-radius:16px; padding:10px; display:inline-block; max-width:100%; box-shadow:0 1px 4px rgba(0,0,0,.12); }
@@ -125,7 +133,7 @@ function creditsHtml(hass) {
   const t = (de, en) => tr(hass, de, en);
   return `<div class="elcredits" translate="no">
     <div class="ellogo"><img src="${AC_BASE}/mister-m.webp?v=${esc(AC_VERSION)}" alt="Mister-M" loading="lazy"></div>
-    <p><b>Airfryer Control</b> v${esc(AC_VERSION)}</p>
+    <p><img src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="56" height="56" style="border-radius:14px;vertical-align:middle;margin-right:8px"><b>Airfryer Control</b> v${esc(AC_VERSION)}</p>
     <p>${t("Gemacht von <b>Mister-M</b> – mit Hilfe von Claude 🤖", "Made by <b>Mister-M</b> – with help from Claude 🤖")}</p>
     <p>${t("Ich versuche, Updates und Fehler-Korrekturen zeitnah zu erledigen.", "I try to ship updates and fixes promptly.")}</p>
     <div class="elcbtns">
@@ -200,13 +208,95 @@ class AirfryerControlCard extends HTMLElement {
     }).join("");
     this.shadowRoot.innerHTML = `<style>${BASE_CSS}</style>
       <ha-card>
-        <div class="ac-head"><ha-icon icon="mdi:toaster-oven"></ha-icon><h2>${esc(title)}</h2>
+        <div class="ac-head"><img class="ac-logo" src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="30" height="30"><h2>${esc(title)}</h2>
           <span class="ac-dot ${online && online.state === "on" ? "" : "off"}" title="${online?.state === "on" ? "Online" : "Offline"}"></span>
           <button class="ac-ibtn" data-info title="Info"><ha-icon icon="mdi:information-outline"></ha-icon></button></div>
         <div class="ac-zones">${rows || `<div class="ac-empty">${esc(tr(hass, "Keine Zonen gefunden. Ist die Integration „Airfryer Control“ eingerichtet und die Fritteuse online?", "No zones found. Is the “Airfryer Control” integration set up and the fryer online?"))}</div>`}</div>
         ${this._dialogHtml(zones)}
       </ha-card>`;
     this._wire();
+  }
+
+  // Die andere Zone (ohne Grandzone), für „Match“ und „Sync“
+  _other(z, zones) {
+    if (/grandzone$/.test(z.key)) return null;
+    return zones.find((x) => x.key !== z.key && !/grandzone$/.test(x.key)) || null;
+  }
+
+  // 🔗 Sync: Hinweis, wann die Zone gestartet werden soll, damit beide gleichzeitig fertig werden
+  _syncHtml(z, zones) {
+    const hass = this._hass;
+    const o = this._other(z, zones);
+    if (!o) return "";
+    const st = (id) => hass.states[id]?.state;
+    const mine = Number(st(z.time));
+    if (!Number.isFinite(mine) || mine <= 0) return "";
+    const oState = st(o.state), zState = st(z.state);
+    if (RUNNING.includes(zState)) return "";
+    let msg = "";
+    if (RUNNING.includes(oState) && valid(hass.states[o.finish])) {
+      const left = Math.round((Date.parse(hass.states[o.finish].state) - Date.now()) / 60000);
+      if (!Number.isFinite(left)) return "";
+      const wait = left - mine;
+      msg = wait > 0
+        ? tr(hass, `<b>Sync:</b> ${z.name} in <b>${wait} Min</b> starten – dann werden beide gleichzeitig fertig (${clock(hass.states[o.finish].state, hass)} Uhr).`,
+                   `<b>Sync:</b> start ${z.name} in <b>${wait} min</b> – then both finish together (${clock(hass.states[o.finish].state, hass)}).`)
+        : wait === 0
+          ? tr(hass, `<b>Sync:</b> ${z.name} <b>jetzt</b> starten – dann werden beide gleichzeitig fertig.`, `<b>Sync:</b> start ${z.name} <b>now</b> – then both finish together.`)
+          : tr(hass, `<b>Sync:</b> ${z.name} ist ${-wait} Min zu lang – gleichzeitig fertig geht nicht mehr.`, `<b>Sync:</b> ${z.name} is ${-wait} min too long – finishing together is no longer possible.`);
+    } else if (!RUNNING.includes(oState)) {
+      const other = Number(st(o.time));
+      if (!Number.isFinite(other) || other <= 0) return "";
+      const diff = Math.abs(mine - other);
+      msg = diff === 0
+        ? tr(hass, "<b>Sync:</b> beide Zonen gleich lang – gleichzeitig starten, dann sind sie gleichzeitig fertig.", "<b>Sync:</b> both zones take the same time – start together and they finish together.")
+        : mine < other
+          ? tr(hass, `<b>Sync:</b> ${z.name} <b>${diff} Min</b> nach ${o.name} starten – dann werden beide gleichzeitig fertig.`, `<b>Sync:</b> start ${z.name} <b>${diff} min</b> after ${o.name} – then both finish together.`)
+          : tr(hass, `<b>Sync:</b> ${o.name} <b>${diff} Min</b> nach ${z.name} starten – dann werden beide gleichzeitig fertig.`, `<b>Sync:</b> start ${o.name} <b>${diff} min</b> after ${z.name} – then both finish together.`);
+    }
+    return msg ? `<div class="ac-sync">🔗 ${msg}</div>` : "";
+  }
+
+  // 📋 Match: Programm, Temperatur und Zeit dieser Zone auf die andere Zone übernehmen
+  // 🔗 Match/Sync an die Fritteuse schicken (nur bereitstellen – gestartet wird am Gerät)
+  async _sendSync(z, kind) {
+    const hass = this._hass;
+    const dev = hass.entities?.[z.state]?.device_id;
+    if (!dev || this._syncing) return;
+    this._syncing = true;
+    try {
+      await hass.callService("airfryer_control", kind === "match" ? "match_senden" : "sync_senden", { geraet: dev });
+    } catch (_) { /* Fehler zeigt Home Assistant selbst */ } finally { this._syncing = false; }
+  }
+
+  _syncSendHtml(z, zones) {
+    const hass = this._hass;
+    const o = this._other(z, zones);
+    if (!o || !hass.entities?.[z.state]?.device_id) return "";
+    const dis = [z, o].some((x) => RUNNING.includes(hass.states[x.state]?.state)) ? "disabled" : "";
+    const lab = (de, en) => esc(tr(hass, de, en));
+    return `<div class="ac-pair">
+      <button class="ac-match" data-sendsync="match" data-z="${esc(z.key)}" ${dis}>🟰 ${lab("Match senden", "Send Match")}</button>
+      <button class="ac-match" data-sendsync="sync" data-z="${esc(z.key)}" ${dis}>🔗 ${lab("Sync senden", "Send Sync")}</button>
+    </div>
+    <p class="ac-note">${lab("Match: beide Zonen wie diese. Sync: beide fertig zur selben Zeit. Es wird nur bereitgestellt – starten am Gerät. (Noch nicht an der echten Fritteuse bestätigt.)", "Match: both zones like this one. Sync: both finish together. Only prepares – start on the device. (Not yet confirmed on the real fryer.)")}</p>`;
+  }
+
+  async _match(z) {
+    const hass = this._hass;
+    const o = this._other(z, this._zones || []);
+    if (!o || this._matching) return;
+    this._matching = true;
+    try {
+      const prog = hass.states[z.mode]?.state;
+      if (prog && hass.states[o.mode]?.state !== prog) {
+        await hass.callService("select", "select_option", { entity_id: o.mode, option: prog });
+        await new Promise((r) => setTimeout(r, 800)); // die Grenzen der Zone ändern sich mit dem Programm
+      }
+      const lim = (id, v) => { const a = this._hass.states[id]?.attributes || {}; let x = Number(v); if (a.min != null) x = Math.max(Number(a.min), x); if (a.max != null) x = Math.min(Number(a.max), x); return x; };
+      await hass.callService("number", "set_value", { entity_id: o.temp, value: lim(o.temp, hass.states[z.temp]?.state) });
+      await hass.callService("number", "set_value", { entity_id: o.time, value: lim(o.time, hass.states[z.time]?.state) });
+    } catch (_) { /* Fehler zeigt Home Assistant selbst */ } finally { this._matching = false; }
   }
 
   _dialogHtml(zones) {
@@ -232,6 +322,9 @@ class AirfryerControlCard extends HTMLElement {
       ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C")}
       ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min")}
       ${min != null ? `<p class="ac-note">${esc(tr(hass, `Für dieses Programm: ${min}–${max} °C`, `For this program: ${min}–${max} °C`))}</p>` : ""}
+      ${this._syncHtml(z, zones)}
+      ${this._other(z, zones) ? `<button class="ac-match" data-match="${esc(z.key)}" ${RUNNING.includes(hass.states[this._other(z, zones).state]?.state) ? "disabled" : ""}>📋 ${esc(tr(hass, `Einstellungen auf ${this._other(z, zones).name} übernehmen`, `Copy settings to ${this._other(z, zones).name}`))}</button>` : ""}
+      ${this._syncSendHtml(z, zones)}
       <button class="ac-big" data-go="${esc(z.key)}" style="--b:${b.color}" ${z.sw ? "" : "disabled"}>${esc(b.text)}</button>
       <p class="ac-note">${esc(tr(hass, "Senden bereitet die Fritteuse vor – gestartet wird am Gerät.", "Send prepares the fryer – you start it on the device."))}</p>
     </div></div>`;
@@ -253,6 +346,14 @@ class AirfryerControlCard extends HTMLElement {
     root.querySelectorAll("[data-close]").forEach((el) => el.addEventListener("click", (e) => {
       if (el.classList.contains("ac-over") && e.target !== el) return;
       this._open = null; this._sig = ""; this.hass = this._hass;
+    }));
+    root.querySelectorAll("[data-match]").forEach((el) => el.addEventListener("click", () => {
+      const z = (this._zones || []).find((x) => x.key === el.dataset.match);
+      if (z) this._match(z);
+    }));
+    root.querySelectorAll("[data-sendsync]").forEach((el) => el.addEventListener("click", () => {
+      const z = (this._zones || []).find((x) => x.key === el.dataset.z);
+      if (z) this._sendSync(z, el.dataset.sendsync);
     }));
     root.querySelectorAll("[data-mode]").forEach((el) => el.addEventListener("click", () => {
       const z = (this._zones || []).find((x) => x.key === this._open);
@@ -315,6 +416,8 @@ class AirfryerControlTicker extends HTMLElement {
         const when = s === "gart" && valid(fin) ? tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`)
           : (s === "vorheizen" ? tr(hass, "heizt vor", "preheating") : tr(hass, "gart", "cooking"));
         items.push(`🍟 ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${when}`);
+      } else if (s === "wartet_auf_sync") {
+        items.push(`🍟 ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Sync-Start", "waiting for sync start")}`);
       } else if (s === "wartet_auf_start") {
         items.push(`🍟 ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Start", "waiting for start")}`);
       } else if (s === "fertig") {

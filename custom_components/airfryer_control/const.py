@@ -34,6 +34,8 @@ EVENT_FINISHED = f"{DOMAIN}_fertig"
 SERVICE_SEND_TEST = "senden_testen"
 SERVICE_STOP = "garen_beenden"
 SERVICE_RAW = "befehl_senden"
+SERVICE_MATCH = "match_senden"
+SERVICE_SYNC = "sync_senden"
 
 # Zonen der TwinFry
 ZONE_1 = 1
@@ -94,6 +96,7 @@ STATE_PREHEAT = "vorheizen"
 STATE_PREHEATED = "vorgeheizt"
 STATE_WAITING = "wartet_auf_start"
 STATE_COOKING = "gart"
+STATE_HOLD = "wartet_auf_sync"  # Sync: diese Zone wartet, bis die längere Zone dran ist
 STATE_PAUSED = "pausiert"
 STATE_DRAWER_OPEN = "schublade_offen"
 STATE_FINISHED = "fertig"
@@ -108,6 +111,7 @@ ALL_STATES = [
     STATE_PREHEATED,
     STATE_WAITING,
     STATE_COOKING,
+    STATE_HOLD,
     STATE_PAUSED,
     STATE_DRAWER_OPEN,
     STATE_FINISHED,
@@ -116,7 +120,7 @@ ALL_STATES = [
     STATE_UNKNOWN,
 ]
 
-ACTIVE_STATES = {STATE_PREHEAT, STATE_COOKING, STATE_PAUSED, STATE_DRAWER_OPEN}
+ACTIVE_STATES = {STATE_PREHEAT, STATE_COOKING, STATE_HOLD, STATE_PAUSED, STATE_DRAWER_OPEN}
 
 # Diese Felder verraten Konto oder Gerät – sie werden überall geschwärzt
 REDACT_KEYS = {
@@ -143,3 +147,6 @@ REDACT_KEYS = {
 # Karte, die die Integration selbst ins Dashboard bringt
 STATIC_URL = "/airfryer_control_files"
 CARD_FILENAME = "airfryer-control-card.js"
+PANEL_URL_PATH = "airfryer-control"
+PANEL_FILENAME = "airfryer-control-panel.js"
+OPT_SIDEBAR = "sidebar"  # Eintrag in der Seitenleiste (Standard: aus)

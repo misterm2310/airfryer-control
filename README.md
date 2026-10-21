@@ -93,11 +93,31 @@ extra_entities:
 speed: 60      # Pixel pro Sekunde (20–200)
 ```
 
+Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeigen“, standardmäßig aus) zeigen dieselben Karten.
+
 Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.
 
 <p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Karte auf dem Handy"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Einstellfenster dunkel"></p>
 
+**📋 Match und 🔗 Sync (in der Karte):** Im Fenster einer Zone übernimmt **„Einstellungen auf Zone 2 übernehmen“** Programm, Temperatur und Zeit auf die andere Zone (Match). Darüber sagt dir ein Hinweis, **wann du die andere Zone starten sollst, damit beide gleichzeitig fertig werden** (Sync), z. B. „Zone 2 in 4 Min starten“. Ehrlich: Die Cosori-Cloud bietet dafür keine bekannten Befehle. Deshalb ist das **meine eigene Lösung**: Die Karte rechnet nur und kopiert Werte. Gestartet wird weiterhin von dir am Gerät. Für die Grandzone gibt es beides nicht.
+
+**🟰 Match senden / 🔗 Sync senden (neu, ungetestet):** Im Zonen-Fenster gibt es zusätzlich zwei Knöpfe (und die Dienste `match_senden` / `sync_senden`), die Match bzw. Sync wie in der VeSync-App an die Fritteuse schicken – **nur bereitstellen** (Zone steht auf „Wartet auf Start“), gestartet wird am Gerät. Beim Sync bekommt die kürzere Zone eine Wartezeit (Zustand „Wartet auf Sync-Start“ mit Restzeit). ⚠️ Ehrlich: Den genauen App-Befehl habe ich nicht mitgeschnitten, er ist nach dem beobachteten Zustand der Fritteuse **nachgebaut** (`startMultiCook` mit `syncType` 1/2) und **noch nicht an der echten Fritteuse geprüft**. Bitte erst mit kurzer Zeit und neben der Fritteuse probieren.
+
 > 🧪 Die Karten sind noch **Beta** – wenn etwas hakt, sag Bescheid (Fehler melden, siehe unten).
+
+## 📱 Die Handy-App (ohne Installation aus dem Store)
+
+Die Integration bringt eine **eigene kleine Seite** mit: **`/airfryer_control/app/`** hinter deiner Home-Assistant-Adresse (z. B. `https://dein-name.ui.nabu.casa/airfryer_control/app/`). Sie zeigt das Laufband und die Zonenkarte im Vollbild.
+
+1. Adresse auf dem Handy oder Tablet im Browser öffnen.
+2. **Anmelden** (mit deinem Home-Assistant-Konto, genau wie bei der Home-Assistant-App). Die Seite selbst enthält keine Daten.
+3. Im Browser-Menü **„Zum Startbildschirm hinzufügen“** – fertig, das Symbol öffnet direkt die Fritteuse.
+
+Der Knopf **🔅 Bildschirm anlassen** hält das Display an (praktisch für ein Küchen-Tablet).
+
+**Ehrlich:** Ohne Netz geht an der Fritteuse nichts, denn jeder Befehl läuft über Home Assistant und die Cosori-Cloud. Deshalb zeigt die App dann **„Keine Verbindung“** und merkt sich **nie** einen Befehl, um ihn später nachzuschicken (ein verspäteter Start wäre gefährlich). Gespeichert wird nur das Programm, damit sie schnell startet. Für „Zum Startbildschirm“ und den Schnellstart braucht der Browser meist eine **https-Adresse** (z. B. Nabu Casa).
+
+<p align="center"><img src="docs/app-handy.png" width="520" alt="Handy-App: normal und ohne Verbindung"></p>
 
 ## 🖼️ Beispiel fürs Dashboard
 
@@ -198,6 +218,8 @@ actions:
 |---|---|
 | `airfryer_control.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
 | `airfryer_control.garen_beenden` | Stopp. |
+| `airfryer_control.match_senden` | **Match:** schickt Programm, Temperatur und Zeit von Zone 1 an beide Zonen. Nur bereitstellen – gestartet wird am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
+| `airfryer_control.sync_senden` | **Sync:** schickt beide Zonen mit ihren Zeiten; die kürzere Zone wartet (Zustand „Wartet auf Sync-Start“), damit beide zusammen fertig werden. Nur bereitstellen – Start am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
 | `airfryer_control.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
 
 ---

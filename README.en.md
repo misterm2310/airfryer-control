@@ -85,11 +85,31 @@ extra_entities:
   - sensor.einkaufsliste_kochtimer
 ```
 
+The phone page and the sidebar (option “📌 Show in sidebar”, off by default) show the same cards.
+
 Both cards have an editor, follow light/dark and run smoothly on a Fire TV. Zones are detected automatically. The cards only talk to your Home Assistant.
 
 <p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Card on a phone"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Dialog, dark"></p>
 
+**📋 Match and 🔗 Sync (in the card):** In a zone's dialog, **“Copy settings to Zone 2”** copies program, temperature and time to the other zone (Match). Above it, a hint tells you **when to start the other zone so both finish together** (Sync), e.g. “start Zone 2 in 4 min”. Honestly: there are no known Cosori cloud commands for this, so it is **my own solution**: the card only calculates and copies values. You still start on the device. Neither exists for the whole drawer.
+
+**🟰 Send Match / 🔗 Send Sync (new, untested):** The zone dialog also has two buttons (and the services `match_senden` / `sync_senden`) that send Match or Sync to the fryer like the VeSync app – **prepare only** (zone shows “Waiting for start”), you start on the device. In Sync the shorter zone gets a wait time (state “Waiting for sync start” with remaining time). ⚠️ Honestly: I did not capture the exact app command; it is **rebuilt** from the fryer's observed state (`startMultiCook` with `syncType` 1/2) and **not yet verified on a real fryer**. Please try it first with a short time, next to the fryer.
+
 > 🧪 The cards are still **beta** – if something is off, please report it.
+
+## 📱 The phone app (no app store needed)
+
+The integration ships **its own small page**: **`/airfryer_control/app/`** behind your Home Assistant address (e.g. `https://your-name.ui.nabu.casa/airfryer_control/app/`). It shows the ticker and the zone card full screen.
+
+1. Open the address in your phone or tablet browser.
+2. **Sign in** (with your Home Assistant account, just like the Home Assistant app). The page itself contains no data.
+3. In the browser menu choose **“Add to home screen”** – done, the icon opens the air fryer directly.
+
+The **🔅 Keep screen on** button keeps the display awake (handy for a kitchen tablet).
+
+**Honestly:** without a connection nothing works on the fryer, because every command goes through Home Assistant and the Cosori cloud. So the app then shows **“No connection”** and **never** remembers a command to send it later (a delayed start would be dangerous). Only the program is cached so it starts fast. “Add to home screen” and fast start usually need an **https address** (e.g. Nabu Casa).
+
+<p align="center"><img src="docs/app-handy.png" width="520" alt="Phone app: normal and without connection"></p>
 
 ## 🤖 Automations
 
@@ -128,6 +148,8 @@ actions:
 |---|---|
 | `airfryer_control.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). |
 | `airfryer_control.garen_beenden` | Stop. |
+| `airfryer_control.match_senden` | **Match:** sends program, temperature and time of zone 1 to both zones. Prepares only – start on the device. ⚠️ Not yet confirmed on the real fryer. |
+| `airfryer_control.sync_senden` | **Sync:** sends both zones with their times; the shorter zone waits (state “Waiting for sync start”) so both finish together. Prepares only – start on the device. ⚠️ Not yet confirmed on the real fryer. |
 | `airfryer_control.befehl_senden` | **Tinkerers, admins only:** sends an app command and returns the response (without account data). |
 
 ---

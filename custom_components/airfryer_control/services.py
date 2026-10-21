@@ -2,6 +2,8 @@
 
 Für Doofe:
 - garen_beenden: Stopp.
+- match_senden / sync_senden: Match (beide Zonen gleich) oder Sync (beide fertig
+  zur selben Zeit) an die Fritteuse schicken – nur bereitstellen, Start am Gerät.
 - senden_testen: Für Bastler (nur Admins) – schickt Programm, Temperatur und
   Zeit an eine Zone (ohne zu starten) und zeigt, welche Schreibweise die
   Fritteuse angenommen hat.
@@ -21,12 +23,14 @@ from .core.api import AirfryerError
 from .const import (
     DOMAIN,
     MODES,
+    SERVICE_MATCH,
     SERVICE_RAW,
     SERVICE_SEND_TEST,
     SERVICE_STOP,
+    SERVICE_SYNC,
 )
 from .coordinator import AirfryerCoordinator, FryerData
-from .senden import async_end, async_send
+from .senden import async_end, async_send, async_send_sync
 from .core.util import redact
 
 ATTR_DEVICE = "geraet"
@@ -85,6 +89,22 @@ async def _stop(call: ServiceCall) -> None:
     await coordinator.async_request_fast_refresh()
 
 
+async def _send_sync(call: ServiceCall, sync_type: int) -> None:
+    coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
+    try:
+        await async_send_sync(coordinator, fryer, sync_type)
+    except AirfryerError as err:
+        raise HomeAssistantError(f"Fritteuse hat Match/Sync abgelehnt: {err}") from err
+
+
+async def _match(call: ServiceCall) -> None:
+    await _send_sync(call, 1)
+
+
+async def _sync(call: ServiceCall) -> None:
+    await _send_sync(call, 2)
+
+
 async def _require_admin(call: ServiceCall) -> None:
     if call.context.user_id:
         user = await call.hass.auth.async_get_user(call.context.user_id)
@@ -133,6 +153,8 @@ def async_register_services(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, SERVICE_STOP):
         return
     hass.services.async_register(DOMAIN, SERVICE_STOP, _stop, schema=STOP_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_MATCH, _match, schema=STOP_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SYNC, _sync, schema=STOP_SCHEMA)
     hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_TEST,

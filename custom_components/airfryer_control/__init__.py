@@ -18,7 +18,8 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from .core.api import AirfryerApi, AirfryerAuthError, AirfryerError
 from .const import CONF_EMAIL, CONF_PASSWORD_HASH, CONF_REGION, CONF_TERMINAL_ID, DOMAIN
 from .coordinator import AirfryerCoordinator
-from .frontend import async_setup_frontend
+from .const import OPT_SIDEBAR
+from .frontend import async_set_sidebar, async_setup_frontend, sidebar_wanted
 from .services import async_register_services
 
 PLATFORMS = [
@@ -68,6 +69,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: AirfryerConfigEntry) -> 
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))
+    if entry.options.get(OPT_SIDEBAR, False):
+        await async_set_sidebar(hass, True)  # 📌 nur wenn eingeschaltet
     return True
 
 
@@ -77,4 +80,7 @@ async def _async_reload(hass: HomeAssistant, entry: AirfryerConfigEntry) -> None
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: AirfryerConfigEntry) -> bool:
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded and not sidebar_wanted(hass, entry.entry_id):
+        await async_set_sidebar(hass, False)
+    return unloaded

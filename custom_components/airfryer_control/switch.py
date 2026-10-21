@@ -26,7 +26,7 @@ from .const import (
     zone_label,
 )
 from .coordinator import AirfryerCoordinator
-from .entity import AirfryerEntity, async_remove_stale
+from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import zone_view, zones_for_device
 from .senden import async_end, async_send, clamp_temp, get_plan
 
@@ -34,15 +34,17 @@ from .senden import async_end, async_send, clamp_temp, get_plan
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: AirfryerCoordinator = entry.runtime_data
+    async_setup_dynamic(hass, entry, "switch", async_add_entities, _build)
+
+
+def _build(coordinator: AirfryerCoordinator) -> list[SwitchEntity]:
     entities: list[SwitchEntity] = []
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
             continue  # alte Modelle sprechen eine andere Befehls-Sprache
         for zone in zones_for_device(fryer.state, fryer.multizone):
             entities.append(ZoneSwitch(coordinator, cid, zone))
-    async_remove_stale(hass, entry, "switch", {e.unique_id for e in entities})
-    async_add_entities(entities)
+    return entities
 
 
 class ZoneSwitch(AirfryerEntity, SwitchEntity):

@@ -138,3 +138,42 @@ def test_ready_means_waiting_for_start():
     assert state.zones[2].status == "bereit"
     assert state.status == "wartet_auf_start"
     assert not state.active
+
+
+def test_hold_zone_waits_for_sync_start():
+    from custom_components.airfryer_control.const import STATE_HOLD
+
+    multi = {
+        "syncType": 2,
+        "workChamber": 4,
+        "statusList": [
+            {"chamber": 1, "cookStatus": "cooking", "cookSetTime": 1200, "cookTemp": 180,
+             "currentRemainingTime": 1200, "totalTimeRemaining": 1200},
+            {"chamber": 2, "cookStatus": "hold", "cookSetTime": 600, "cookTemp": 160,
+             "holdTime": 600, "currentRemainingTime": 540, "totalTimeRemaining": 1200},
+        ],
+    }
+    st = parse(None, multi, TIME_UNIT_SECONDS)
+    assert st.zones[2].status == STATE_HOLD and st.zones[2].remaining_s == 540
+    assert st.zones[2].active and st.zones[1].status == STATE_COOKING
+    assert st.sync_type == 2
+
+
+def test_sync_payload_gives_shorter_zone_hold_time():
+    from custom_components.airfryer_control.senden import build_sync_payload
+
+    p = build_sync_payload("acc", 2, ("airfry", 180, 20), ("bake", 160, 10))
+    assert p["syncType"] == 2 and p["workChamber"] == 4 and p["readyStart"] is True
+    c1, c2 = p["cookConfigs"]
+    assert c1["holdTime"] == 0 and c2["holdTime"] == 600
+    assert c1["chamber"] == 1 and c2["chamber"] == 2
+
+
+def test_match_payload_uses_zone_one_for_both_and_never_starts():
+    from custom_components.airfryer_control.senden import build_sync_payload
+
+    p = build_sync_payload("acc", 1, ("airfry", 180, 20), ("bake", 160, 10))
+    c1, c2 = p["cookConfigs"]
+    assert p["syncType"] == 1 and p["readyStart"] is True
+    assert (c1["cookTemp"], c1["cookSetTime"], c1["mode"]) == (c2["cookTemp"], c2["cookSetTime"], c2["mode"])
+    assert "holdTime" not in c1

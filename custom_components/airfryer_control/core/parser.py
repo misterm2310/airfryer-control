@@ -19,6 +19,7 @@ from ..const import (
     STATE_COOKING,
     STATE_DRAWER_OPEN,
     STATE_FINISHED,
+    STATE_HOLD,
     STATE_KEEP_WARM,
     STATE_OFF,
     STATE_PAUSED,
@@ -42,6 +43,7 @@ STATUS_MAP: dict[str, str] = {
     "idle": STATE_STANDBY,
     "ready": STATE_WAITING,  # Programm gesendet, wartet auf Start am Gerät
     "free": STATE_STANDBY,
+    "hold": STATE_HOLD,  # Sync: wartet auf den Start der längeren Zone
     "cooking": STATE_COOKING,
     "cook": STATE_COOKING,
     "working": STATE_COOKING,
@@ -127,6 +129,7 @@ class FryerState:
     status_raw: str | None = None
     remaining_s: int | None = None
     temp_unit: str = "celsius"
+    sync_type: int | None = None  # 0 normal, 1 Match, 2 Sync
     zones: dict[int, ZoneState] = field(default_factory=dict)
 
     @property
@@ -264,6 +267,11 @@ def parse(
                 continue
             state.zones[zone] = _zone_from(item, zone, unit)
 
+    sync = _num(_first(multi_top, ("syncType",)) if multi_top else None)
+    if sync is None:
+        sync = _num(_first(top, ("syncType",)))
+    state.sync_type = None if sync is None else int(sync)
+
     # 2) Gesamtzustand
     raw = _first(top, STATUS_KEYS)
     if raw is None:
@@ -299,6 +307,7 @@ def _combine(states: list[str]) -> str:
     """Mehrere Zonen → ein Gesamtzustand (das „Wichtigste“ gewinnt)."""
     order = [
         STATE_COOKING,
+        STATE_HOLD,
         STATE_PREHEAT,
         STATE_DRAWER_OPEN,
         STATE_PAUSED,

@@ -38,11 +38,13 @@
         "title": "Einstellungen",
         "data": {
           "intervall": "Abfrage-Takt, wenn die Fritteuse nichts tut",
-          "zeiteinheit": "Zeitangaben der Fritteuse"
+          "zeiteinheit": "Zeitangaben der Fritteuse",
+          "sidebar": "📌 In der Seitenleiste anzeigen"
         },
         "data_description": {
           "intervall": "Solange sie arbeitet, wird immer alle 15 Sekunden nachgefragt.",
-          "zeiteinheit": "Nur ändern, wenn die Restzeit 60-mal zu groß oder zu klein angezeigt wird."
+          "zeiteinheit": "Nur ändern, wenn die Restzeit 60-mal zu groß oder zu klein angezeigt wird.",
+          "sidebar": "Legt einen Eintrag „Fritteuse“ in der Seitenleiste an (Vollbild mit Laufband und Zonenkarte). Standardmäßig aus."
         }
       }
     }
@@ -88,7 +90,8 @@
           "warmhalten": "Hält warm",
           "offline": "Offline",
           "unbekannt": "Unbekannt",
-          "wartet_auf_start": "Wartet auf Start"
+          "wartet_auf_start": "Wartet auf Start",
+          "wartet_auf_sync": "Wartet auf Sync-Start"
         },
         "state_attributes": {
           "rohwert": {
@@ -128,7 +131,8 @@
           "warmhalten": "Hält warm",
           "offline": "Offline",
           "unbekannt": "Unbekannt",
-          "wartet_auf_start": "Wartet auf Start"
+          "wartet_auf_start": "Wartet auf Start",
+          "wartet_auf_sync": "Wartet auf Sync-Start"
         }
       },
       "zone_restzeit": {
@@ -264,6 +268,26 @@
         "daten": {
           "name": "Daten",
           "description": "Zusätzliche Daten als JSON-Objekt."
+        }
+      }
+    },
+    "match_senden": {
+      "name": "Match senden",
+      "description": "Schickt die Werte von Zone 1 an beide Zonen (Match). Nur bereitstellen – gestartet wird am Gerät. Noch nicht an der echten Fritteuse bestätigt.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse?"
+        }
+      }
+    },
+    "sync_senden": {
+      "name": "Sync senden",
+      "description": "Schickt beide Zonen mit ihren Zeiten (Sync): beide werden zusammen fertig. Nur bereitstellen – gestartet wird am Gerät. Noch nicht an der echten Fritteuse bestätigt.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse?"
         }
       }
     }

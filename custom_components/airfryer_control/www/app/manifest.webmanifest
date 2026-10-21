@@ -1,0 +1,24 @@
+{
+  "name": "Airfryer Control",
+  "short_name": "Airfryer",
+  "description": "Die Cosori-Heißluftfritteuse aus Home Assistant – Zonen, Fertig-Zeiten, Senden und Beenden.",
+  "start_url": "/airfryer_control/app/",
+  "scope": "/airfryer_control/app/",
+  "display": "standalone",
+  "background_color": "#eceff1",
+  "theme_color": "#0277BD",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

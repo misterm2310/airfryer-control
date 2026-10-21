@@ -231,7 +231,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
         result["flow_id"], {"intervall": 120, "zeiteinheit": "minuten"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten"}
+    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False}
 
 
 async def test_reauth_when_login_fails(hass: HomeAssistant, fake_api) -> None:
@@ -635,3 +635,72 @@ async def test_frontend_cards_are_served_and_registered() -> None:
     assert "customElements.define(\"airfryer-control-ticker\"" in js
     assert (www / "mister-m.webp").exists()
     assert frontend._version() != "0"
+
+
+async def test_app_page_is_served(hass, hass_client_no_auth, fake_api) -> None:
+    """Die Handy-App wird ohne Anmeldung ausgeliefert (sie enthält keine Daten)."""
+    await setup(hass)
+    client = await hass_client_no_auth()
+    for path, kind in (("/airfryer_control/app/", "text/html"), ("/airfryer_control/app/manifest.webmanifest", "application/manifest+json"),
+                       ("/airfryer_control/app/sw.js", "text/javascript"), ("/airfryer_control/app/icon-192.png", "image/png")):
+        resp = await client.get(path)
+        assert resp.status == 200, path
+        assert kind in resp.headers["Content-Type"]
+    html = await (await client.get("/airfryer_control/app/")).text()
+    assert "__AC_VERSION__" not in html and "Airfryer Control" in html
+    assert (await client.get("/airfryer_control/app/geheim.txt")).status == 404
+    resp = await client.get("/airfryer_control/app", allow_redirects=False)
+    assert resp.status == 302
+
+
+async def test_sidebar_option_registers_and_removes_panel(hass: HomeAssistant, fake_api) -> None:
+    """Die Seitenleiste ist standardmäßig aus und lässt sich per Option ein- und ausschalten."""
+    from homeassistant.components import frontend
+
+    from custom_components.airfryer_control.const import OPT_SIDEBAR, PANEL_URL_PATH
+
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert PANEL_URL_PATH not in hass.data.get(frontend.DATA_PANELS, {})  # Standard: aus
+
+    hass.config_entries.async_update_entry(entry, options={**entry.options, OPT_SIDEBAR: True})
+    await hass.async_block_till_done()
+    panel = hass.data[frontend.DATA_PANELS][PANEL_URL_PATH]
+    assert panel.sidebar_title == "Fritteuse"
+    assert panel.sidebar_icon == "mdi:toaster-oven"
+    assert panel.require_admin is False
+
+    hass.config_entries.async_update_entry(entry, options={**entry.options, OPT_SIDEBAR: False})
+    await hass.async_block_till_done()
+    assert PANEL_URL_PATH not in hass.data[frontend.DATA_PANELS]
+
+    hass.config_entries.async_update_entry(entry, options={**entry.options, OPT_SIDEBAR: True})
+    await hass.async_block_till_done()
+    assert PANEL_URL_PATH in hass.data[frontend.DATA_PANELS]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert PANEL_URL_PATH not in hass.data[frontend.DATA_PANELS]
+
+
+async def test_match_and_sync_services_only_prepare(hass: HomeAssistant) -> None:
+    await setup(hass)
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
+    for name, sync in (("match_senden", 1), ("sync_senden", 2)):
+        await hass.services.async_call(DOMAIN, name, {"geraet": device.id}, blocking=True)
+        sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"][-1]
+        assert sent[1]["syncType"] == sync and sent[1]["readyStart"] is True
+        assert len(sent[1]["cookConfigs"]) == 2
+
+
+async def test_zone_entities_appear_when_fryer_comes_online_later(hass: HomeAssistant) -> None:
+    FakeApi.offline = True
+    await setup(hass)
+    assert not er.async_get(hass).async_get_entity_id("switch", DOMAIN, f"{CID}_zone1_gart")
+    FakeApi.offline = False
+    coordinator = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert er.async_get(hass).async_get_entity_id("switch", DOMAIN, f"{CID}_zone1_gart")
+    assert er.async_get(hass).async_get_entity_id("sensor", DOMAIN, f"{CID}_zone2_status")

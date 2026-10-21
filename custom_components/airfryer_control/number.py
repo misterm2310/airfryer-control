@@ -25,7 +25,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from .core.api import AirfryerError
 from .const import DOMAIN, zone_label
 from .coordinator import AirfryerCoordinator
-from .entity import AirfryerEntity, async_remove_stale
+from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, zone_view, zones_for_device
 from .senden import clamp_temp, get_plan, temp_limits
 
@@ -66,15 +66,17 @@ NUMBERS: tuple[ZoneNumberDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: AirfryerCoordinator = entry.runtime_data
+    async_setup_dynamic(hass, entry, "number", async_add_entities, _build)
+
+
+def _build(coordinator: AirfryerCoordinator) -> list[NumberEntity]:
     entities: list[NumberEntity] = []
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
             continue
         for zone in zones_for_device(fryer.state, fryer.multizone):
             entities += [ZoneNumber(coordinator, cid, d, zone) for d in NUMBERS]
-    async_remove_stale(hass, entry, "number", {e.unique_id for e in entities})
-    async_add_entities(entities)
+    return entities
 
 
 def build_change_payload(zs: ZoneState, temp: int | None, minutes: int | None) -> dict:

@@ -38,11 +38,13 @@
         "title": "Options",
         "data": {
           "intervall": "Polling interval while idle",
-          "zeiteinheit": "Time values of the air fryer"
+          "zeiteinheit": "Time values of the air fryer",
+          "sidebar": "📌 Show in sidebar"
         },
         "data_description": {
           "intervall": "While cooking, it is always polled every 15 seconds.",
-          "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small."
+          "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small.",
+          "sidebar": "Adds a \"Fritteuse\" entry to the sidebar (full-page view with the ticker and the zone card). Off by default."
         }
       }
     }
@@ -88,7 +90,8 @@
           "warmhalten": "Keeping warm",
           "offline": "Offline",
           "unbekannt": "Unknown",
-          "wartet_auf_start": "Wartet auf Start"
+          "wartet_auf_start": "Wartet auf Start",
+          "wartet_auf_sync": "Wartet auf Sync-Start"
         },
         "state_attributes": {
           "rohwert": {
@@ -128,7 +131,8 @@
           "warmhalten": "Keeping warm",
           "offline": "Offline",
           "unbekannt": "Unknown",
-          "wartet_auf_start": "Wartet auf Start"
+          "wartet_auf_start": "Wartet auf Start",
+          "wartet_auf_sync": "Wartet auf Sync-Start"
         }
       },
       "zone_restzeit": {
@@ -264,6 +268,26 @@
         "daten": {
           "name": "Data",
           "description": "Extra data as JSON object."
+        }
+      }
+    },
+    "match_senden": {
+      "name": "Send Match",
+      "description": "Sends the values of zone 1 to both zones (Match). Prepares only – start on the device. Not yet confirmed on the real fryer.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer?"
+        }
+      }
+    },
+    "sync_senden": {
+      "name": "Send Sync",
+      "description": "Sends both zones with their times (Sync) so both finish together. Prepares only – start on the device. Not yet confirmed on the real fryer.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer?"
         }
       }
     }

@@ -16,7 +16,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import MODE_DEFAULTS, MODES, zone_label
 from .coordinator import AirfryerCoordinator
-from .entity import AirfryerEntity, async_remove_stale
+from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import zones_for_device
 from .senden import get_plan
 
@@ -24,15 +24,17 @@ from .senden import get_plan
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: AirfryerCoordinator = entry.runtime_data
+    async_setup_dynamic(hass, entry, "select", async_add_entities, _build)
+
+
+def _build(coordinator: AirfryerCoordinator) -> list[SelectEntity]:
     entities: list[SelectEntity] = []
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
             continue
         for zone in zones_for_device(fryer.state, fryer.multizone):
             entities.append(ZoneProgramSelect(coordinator, cid, zone))
-    async_remove_stale(hass, entry, "select", {e.unique_id for e in entities})
-    async_add_entities(entities)
+    return entities
 
 
 class ZoneProgramSelect(AirfryerEntity, SelectEntity, RestoreEntity):

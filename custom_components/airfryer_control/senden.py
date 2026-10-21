@@ -114,6 +114,67 @@ def build_variants(
     return safe
 
 
+def build_sync_payload(
+    account_id: str | None,
+    sync_type: int,
+    zone1: tuple[str, int, int],
+    zone2: tuple[str, int, int],
+) -> dict[str, Any]:
+    """Match (1: beide Zonen gleich) oder Sync (2: beide fertig zur selben Zeit) bereitstellen.
+
+    Je Zone ``(Programm, Temperatur °C, Minuten)``. Bei Match gelten die Werte von
+    Zone 1 für beide Zonen. Bei Sync bekommt die kürzere Zone ``holdTime`` = Zeitunterschied
+    (sie wartet, bis die längere dran ist). ``readyStart: true`` = nur bereitstellen,
+    nichts heizt, Start am Gerät. Gemessen an Marcos TwinFry: ``workChamber`` 4 bei beiden.
+    ACHTUNG: Der genaue App-Befehl wurde nicht mitgeschnitten – das ist die vermutete Form.
+    """
+    if sync_type == 1:
+        zone2 = zone1
+    configs: list[dict[str, Any]] = []
+    times = [zone1[2] * 60, zone2[2] * 60]
+    longest = max(times)
+    for chamber, (mode, temp, minutes) in enumerate((zone1, zone2), start=1):
+        app_mode = MODES.get(mode, mode)
+        config: dict[str, Any] = {
+            "cookSetTime": minutes * 60,
+            "cookTemp": int(temp),
+            "mode": app_mode,
+            "chamber": chamber,
+            "recipeId": 14,
+            "recipeName": "Air Fry" if mode == "airfry" else app_mode,
+            "recipeType": 3,
+            "shakeTime": 0,
+        }
+        if sync_type == 2:
+            config["holdTime"] = longest - minutes * 60
+        configs.append(config)
+    return {
+        "syncType": sync_type,
+        "workChamber": 4,
+        "tempUnit": "c",
+        "accountId": account_id or "",
+        "readyStart": True,
+        "cookConfigs": configs,
+    }
+
+
+async def async_send_sync(
+    coordinator: AirfryerCoordinator, fryer: FryerData, sync_type: int
+) -> dict[str, Any]:
+    """Match/Sync mit den Werten der beiden Zonen-Eingaben bereitstellen."""
+    cid = fryer.cid
+    plans = []
+    for zone in (1, 2):
+        plan = get_plan(coordinator, cid, zone)
+        plans.append(
+            (plan["mode"], clamp_temp(plan["mode"], plan["temp"]), int(plan["minuten"]))
+        )
+    payload = build_sync_payload(coordinator.api.account_id, sync_type, plans[0], plans[1])
+    answer = await coordinator.api.bypass_v2(fryer.info, "startMultiCook", payload)
+    await coordinator.async_request_fast_refresh()
+    return redact(answer) if isinstance(answer, dict) else {"antwort": answer}
+
+
 async def async_send(
     coordinator: AirfryerCoordinator,
     fryer: FryerData,

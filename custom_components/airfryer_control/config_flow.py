@@ -18,6 +18,7 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -40,6 +41,7 @@ from .const import (
     MAX_INTERVAL,
     MIN_INTERVAL,
     OPT_INTERVAL,
+    OPT_SIDEBAR,
     OPT_TIME_UNIT,
     REGIONS,
     TIME_UNIT_AUTO,
@@ -176,6 +178,7 @@ class AirfryerOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         if user_input is not None:
             user_input[OPT_INTERVAL] = int(user_input[OPT_INTERVAL])
+            user_input[OPT_SIDEBAR] = bool(user_input.get(OPT_SIDEBAR, False))
             return self.async_create_entry(data=user_input)
         opts = self.config_entry.options
         schema = vol.Schema(
@@ -200,6 +203,7 @@ class AirfryerOptionsFlow(OptionsFlow):
                         translation_key="zeiteinheit",
                     )
                 ),
+                vol.Optional(OPT_SIDEBAR, default=bool(opts.get(OPT_SIDEBAR, False))): BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

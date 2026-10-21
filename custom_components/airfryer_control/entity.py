@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
+from collections.abc import Callable
+
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -59,3 +63,34 @@ def async_remove_stale(
     for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
         if reg.domain == platform and reg.unique_id not in keep:
             registry.async_remove(reg.entity_id)
+
+
+@callback
+def async_setup_dynamic(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    platform: str,
+    async_add_entities: AddEntitiesCallback,
+    build: Callable[[AirfryerCoordinator], list[Entity]],
+) -> None:
+    """Entitäten anlegen – und später nachlegen, wenn neue dazukommen.
+
+    Für Doofe: Ist die Fritteuse beim Start aus (offline), kennt die Integration ihre
+    Zonen noch nicht. Sobald die Fritteuse online geht und Zonen meldet, werden die
+    fehlenden Entitäten hier automatisch nachgelegt – ohne Neuladen.
+    """
+    coordinator: AirfryerCoordinator = entry.runtime_data
+    known: set[str | None] = set()
+
+    @callback
+    def _add(first: bool = False) -> None:
+        wanted = build(coordinator)
+        if first:
+            async_remove_stale(hass, entry, platform, {e.unique_id for e in wanted})
+        new = [e for e in wanted if e.unique_id not in known]
+        known.update(e.unique_id for e in new)
+        if new:
+            async_add_entities(new)
+
+    _add(first=True)
+    entry.async_on_unload(coordinator.async_add_listener(_add))

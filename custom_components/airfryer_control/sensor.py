@@ -21,7 +21,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ALL_STATES, DOMAIN, STATE_OFFLINE, zone_label
 from .coordinator import AirfryerCoordinator, FryerData
-from .entity import AirfryerEntity, async_remove_stale
+from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, reports_current_temp, zone_view, zones_for_device
 from .core.util import redact
 
@@ -137,7 +137,10 @@ ZONE_SENSORS: tuple[ZoneSensorDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: AirfryerCoordinator = entry.runtime_data
+    async_setup_dynamic(hass, entry, "sensor", async_add_entities, _build)
+
+
+def _build(coordinator: AirfryerCoordinator) -> list[SensorEntity]:
     entities: list[SensorEntity] = []
     for cid, fryer in coordinator.fryers.items():
         entities += [FryerSensor(coordinator, cid, d) for d in FRYER_SENSORS]
@@ -158,8 +161,7 @@ async def async_setup_entry(
                 if d.key != "temperatur" or with_temp
             ]
         entities.append(RawDataSensor(coordinator, cid))
-    async_remove_stale(hass, entry, "sensor", {e.unique_id for e in entities})
-    async_add_entities(entities)
+    return entities
 
 
 class FryerSensor(AirfryerEntity, SensorEntity):

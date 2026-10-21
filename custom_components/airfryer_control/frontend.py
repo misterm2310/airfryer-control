@@ -16,7 +16,7 @@ from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
-from .const import CARD_FILENAME, STATIC_URL
+from .const import CARD_FILENAME, OPT_SIDEBAR, PANEL_FILENAME, PANEL_URL_PATH, STATIC_URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,6 +56,10 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     await hass.http.async_register_static_paths(
         [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "www"), False)]
     )
+    from .app_view import AppRedirectView, AppView  # noqa: PLC0415 (vermeidet Kreis-Import)
+
+    hass.http.register_view(AppView())
+    hass.http.register_view(AppRedirectView())
     versioned = f"{CARD_URL}?v={_version()}"
 
     resources = _resources(hass)
@@ -83,3 +87,39 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
             exc_info=True,
         )
         add_extra_js_url(hass, versioned)
+
+
+def sidebar_wanted(hass: HomeAssistant, skip_entry_id: str | None = None) -> bool:
+    """Ist bei irgendeinem (anderen) geladenen Konto die Seitenleiste eingeschaltet?"""
+    from homeassistant.config_entries import ConfigEntryState  # noqa: PLC0415
+
+    from .const import DOMAIN  # noqa: PLC0415
+
+    return any(
+        e.entry_id != skip_entry_id and e.state is ConfigEntryState.LOADED and bool(e.options.get(OPT_SIDEBAR, False))
+        for e in hass.config_entries.async_entries(DOMAIN)
+    )
+
+
+async def async_set_sidebar(hass: HomeAssistant, enabled: bool) -> None:
+    """📌 Fritteuse als eigener Eintrag in der Seitenleiste (Option, standardmäßig aus)."""
+    from homeassistant.components import frontend, panel_custom  # noqa: PLC0415
+
+    present = PANEL_URL_PATH in hass.data.get(frontend.DATA_PANELS, {})
+    if present:
+        frontend.async_remove_panel(hass, PANEL_URL_PATH)
+    if not enabled:
+        return
+    try:
+        await panel_custom.async_register_panel(
+            hass,
+            webcomponent_name="airfryer-control-panel",
+            frontend_url_path=PANEL_URL_PATH,
+            module_url=f"{STATIC_URL}/{PANEL_FILENAME}?v={_version()}",
+            sidebar_title="Fritteuse",
+            sidebar_icon="mdi:toaster-oven",
+            require_admin=False,
+            config={"card_url": f"{CARD_URL}?v={_version()}"},
+        )
+    except Exception:  # noqa: BLE001
+        _LOGGER.warning("Seitenleisten-Eintrag konnte nicht angelegt werden", exc_info=True)

@@ -74,3 +74,19 @@ befehl_senden:
       example: "{}"
       selector:
         object:
+
+match_senden:
+  fields:
+    geraet:
+      required: true
+      selector:
+        device:
+          integration: airfryer_control
+
+sync_senden:
+  fields:
+    geraet:
+      required: true
+      selector:
+        device:
+          integration: airfryer_control
