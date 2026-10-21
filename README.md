@@ -60,7 +60,7 @@ Pro Fritteuse ein Gerät. Die Namen hängen davon ab, wie deine Fritteuse in der
 | `sensor.fritteuse_zone_1_…` / `zone_2_…` / `zone_3_…` (Grandzone) | Zustand, Restzeit, fertig um, Programm (nur beim Garen) |
 | `select.fritteuse_zone_1_programm` / `zone_2_…` / `zone_3_…` | Programm für „Senden“: Heißluft, Braten, Backen, Grillen, Aufwärmen, Dörren. Beim Wechsel setzt es Temperatur und Zeit auf die Vorschlagswerte der Fritteuse. |
 | `number.fritteuse_zone_1_temperatur_einstellen` | Temperatur der Zone (35–240 °C) – wird beim Senden mitgeschickt |
-| `number.fritteuse_zone_1_garzeit_einstellen` | Garzeit der Zone in Minuten – wird beim Senden mitgeschickt |
+| `number.fritteuse_zone_1_garzeit_einstellen` | Garzeit der Zone in Minuten – wird beim Senden mitgeschickt. Grenzen je Programm: Heißluft 1–60, Braten 1–240, Backen 1–240, Grillen 1–30, Aufwärmen 1–60, Dörren 1–2880 (48 h); Dörren 34–95 °C |
 | `switch.fritteuse_zone_1_senden_beenden` / `zone_2_…` / `zone_3_…` | **An = Werte an die Fritteuse senden** (sie wartet dann auf Start am Gerät). **Aus = Zone beenden.** Das Programm, Temperatur und Zeit stehen als Attribute dabei. |
 | `binary_sensor.fritteuse_gart_gerade` | An, solange vorgeheizt, gegart oder kurz pausiert wird |
 | `button.fritteuse_garen_beenden` | Stopp für die ganze Fritteuse |

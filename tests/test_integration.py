@@ -704,3 +704,27 @@ async def test_zone_entities_appear_when_fryer_comes_online_later(hass: HomeAssi
     await hass.async_block_till_done()
     assert er.async_get(hass).async_get_entity_id("switch", DOMAIN, f"{CID}_zone1_gart")
     assert er.async_get(hass).async_get_entity_id("sensor", DOMAIN, f"{CID}_zone2_status")
+
+
+async def test_cooking_time_limits_follow_program(hass: HomeAssistant) -> None:
+    await setup(hass)
+    sel = eid(hass, "select", "zone1_programm_waehlen")
+    tim = eid(hass, "number", "zone1_garzeit")
+    for prog, high in (("airfry", 60), ("roast", 240), ("bake", 240), ("grill", 30), ("reheat", 60), ("dry", 2880)):
+        await hass.services.async_call(
+            "select", "select_option", {"entity_id": sel, "option": prog}, blocking=True
+        )
+        await hass.async_block_till_done()
+        st = hass.states.get(tim)
+        assert (st.attributes["min"], st.attributes["max"]) == (1, high), prog
+
+
+async def test_dry_temperature_limits(hass: HomeAssistant) -> None:
+    await setup(hass)
+    await hass.services.async_call(
+        "select", "select_option",
+        {"entity_id": eid(hass, "select", "zone1_programm_waehlen"), "option": "dry"}, blocking=True,
+    )
+    await hass.async_block_till_done()
+    st = hass.states.get(eid(hass, "number", "zone1_temperatur"))
+    assert (st.attributes["min"], st.attributes["max"]) == (34, 95)

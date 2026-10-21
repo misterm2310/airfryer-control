@@ -27,7 +27,7 @@ from .const import DOMAIN, zone_label
 from .coordinator import AirfryerCoordinator
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, zone_view, zones_for_device
-from .senden import clamp_temp, get_plan, temp_limits
+from .senden import clamp_minutes, clamp_temp, get_plan, temp_limits, time_limits
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,7 +55,7 @@ NUMBERS: tuple[ZoneNumberDescription, ...] = (
         device_class=NumberDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.MINUTES,
         native_min_value=1,
-        native_max_value=1440,
+        native_max_value=2880,
         native_step=1,
         mode=NumberMode.BOX,
         plan_key="minuten",
@@ -113,14 +113,16 @@ class ZoneNumber(AirfryerEntity, NumberEntity, RestoreEntity):
         if self.entity_description.key == "temperatur":
             mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
             return temp_limits(mode)[0]
-        return super().native_min_value
+        mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
+        return time_limits(mode)[0]
 
     @property
     def native_max_value(self) -> float:
         if self.entity_description.key == "temperatur":
             mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
             return temp_limits(mode)[1]
-        return super().native_max_value
+        mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
+        return time_limits(mode)[1]
 
     @property
     def native_value(self) -> float:
@@ -130,6 +132,8 @@ class ZoneNumber(AirfryerEntity, NumberEntity, RestoreEntity):
         plan = get_plan(self.coordinator, self._cid, self._zone)
         if self.entity_description.key == "temperatur":
             value = clamp_temp(plan["mode"], int(value))
+        else:
+            value = clamp_minutes(plan["mode"], int(value))
         plan[self.entity_description.plan_key] = int(value)
         self.async_write_ha_state()
         zs = zone_view(self.fryer.state, self._zone)

@@ -49,7 +49,7 @@ SEND_TEST_SCHEMA = vol.Schema(
         vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
         vol.Optional(ATTR_TEMP, default=180): vol.All(vol.Coerce(int), vol.Range(min=35, max=240)),
         vol.Optional(ATTR_MINUTES, default=10): vol.All(
-            vol.Coerce(int), vol.Range(min=1, max=1440)
+            vol.Coerce(int), vol.Range(min=1, max=2880)
         ),
         vol.Optional(ATTR_MODE, default="airfry"): vol.In(list(MODES)),
         vol.Optional(ATTR_VARIANT): cv.string,

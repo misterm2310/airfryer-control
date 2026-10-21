@@ -28,7 +28,7 @@ from .const import (
 from .coordinator import AirfryerCoordinator
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import zone_view, zones_for_device
-from .senden import async_end, async_send, clamp_temp, get_plan
+from .senden import async_end, async_send, clamp_minutes, clamp_temp, get_plan
 
 
 async def async_setup_entry(
@@ -84,6 +84,7 @@ class ZoneSwitch(AirfryerEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         plan = get_plan(self.coordinator, self._cid, self._zone)
         plan["temp"] = clamp_temp(plan["mode"], plan["temp"])
+        plan["minuten"] = clamp_minutes(plan["mode"], plan["minuten"])
         try:
             results = await async_send(
                 self.coordinator,

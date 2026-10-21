@@ -20,6 +20,9 @@ const COLORS = {
   gart: "#43A047", vorheizen: "#FB8C00", vorgeheizt: "#FB8C00", wartet_auf_start: "#FB8C00", wartet_auf_sync: "#FB8C00",
   fertig: "#E53935", warmhalten: "#8E24AA", pausiert: "#FDD835", schublade_offen: "#FDD835", offline: "#616161",
 };
+// Platzhalter im Laufband-Text: wird beim Zeichnen durch das Fritteusen-Icon ersetzt
+const FRY = "\u0001";
+const TMR = "\u0002"; // Platzhalter für das Timer-Symbol (Kochmütze mit Wecker, wie in der Einkaufsliste)
 const RUNNING = ["gart", "vorheizen", "pausiert", "warmhalten", "wartet_auf_sync"];
 const STATE_TEXT = {
   aus: ["Aus", "Off"], bereit: ["Bereit", "Ready"], vorheizen: ["Heizt vor", "Preheating"],
@@ -321,7 +324,7 @@ class AirfryerControlCard extends HTMLElement {
       ${opts.length ? `<div class="ac-modes">${modes}</div>` : ""}
       ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C")}
       ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min")}
-      ${min != null ? `<p class="ac-note">${esc(tr(hass, `Für dieses Programm: ${min}–${max} °C`, `For this program: ${min}–${max} °C`))}</p>` : ""}
+      ${min != null ? `<p class="ac-note">${esc(tr(hass, `Für dieses Programm: ${min}–${max} °C`, `For this program: ${min}–${max} °C`))}${time?.attributes?.max != null ? esc(tr(hass, `, ${time.attributes.min}–${time.attributes.max} Min`, `, ${time.attributes.min}–${time.attributes.max} min`)) : ""}</p>` : ""}
       ${this._syncHtml(z, zones)}
       ${this._other(z, zones) ? `<button class="ac-match" data-match="${esc(z.key)}" ${RUNNING.includes(hass.states[this._other(z, zones).state]?.state) ? "disabled" : ""}>📋 ${esc(tr(hass, `Einstellungen auf ${this._other(z, zones).name} übernehmen`, `Copy settings to ${this._other(z, zones).name}`))}</button>` : ""}
       ${this._syncSendHtml(z, zones)}
@@ -415,22 +418,22 @@ class AirfryerControlTicker extends HTMLElement {
       if (s === "gart" || s === "vorheizen") {
         const when = s === "gart" && valid(fin) ? tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`)
           : (s === "vorheizen" ? tr(hass, "heizt vor", "preheating") : tr(hass, "gart", "cooking"));
-        items.push(`🍟 ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${when}`);
+        items.push(`${FRY} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${when}`);
       } else if (s === "wartet_auf_sync") {
-        items.push(`🍟 ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Sync-Start", "waiting for sync start")}`);
+        items.push(`${FRY} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Sync-Start", "waiting for sync start")}`);
       } else if (s === "wartet_auf_start") {
-        items.push(`🍟 ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Start", "waiting for start")}`);
+        items.push(`${FRY} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Start", "waiting for start")}`);
       } else if (s === "fertig") {
         done = true;
-        items.push(`🍟 ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "FERTIG!", "DONE!")}`);
+        items.push(`${FRY} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "FERTIG!", "DONE!")}`);
       }
     }
     for (const id of this._config?.extra_entities || []) {
       const timers = hass.states[id]?.attributes?.timer;
       if (!Array.isArray(timers)) continue;
-      timers.filter((x) => x.fertig).forEach((x) => { done = true; items.push(`⏰ ${x.name}: ${tr(hass, "FERTIG!", "DONE!")}`); });
+      timers.filter((x) => x.fertig).forEach((x) => { done = true; items.push(`${TMR}${x.name}: ${tr(hass, "FERTIG!", "DONE!")}`); });
       timers.filter((x) => !x.fertig).sort((a, b) => Date.parse(a.ende) - Date.parse(b.ende))
-        .forEach((x) => items.push(`⏲️ ${x.name}: ${tr(hass, `fertig um ${clock(x.ende, hass)} Uhr`, `done at ${clock(x.ende, hass)}`)}`));
+        .forEach((x) => items.push(`${TMR}${x.name}: ${tr(hass, `fertig um ${clock(x.ende, hass)} Uhr`, `done at ${clock(x.ende, hass)}`)}`));
     }
     return { items, done };
   }
@@ -450,8 +453,12 @@ class AirfryerControlTicker extends HTMLElement {
     const text = piece.repeat(n);
     const dur = Math.max(8, Math.round(((plain * n * 11) / 100) * (60 / (Number(this._config.speed) || 60))));
     const color = done ? "#E53935" : "#26A69A";
+    const img = `<img class="fry" src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="20" height="20">`;
+    const timg = `<img class="fry" src="${AC_BASE}/timer-icon.png?v=${esc(AC_VERSION)}" alt="" width="24" height="24" style="width:24px;height:24px;margin:-4px 6px 0 0">`;
+    const html = esc(text).split(FRY).join(img).split(TMR).join(timg);
     this.shadowRoot.innerHTML = `<style>
       :host { display:block; }
+      .fry { width:20px; height:20px; vertical-align:middle; margin:-3px 4px 0 0; border-radius:4px; }
       ha-card { display:block; height:40px; padding:0; background:var(--card-background-color); border-radius:8px; border:none; box-shadow:0 5px 3px rgba(0,0,0,.1); overflow:hidden; }
       .box { display:flex; align-items:center; width:100%; height:100%; border:2px solid ${color}; border-radius:8px; box-sizing:border-box; }
       .box ha-icon { flex:none; --mdc-icon-size:22px; margin:0 10px; color:${color}; ${done ? "animation:ac_pulse 1s ease-in-out infinite;" : ""} }
@@ -463,7 +470,7 @@ class AirfryerControlTicker extends HTMLElement {
       @keyframes ac_tick { from { transform:translateX(0) } to { transform:translateX(-50%) } }
       @media (prefers-reduced-motion: reduce) { .wrap { animation:none; } .box ha-icon { animation:none; } }
     </style>
-    <ha-card><div class="box"><ha-icon icon="mdi:chef-hat"></ha-icon><div class="win"><div class="wrap"><span class="txt">${esc(text)}</span><span class="txt">${esc(text)}</span></div></div><ha-icon icon="mdi:chef-hat"></ha-icon></div></ha-card>`;
+    <ha-card><div class="box"><ha-icon icon="mdi:chef-hat"></ha-icon><div class="win"><div class="wrap"><span class="txt">${html}</span><span class="txt">${html}</span></div></div><ha-icon icon="mdi:chef-hat"></ha-icon></div></ha-card>`;
     this._measured = false;
     this._tries = 0;
     this._measure();

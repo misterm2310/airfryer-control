@@ -21,9 +21,12 @@ from .const import (
     DEFAULT_MODE,
     MODE_DEFAULTS,
     MODE_TEMP_RANGE,
+    MODE_TIME_RANGE,
     MODES,
     TEMP_MAX_DEFAULT,
     TEMP_MIN_DEFAULT,
+    TIME_MAX_DEFAULT,
+    TIME_MIN_DEFAULT,
 )
 from .coordinator import AirfryerCoordinator, FryerData
 from .core.parser import zones_for_device
@@ -51,6 +54,17 @@ def clamp_temp(mode: str, temp: int) -> int:
     """Temperatur in den erlaubten Bereich schieben."""
     low, high = temp_limits(mode)
     return max(low, min(high, int(temp)))
+
+
+def time_limits(mode: str) -> tuple[int, int]:
+    """Erlaubte Garzeit (Minuten) für ein Programm."""
+    return MODE_TIME_RANGE.get(mode, (TIME_MIN_DEFAULT, TIME_MAX_DEFAULT))
+
+
+def clamp_minutes(mode: str, minutes: int) -> int:
+    """Garzeit in den erlaubten Bereich schieben."""
+    low, high = time_limits(mode)
+    return max(low, min(high, int(minutes)))
 
 
 @dataclass(frozen=True)
@@ -167,7 +181,7 @@ async def async_send_sync(
     for zone in (1, 2):
         plan = get_plan(coordinator, cid, zone)
         plans.append(
-            (plan["mode"], clamp_temp(plan["mode"], plan["temp"]), int(plan["minuten"]))
+            (plan["mode"], clamp_temp(plan["mode"], plan["temp"]), clamp_minutes(plan["mode"], int(plan["minuten"])))
         )
     payload = build_sync_payload(coordinator.api.account_id, sync_type, plans[0], plans[1])
     answer = await coordinator.api.bypass_v2(fryer.info, "startMultiCook", payload)

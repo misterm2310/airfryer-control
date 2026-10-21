@@ -72,14 +72,25 @@ MODE_DEFAULTS = {
 DEFAULT_MODE = "airfry"
 
 # Temperaturbereich je Programm (°C), von Marco aus der VeSync-App abgelesen.
-# Trocknen (dry) ist unbekannt und nimmt den Standardbereich.
 MODE_TEMP_RANGE = {
     "airfry": (120, 205),
     "roast": (120, 205),
     "bake": (80, 205),
     "grill": (205, 240),
     "reheat": (40, 205),
+    "dry": (34, 95),
 }
+# Garzeit je Programm (Minuten), von Marco aus der VeSync-App angegeben.
+MODE_TIME_RANGE = {
+    "airfry": (1, 60),
+    "roast": (1, 240),
+    "bake": (1, 240),
+    "grill": (1, 30),
+    "reheat": (1, 60),
+    "dry": (1, 2880),
+}
+TIME_MIN_DEFAULT = 1
+TIME_MAX_DEFAULT = 2880
 TEMP_MIN_DEFAULT = 35
 TEMP_MAX_DEFAULT = 240
 
