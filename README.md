@@ -218,6 +218,7 @@ actions:
 |---|---|
 | `airfryer_control.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
 | `airfryer_control.garen_beenden` | Stopp. |
+| `airfryer_control.programm_senden` | **Für alle Nutzer** (auch ohne Admin-Rechte, z. B. für die Einkaufsliste): schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse – **nur zum Bereitstellen**, sie startet nie von selbst. Temperatur und Zeit werden auf den Bereich des Programms gesetzt. Ohne `geraet` wird die einzige Fritteuse genommen. Antwort: `ok` (und bei Fehler `fehler`). |
 | `airfryer_control.match_senden` | **Match:** schickt Programm, Temperatur und Zeit von Zone 1 an beide Zonen. Nur bereitstellen – gestartet wird am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
 | `airfryer_control.sync_senden` | **Sync:** schickt beide Zonen mit ihren Zeiten; die kürzere Zone wartet (Zustand „Wartet auf Sync-Start“), damit beide zusammen fertig werden. Nur bereitstellen – Start am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
 | `airfryer_control.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |

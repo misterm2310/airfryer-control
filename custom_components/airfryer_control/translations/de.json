@@ -290,6 +290,32 @@
           "description": "Welche Fritteuse?"
         }
       }
+    },
+    "programm_senden": {
+      "name": "Programm senden",
+      "description": "Für alle Nutzer: schickt Programm, Temperatur und Zeit an eine Zone – nur zum Bereitstellen, die Fritteuse startet nie von selbst (am Gerät auf Start drücken). Ohne Gerät wird die einzige Fritteuse genommen.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 oder 3 (Grandzone)."
+        },
+        "temperatur": {
+          "name": "Temperatur",
+          "description": "In °C (wird auf den Bereich des Programms gesetzt)."
+        },
+        "minuten": {
+          "name": "Minuten",
+          "description": "Garzeit (wird auf den Bereich des Programms gesetzt)."
+        },
+        "programm": {
+          "name": "Programm",
+          "description": "Welches Programm?"
+        }
+      }
     }
   }
 }

@@ -34,6 +34,7 @@ EVENT_FINISHED = f"{DOMAIN}_fertig"
 SERVICE_SEND_TEST = "senden_testen"
 SERVICE_STOP = "garen_beenden"
 SERVICE_RAW = "befehl_senden"
+SERVICE_PROGRAM = "programm_senden"
 SERVICE_MATCH = "match_senden"
 SERVICE_SYNC = "sync_senden"
 

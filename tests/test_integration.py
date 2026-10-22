@@ -728,3 +728,51 @@ async def test_dry_temperature_limits(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     st = hass.states.get(eid(hass, "number", "zone1_temperatur"))
     assert (st.attributes["min"], st.attributes["max"]) == (34, 95)
+
+
+async def test_program_service_is_for_everyone_and_never_starts(
+    hass: HomeAssistant, hass_read_only_user
+) -> None:
+    from homeassistant.core import Context
+    from homeassistant.exceptions import Unauthorized
+
+    await setup(hass)
+    ctx = Context(user_id=hass_read_only_user.id)
+    res = await hass.services.async_call(
+        DOMAIN,
+        "programm_senden",
+        {"zone": 2, "temperatur": 240, "minuten": 500, "programm": "airfry"},
+        blocking=True,
+        return_response=True,
+        context=ctx,
+    )
+    assert res == {"ok": True}
+    sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"][-1][1]
+    assert sent["readyStart"] is True
+    cfg = sent["cookConfigs"][0]
+    assert cfg["cookTemp"] == 205 and cfg["cookSetTime"] == 60 * 60 and cfg["chamber"] == 2
+    # das Bastler-Werkzeug bleibt Admins vorbehalten
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            DOMAIN, "senden_testen", {"geraet": device.id}, blocking=True,
+            return_response=True, context=ctx,
+        )
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            DOMAIN, "befehl_senden", {"geraet": device.id, "methode": "getAirfryerMultiStatus"},
+            blocking=True, return_response=True, context=ctx,
+        )
+
+
+async def test_program_service_reports_rejection(hass: HomeAssistant) -> None:
+    FakeApi.reject = {"startMultiCook"}
+    await setup(hass)
+    res = await hass.services.async_call(
+        DOMAIN, "programm_senden",
+        {"zone": 1, "temperatur": 180, "minuten": 10, "programm": "bake"},
+        blocking=True, return_response=True,
+    )
+    assert res["ok"] is False and res["fehler"]
+    sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"]
+    assert sent and all(c[1]["readyStart"] is True for c in sent)

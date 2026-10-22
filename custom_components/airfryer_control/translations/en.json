@@ -290,6 +290,32 @@
           "description": "Which air fryer?"
         }
       }
+    },
+    "programm_senden": {
+      "name": "Send program",
+      "description": "For all users: sends program, temperature and time to a zone – prepare only, the fryer never starts by itself (press Start on the device). Without a device the only fryer is used.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 or 3 (whole drawer)."
+        },
+        "temperatur": {
+          "name": "Temperature",
+          "description": "In °C (limited to the program's range)."
+        },
+        "minuten": {
+          "name": "Minutes",
+          "description": "Cooking time (limited to the program's range)."
+        },
+        "programm": {
+          "name": "Program",
+          "description": "Which program?"
+        }
+      }
     }
   }
 }

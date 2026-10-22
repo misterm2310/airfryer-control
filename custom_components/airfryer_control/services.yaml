@@ -90,3 +90,47 @@ sync_senden:
       selector:
         device:
           integration: airfryer_control
+
+programm_senden:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    zone:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "3"
+    temperatur:
+      required: true
+      selector:
+        number:
+          min: 35
+          max: 240
+          step: 5
+          unit_of_measurement: "°C"
+    minuten:
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 2880
+          mode: box
+          unit_of_measurement: "min"
+    programm:
+      required: true
+      selector:
+        select:
+          translation_key: programm
+          options:
+            - airfry
+            - roast
+            - bake
+            - grill
+            - reheat
+            - dry
