@@ -34,7 +34,7 @@ Built for models the official VeSync integration does **not** know – first of 
 
 1. Open **HACS** → top right **⋮ → Custom repositories**.
 2. Add `https://github.com/misterm2310/airfryer-control`, type **Integration**.
-3. Search **Airfryer Control** → ⋮ → **Redownload** → enable **“Show beta versions”** → pick the newest → **Download**.
+3. Search **Airfryer Control** → ⋮ → **Redownload** → pick the newest → **Download**.
 4. **Restart Home Assistant.**
 5. **Settings → Devices & services → Add integration → Airfryer Control.**
 6. Sign in with **the same account as in the VeSync app**, choose region **EU** or **US** – done. 🎉
@@ -179,6 +179,23 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 **Time remaining 60× too large/small?** Devices & services → Airfryer Control → **Configure** → “Time values of the air fryer” → seconds or minutes.
 
 **When are new versions released?** Official releases on **Sundays**, beta versions on other days (HACS → ⋮ → Redownload → “Show beta versions”).
+
+---
+
+## 🍳 Got a different model?
+
+So far Airfryer Control is only tested on the **Cosori Dual Blaze TwinFry (CAF-TF101S)**. Other models show up automatically, but:
+
+- **Newer models (CA…)** get display and control. Whether start, temperature/time limits and programs are right for your model is **untested**.
+- **Older models (CS…)** get display only.
+- A model with different programs is unknown to the integration. Someone has to read the program numbers off a real device.
+
+**How to help get your model added:**
+1. Install the integration and turn the fryer **on** once, ideally with a program running.
+2. Download the file via **Settings → Devices & services → Airfryer Control → ⋮ → Download diagnostics**. IDs, e-mail and token are already redacted.
+3. Open an [issue](https://github.com/misterm2310/airfryer-control/issues) with the **model number** (on the device and in the app), the diagnostics file and the **limits from the VeSync app** (lowest/highest temperature and time per program).
+
+That lets the model be added properly. Without this data it would be guesswork.
 
 ---
 

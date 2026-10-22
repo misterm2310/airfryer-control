@@ -34,7 +34,7 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 
 1. **HACS** öffnen → oben rechts **⋮ → Benutzerdefinierte Repositories**.
 2. `https://github.com/misterm2310/airfryer-control` eintragen, Typ **Integration**, **Hinzufügen**.
-3. Nach **Airfryer Control** suchen → ⋮ → **Neu herunterladen** → **„Beta-Versionen anzeigen“** einschalten → neueste Version wählen → **Herunterladen**.
+3. Nach **Airfryer Control** suchen → ⋮ → **Neu herunterladen** → neueste Version wählen → **Herunterladen**.
 4. **Home Assistant neu starten.**
 5. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Airfryer Control.**
 6. Mit **demselben Konto wie in der VeSync-App** anmelden, Region **EU** (Deutschland/Europa) wählen – fertig. 🎉
@@ -255,6 +255,23 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 - **Zone einzeln beenden und Temperatur/Zeit ändern** schicken die Befehle so, wie die App es nach heutigem Wissen tut (`endCook` mit Zone, `setTimeOrTemp`). An der echten TwinFry ist das noch **nicht ausprobiert**. Lehnt sie ab, bekommst du eine Meldung mit dem Grund.
 - **Feldnamen:** Den Stillstand der TwinFry kennen wir aus einer echten Antwort, die Werte **während des Garens** noch nicht. Zeigt ein Sensor Quatsch, schau in `sensor.…_rohdaten` – dort steht, was die Fritteuse wirklich geschickt hat.
 - **Ältere 3,7/5,8-Quart-Modelle** (CS…): nur Anzeige, kein Start. Für die gibt es auch die offizielle VeSync-Integration.
+
+---
+
+## 🍳 Du hast ein anderes Modell?
+
+Getestet ist Airfryer Control bisher nur an der **Cosori Dual Blaze TwinFry (CAF-TF101S)**. Andere Modelle tauchen zwar automatisch auf, aber:
+
+- **Neue Modelle (CA…)** bekommen Anzeige und Steuerung. Ob Start, Temperatur- und Zeitgrenzen und die Programme bei deinem Modell stimmen, ist **nicht geprüft**.
+- **Ältere Modelle (CS…)** bekommen nur die Anzeige.
+- Ein Modell mit anderen Programmen kennt die Integration nicht. Die Programm-Nummern muss jemand an einem echten Gerät ablesen.
+
+**So hilfst du, dass dein Modell dazukommt:**
+1. Installiere die Integration und lass die Fritteuse einmal **an**, am besten mit laufendem Programm.
+2. Lade die Datei über **Geräte & Dienste → Airfryer Control → ⋮ → Diagnose herunterladen** herunter. Kennungen, E-Mail und Token sind dort schon geschwärzt.
+3. Schreibe ein [Issue](https://github.com/misterm2310/airfryer-control/issues) mit **Modellnummer** (steht am Gerät und in der App), der Diagnose-Datei und den **Grenzen aus der VeSync-App** (kleinste/größte Temperatur und Zeit je Programm).
+
+Daraus kann das Modell sauber eingebaut werden. Ohne diese Daten wäre es geraten.
 
 ---
 
