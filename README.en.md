@@ -174,6 +174,7 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 - **Pause/resume:** command not known for sure yet – no button.
 - **Stopping a single zone and changing temperature/time** are sent as the app is believed to do (`endCook` with zone, `setTimeOrTemp`) – **not yet tried on a real TwinFry**.
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.
+- **Match/Sync and zones you already prepared:** If you prepared single zones with “Send” first, the integration resets those (and **only** those, never a running zone) before Match/Sync. Reported and confirmed on a Turbo Tower Pro Smart. If any zone is running, nothing is ended.
 - **Older 3.7/5.8 qt models** (CS…): display only, no start.
 
 **Time remaining 60× too large/small?** Devices & services → Airfryer Control → **Configure** → “Time values of the air fryer” → seconds or minutes.

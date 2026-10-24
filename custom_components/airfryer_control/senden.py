@@ -18,6 +18,12 @@ from typing import Any
 
 from .core.api import AirfryerDeviceOffline, AirfryerError
 from .const import (
+    STATE_COOKING,
+    STATE_DRAWER_OPEN,
+    STATE_HOLD,
+    STATE_PAUSED,
+    STATE_PREHEAT,
+    STATE_WAITING,
     DEFAULT_MODE,
     MODE_DEFAULTS,
     MODE_TEMP_RANGE,
@@ -33,6 +39,10 @@ from .core.parser import zones_for_device
 from .core.util import redact
 
 PAUSE_SECONDS = 1.0
+RESET_WAIT_SECONDS = 1.5  # so lange warten, bis die Fritteuse das Zurücksetzen übernommen hat
+RESET_TRIES = 6
+PREPARED = {STATE_WAITING, STATE_HOLD}  # vorbereitet, aber noch nicht gestartet
+BUSY = {STATE_PREHEAT, STATE_COOKING, STATE_PAUSED, STATE_DRAWER_OPEN}  # arbeitet: nie anfassen
 
 
 def get_plan(coordinator: AirfryerCoordinator, cid: str, zone: int) -> dict[str, Any]:
@@ -172,11 +182,55 @@ def build_sync_payload(
     }
 
 
+def _zone_status(fryer: FryerData, zone: int) -> str | None:
+    zs = fryer.state.zones.get(zone)
+    return zs.status if zs else None
+
+
+async def _reset_prepared_zones(coordinator: AirfryerCoordinator, fryer: FryerData) -> None:
+    """Vorbereitete (nicht gestartete) Zonen zurücksetzen, damit Match/Sync angenommen wird.
+
+    Sicherung: Nur wenn **keine** Zone arbeitet. Beendet wird nur, was auf „Wartet auf Start“
+    (oder „Wartet auf Sync“) steht – nie etwas, das schon läuft.
+    """
+    await coordinator.async_refresh()  # aktuellen Stand holen, nicht den von vor einer Minute
+    zones = (1, 2)
+    states = {z: _zone_status(fryer, z) for z in zones}
+    if any(st in BUSY for st in states.values()):
+        return  # irgendwas arbeitet: nichts anfassen, die Fritteuse entscheidet selbst
+    todo = [z for z in zones if states[z] in PREPARED]
+    for z in todo:
+        try:
+            await coordinator.api.bypass_v2(fryer.info, "endCook", {"chamber": z})
+        except AirfryerDeviceOffline:
+            raise
+        except AirfryerError as err:
+            if err.code == NO_PROGRAM_CODE:
+                continue  # war schon leer
+            raise AirfryerError(
+                f"Das vorbereitete Programm in Zone {z} ließ sich nicht zurücksetzen: {err}", err.code
+            ) from err
+    if not todo:
+        return
+    for _ in range(RESET_TRIES):  # warten, bis beide Zonen wieder frei sind
+        await asyncio.sleep(RESET_WAIT_SECONDS)
+        await coordinator.async_refresh()
+        if not any(_zone_status(fryer, z) in PREPARED for z in zones):
+            return
+
+
 async def async_send_sync(
     coordinator: AirfryerCoordinator, fryer: FryerData, sync_type: int
 ) -> dict[str, Any]:
-    """Match/Sync mit den Werten der beiden Zonen-Eingaben bereitstellen."""
+    """Match/Sync mit den Werten der beiden Zonen-Eingaben bereitstellen.
+
+    Für Doofe: Hat man vorher einzelne Zonen mit „Senden“ vorbereitet, lehnt die Fritteuse
+    Match/Sync ab (Code 11912000, gemeldet an einer Turbo Tower Pro Smart). Darum werden
+    zuerst nur **vorbereitete, noch nicht gestartete** Zonen zurückgesetzt. Läuft irgendeine
+    Zone (heizt, gart, pausiert, Schublade offen), wird NICHTS beendet.
+    """
     cid = fryer.cid
+    await _reset_prepared_zones(coordinator, fryer)
     plans = []
     for zone in (1, 2):
         plan = get_plan(coordinator, cid, zone)

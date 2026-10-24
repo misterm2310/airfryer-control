@@ -787,3 +787,56 @@ async def test_version_wird_im_hintergrund_gelesen_und_gemerkt(hass):
     assert erste != "0"
     assert frontend._VERSION == erste
     assert await frontend.async_version(hass) == erste
+
+
+async def _sync_device(hass: HomeAssistant):
+    await setup(hass)
+    return dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
+
+
+async def test_sync_resets_prepared_zone_first(hass: HomeAssistant, fake_api, monkeypatch) -> None:
+    """Issue #2: Eine vorbereitete (nicht gestartete) Zone wird vor Match/Sync zurückgesetzt."""
+    from custom_components.airfryer_control import senden
+
+    monkeypatch.setattr(senden, "RESET_WAIT_SECONDS", 0)
+    fake_api.multi = real_twinfry("ready", remaining=600, set_time=600, temp=180)
+    device = await _sync_device(hass)
+    api = FakeApi.instances[-1]
+    original = api.bypass_v2
+
+    async def clearing(dev, method, data=None):
+        answer = await original(dev, method, data)
+        if method == "endCook":
+            FakeApi.multi = real_twinfry("standby")  # Fritteuse hat das Programm verworfen
+        return answer
+
+    api.bypass_v2 = clearing
+    await hass.services.async_call(DOMAIN, "sync_senden", {"geraet": device.id}, blocking=True)
+    names = [c[0] for c in api.calls]
+    assert ("endCook", {"chamber": 1}) in api.calls
+    assert ("endCook", {"chamber": 2}) not in api.calls  # Zone 2 war nicht vorbereitet
+    assert names.index("endCook") < max(i for i, n in enumerate(names) if n == "startMultiCook")
+
+
+async def test_sync_never_ends_running_zone(hass: HomeAssistant, fake_api) -> None:
+    """Läuft eine Zone, wird nichts beendet – die Fritteuse entscheidet selbst."""
+    fake_api.multi = real_twinfry("cooking", remaining=600, set_time=600, temp=180)
+    device = await _sync_device(hass)
+    await hass.services.async_call(DOMAIN, "sync_senden", {"geraet": device.id}, blocking=True)
+    api = FakeApi.instances[-1]
+    assert not [c for c in api.calls if c[0] == "endCook"]
+    assert [c for c in api.calls if c[0] == "startMultiCook"]
+
+
+async def test_sync_reset_failure_gives_clear_error(hass: HomeAssistant, fake_api) -> None:
+    """Klappt das Zurücksetzen nicht, gibt es eine verständliche Meldung und kein Match/Sync."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    fake_api.multi = real_twinfry("ready", remaining=600, set_time=600, temp=180)
+    device = await _sync_device(hass)
+    FakeApi.reject = {"endCook"}
+    api = FakeApi.instances[-1]
+    before = len([c for c in api.calls if c[0] == "startMultiCook"])
+    with pytest.raises(HomeAssistantError, match="Zone 1.*zurücksetzen"):
+        await hass.services.async_call(DOMAIN, "sync_senden", {"geraet": device.id}, blocking=True)
+    assert len([c for c in api.calls if c[0] == "startMultiCook"]) == before
