@@ -23,13 +23,28 @@ _LOGGER = logging.getLogger(__name__)
 CARD_URL = f"{STATIC_URL}/{CARD_FILENAME}"
 
 
+_VERSION: str | None = None
+
+
 def _version() -> str:
-    """Version aus der manifest.json (damit der Browser nach einem Update neu lädt)."""
+    """Version aus der manifest.json lesen (blockiert kurz – nur im Hintergrund-Thread aufrufen!)."""
     try:
         manifest = Path(__file__).parent / "manifest.json"
         return str(json.loads(manifest.read_text(encoding="utf-8")).get("version", "0"))
     except (OSError, ValueError):
         return "0"
+
+
+async def async_version(hass: HomeAssistant) -> str:
+    """Version für „?v=…“ (damit der Browser nach einem Update neu lädt).
+
+    Für Doofe: Die Datei wird nur ein einziges Mal gelesen, und zwar im Hintergrund,
+    damit Home Assistant nicht kurz warten muss. Danach kommt der Wert aus dem Gedächtnis.
+    """
+    global _VERSION  # noqa: PLW0603
+    if _VERSION is None:
+        _VERSION = await hass.async_add_executor_job(_version)
+    return _VERSION
 
 
 def _resources(hass: HomeAssistant):
@@ -60,7 +75,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
 
     hass.http.register_view(AppView())
     hass.http.register_view(AppRedirectView())
-    versioned = f"{CARD_URL}?v={_version()}"
+    versioned = f"{CARD_URL}?v={await async_version(hass)}"
 
     resources = _resources(hass)
     if resources is None:
@@ -111,15 +126,16 @@ async def async_set_sidebar(hass: HomeAssistant, enabled: bool) -> None:
     if not enabled:
         return
     try:
+        version = await async_version(hass)
         await panel_custom.async_register_panel(
             hass,
             webcomponent_name="airfryer-control-panel",
             frontend_url_path=PANEL_URL_PATH,
-            module_url=f"{STATIC_URL}/{PANEL_FILENAME}?v={_version()}",
+            module_url=f"{STATIC_URL}/{PANEL_FILENAME}?v={version}",
             sidebar_title="Fritteuse",
             sidebar_icon="mdi:toaster-oven",
             require_admin=False,
-            config={"card_url": f"{CARD_URL}?v={_version()}"},
+            config={"card_url": f"{CARD_URL}?v={version}"},
         )
     except Exception:  # noqa: BLE001
         _LOGGER.warning("Seitenleisten-Eintrag konnte nicht angelegt werden", exc_info=True)

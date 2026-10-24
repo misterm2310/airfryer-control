@@ -15,7 +15,7 @@ from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
 
-from .frontend import _version
+from .frontend import async_version
 
 APP_DIR = Path(__file__).parent / "www" / "app"
 APP_URL = "/airfryer_control/app/"
@@ -47,7 +47,7 @@ class AppView(HomeAssistantView):
         hass = request.app["hass"]
         body = await hass.async_add_executor_job((APP_DIR / file).read_bytes)
         if file in ("index.html", "sw.js"):
-            body = body.replace(b"__AC_VERSION__", _version().encode())
+            body = body.replace(b"__AC_VERSION__", (await async_version(hass)).encode())
         if file == "manifest.webmanifest" and not str(getattr(hass.config, "language", "de") or "de").lower().startswith("de"):
             for de, en in _MANIFEST_EN.items():
                 body = body.replace(de.encode(), en.encode())

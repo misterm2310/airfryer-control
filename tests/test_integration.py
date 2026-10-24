@@ -776,3 +776,14 @@ async def test_program_service_reports_rejection(hass: HomeAssistant) -> None:
     assert res["ok"] is False and res["fehler"]
     sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"]
     assert sent and all(c[1]["readyStart"] is True for c in sent)
+
+
+async def test_version_wird_im_hintergrund_gelesen_und_gemerkt(hass):
+    """Die Versionsnummer kommt aus dem Hintergrund-Thread und wird nur einmal gelesen (kein Blocking-I/O)."""
+    from custom_components.airfryer_control import frontend
+
+    frontend._VERSION = None
+    erste = await frontend.async_version(hass)
+    assert erste != "0"
+    assert frontend._VERSION == erste
+    assert await frontend.async_version(hass) == erste
