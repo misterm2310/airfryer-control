@@ -69,6 +69,19 @@ class FryerData:
     zone_finish_at: dict[int, datetime | None] = field(default_factory=dict)
     multizone: bool = False
     method_errors: dict[str, str] = field(default_factory=dict)
+    # Wann kam die letzte echte Antwort der Fritteuse? (None = noch nie)
+    last_report: datetime | None = None
+    # Zählt hoch, sobald sich etwas an der gemeldeten Antwort ändert
+    revision: int = 0
+
+    @property
+    def connection(self) -> str:
+        """„ok“, „offline“ (Fritteuse weg) oder „fehler“ (letzte Abfrage ging schief)."""
+        if not self.online:
+            return "offline"
+        if self.last_error or self.last_report is None:
+            return "fehler"
+        return "ok"
 
     @property
     def cid(self) -> str:
@@ -159,6 +172,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
 
     async def _update_fryer(self, fryer: FryerData) -> None:
         previous = fryer.state
+        previous_raw = (fryer.raw_status, fryer.raw_multi)
         was_online = fryer.online
         unit = guess_unit(fryer.model, self._unit_option)
         try:
@@ -180,6 +194,13 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                     return
                 fryer.raw_status = status or {}
                 fryer.raw_multi = multi or {}
+            if (
+                not was_online
+                or fryer.last_report is None
+                or (fryer.raw_status, fryer.raw_multi) != previous_raw
+            ):
+                fryer.revision += 1
+            fryer.last_report = dt_util.utcnow()
             fryer.online = True
             fryer.last_error = None
         except AirfryerDeviceOffline as err:
@@ -189,6 +210,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             fryer.finish_at = None
             fryer.zone_finish_at = {}
             if was_online:
+                fryer.revision += 1
                 _LOGGER.info("%s ist offline: %s", fryer.name, err)
             return
         except (AirfryerAuthError, AirfryerConnectionError):

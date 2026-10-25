@@ -218,10 +218,36 @@ actions:
 |---|---|
 | `airfryer_control.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
 | `airfryer_control.garen_beenden` | Stopp. |
-| `airfryer_control.programm_senden` | **Für alle Nutzer** (auch ohne Admin-Rechte, z. B. für die Einkaufsliste): schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse – **nur zum Bereitstellen**, sie startet nie von selbst. Temperatur und Zeit werden auf den Bereich des Programms gesetzt. Ohne `geraet` wird die einzige Fritteuse genommen. Antwort: `ok` (und bei Fehler `fehler`). |
+| `airfryer_control.programm_senden` | **Für alle Nutzer** (auch ohne Admin-Rechte, z. B. für die Einkaufsliste): schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse – **nur zum Bereitstellen**, sie startet nie von selbst. Temperatur und Zeit werden auf den Bereich des Programms gesetzt. Ohne `geraet` wird die einzige Fritteuse genommen. Antwort: `ok`, `ergebnis` und bei Fehler `fehler`/`code`. Extras für andere Integrationen siehe unten. |
+| `airfryer_control.faehigkeiten` | **Für alle Nutzer, nur lesen:** Programme, Temperatur- und Zeitgrenzen und Zonen einer Fritteuse – jeweils mit Angabe, ob **bestätigt** oder nur **geschätzt**. Dazu `verbindung`, `letzte_meldung` und `revision`. |
 | `airfryer_control.match_senden` | **Match:** schickt Programm, Temperatur und Zeit von Zone 1 an beide Zonen. Nur bereitstellen – gestartet wird am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
 | `airfryer_control.sync_senden` | **Sync:** schickt beide Zonen mit ihren Zeiten; die kürzere Zone wartet (Zustand „Wartet auf Sync-Start“), damit beide zusammen fertig werden. Nur bereitstellen – Start am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
 | `airfryer_control.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
+
+### 🔌 Für andere Integrationen und Karten (z. B. Airfryer Recipes) – 🧪 Beta
+
+Andere Integrationen sollen **nicht** an der Cloud vorbei bauen. Sie benutzen einfach die Dienste oben. Anmeldung und Gerätekommunikation bleiben komplett bei Airfryer Control.
+
+**`programm_senden` – Extras (alle freiwillig, ohne sie läuft alles wie bisher):**
+
+| Feld | Was es tut |
+|---|---|
+| `variante` | Genau diese sichere Schreibweise (`multi_app`, `multi_app_celsius`, `multi_app_zone0`). Die startende Form ist hier nie erlaubt. |
+| `einmal: true` | **Genau ein Befehl.** Keine zweite Schreibweise, keine automatische Wiederholung nach neuer Anmeldung. Ist das Token abgelaufen, kommt `abgelehnt` (nichts gesendet) – beim nächsten Versuch wird vorher angemeldet. |
+| `streng: true` | Werte außerhalb der Programm-Grenzen werden **abgelehnt** (`fehler: ausserhalb_grenzen` mit `grenzen`) statt still angepasst. |
+| `bestaetigen: true` | Nach dem Senden bis zu 3-mal (ca. 6 s) nachsehen, ob die Zone die Werte wirklich zeigt → `bestaetigt: true/false` und `am_geraet`. |
+
+**Antwort:** `ok`, `ergebnis`, `variante`, `versuche`, `gesendet` (was wirklich rausging), `revision_vorher`, bei Fehler `fehler`/`code`.
+
+| `ergebnis` | Bedeutet |
+|---|---|
+| `angenommen` | Die Cloud hat den Befehl angenommen. Ob die Werte am Gerät stehen, sagt erst `bestaetigt`. |
+| `abgelehnt` | Sicher **nicht** ausgeführt (Fehlercode, Fritteuse offline, Anmeldung abgelaufen, außerhalb der Grenzen). |
+| `unbekannt` | Verbindung weg, Zeitüberschreitung oder die Fritteuse antwortet nicht rechtzeitig: Der Befehl **kann** angekommen sein. Es wird dann **nie** automatisch eine weitere Schreibweise geschickt – erst an der Fritteuse nachsehen. |
+
+**Wie frisch sind die Daten?** Der Status-Sensor der Fritteuse und jeder Zonen-Status haben die Attribute `letzte_meldung` (Zeitpunkt der letzten echten Antwort), `verbindung` (`ok`, `offline`, `fehler`) und `revision` (zählt hoch, sobald sich die Antwort der Fritteuse ändert – praktisch, um Änderungen zwischen Vorschau und Bestätigung zu erkennen). Zonen haben zusätzlich `gemeldet`: `false` heißt, die Fritteuse hat diese Zone gerade **gar nicht** gemeldet. Der Zustand zeigt dann aus Gewohnheit „Bereit“ (damit bestehende Automationen nicht brechen), ist aber nicht bestätigt.
+
+**Ehrlich:** Programme und Grenzen hat Marco an der **TwinFry** in der VeSync-App abgelesen. „Senden“ ist dort nur für **Heißluft** bestätigt. Für alle anderen Modelle (z. B. Turbo Tower Pro CAF-DC111S) meldet `faehigkeiten` die Werte als `geschaetzt`/`ungeprueft`.
 
 ---
 

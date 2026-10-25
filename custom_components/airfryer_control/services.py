@@ -9,11 +9,16 @@ Für Doofe:
 - senden_testen: Für Bastler (nur Admins) – schickt Programm, Temperatur und
   Zeit an eine Zone (ohne zu starten) und zeigt, welche Schreibweise die
   Fritteuse angenommen hat.
+- faehigkeiten: Für alle (nur lesen) – welche Programme, Grenzen und Zonen ein
+  Gerät hat, und ob das bestätigt oder nur geschätzt ist.
 - befehl_senden: Für Bastler (nur Admins) – einen beliebigen App-Befehl
   schicken und die Antwort sehen.
 """
 
 from __future__ import annotations
+
+import asyncio
+from typing import Any
 
 import voluptuous as vol
 
@@ -21,19 +26,33 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
-from .core.api import AirfryerError
+from .core.api import CODE_DEVICE_TIMEOUT, AirfryerError
 from .const import (
     DOMAIN,
     MODES,
+    SERVICE_CAPABILITIES,
     SERVICE_MATCH,
     SERVICE_PROGRAM,
     SERVICE_RAW,
     SERVICE_SEND_TEST,
     SERVICE_STOP,
     SERVICE_SYNC,
+    STATE_HOLD,
+    STATE_WAITING,
 )
 from .coordinator import AirfryerCoordinator, FryerData
-from .senden import async_end, async_send, async_send_sync, clamp_minutes, clamp_temp
+from .core.parser import zone_view
+from .faehigkeiten import capabilities, outside_limits
+from .senden import (
+    RESULT_REJECTED,
+    RESULT_UNKNOWN,
+    SAFE_VARIANTS,
+    async_end,
+    async_send,
+    async_send_sync,
+    clamp_minutes,
+    clamp_temp,
+)
 from .core.util import redact
 
 ATTR_DEVICE = "geraet"
@@ -45,6 +64,13 @@ ATTR_VARIANT = "variante"
 ATTR_ALL = "alle"
 ATTR_METHOD = "methode"
 ATTR_DATA = "daten"
+ATTR_ONCE = "einmal"
+ATTR_STRICT = "streng"
+ATTR_CONFIRM = "bestaetigen"
+
+# „bestätigen“: so oft und so lange nachsehen, ob die Werte an der Zone angekommen sind
+CONFIRM_TRIES = 3
+CONFIRM_WAIT_SECONDS = 3.0
 
 SEND_TEST_SCHEMA = vol.Schema(
     {
@@ -66,8 +92,14 @@ PROGRAM_SCHEMA = vol.Schema(
         vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
         vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=5000)),
         vol.Required(ATTR_MODE): vol.In(list(MODES)),
+        # Nur die sicheren Schreibweisen – die startende ist hier nie erlaubt
+        vol.Optional(ATTR_VARIANT): vol.In(list(SAFE_VARIANTS)),
+        vol.Optional(ATTR_ONCE, default=False): cv.boolean,
+        vol.Optional(ATTR_STRICT, default=False): cv.boolean,
+        vol.Optional(ATTR_CONFIRM, default=False): cv.boolean,
     }
 )
+CAPABILITIES_SCHEMA = vol.Schema({vol.Optional(ATTR_DEVICE): cv.string})
 STOP_SCHEMA = vol.Schema({vol.Required(ATTR_DEVICE): cv.string})
 RAW_SCHEMA = vol.Schema(
     {
@@ -134,25 +166,106 @@ def _find_any(hass: HomeAssistant, device_id: str | None) -> tuple[AirfryerCoord
 
 
 async def _program(call: ServiceCall) -> ServiceResponse:
-    """Für alle: Programm an eine Zone schicken – nur bereitstellen, startet nie."""
+    """Für alle: Programm an eine Zone schicken – nur bereitstellen, startet nie.
+
+    Antwort: ``ok`` und ``ergebnis`` („angenommen“, „abgelehnt“ oder
+    „unbekannt“). Mit ``bestaetigen`` zusätzlich ``bestaetigt``: Zeigt die
+    Fritteuse die Werte danach wirklich an der Zone?
+    """
     coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
     mode = call.data[ATTR_MODE]
+    zone = call.data[ATTR_ZONE]
+    temp = call.data[ATTR_TEMP]
+    minutes = call.data[ATTR_MINUTES]
+    base: dict[str, Any] = {"revision_vorher": fryer.revision}
+    if call.data[ATTR_STRICT]:
+        limits = outside_limits(mode, temp, minutes)
+        if limits is not None:
+            return {
+                **base,
+                "ok": False,
+                "ergebnis": RESULT_REJECTED,
+                "fehler": "ausserhalb_grenzen",
+                "grenzen": limits,
+            }
+    else:
+        temp = clamp_temp(mode, temp)
+        minutes = clamp_minutes(mode, minutes)
     try:
         results = await async_send(
             coordinator,
             fryer,
-            call.data[ATTR_ZONE],
-            clamp_temp(mode, call.data[ATTR_TEMP]),
-            clamp_minutes(mode, call.data[ATTR_MINUTES]),
+            zone,
+            temp,
+            minutes,
             mode,
-        )  # ohne only/try_all: nie die startende Variante
+            only=call.data.get(ATTR_VARIANT),
+            once=call.data[ATTR_ONCE],
+            allow_start=False,
+        )  # allow_start=False: nie die startende Variante
     except AirfryerError as err:
-        return {"ok": False, "fehler": str(err), "code": err.code}
-    ok = any(r["ok"] for r in results)
-    if ok:
-        return {"ok": True}
-    last = results[-1] if results else {}
-    return {"ok": False, "fehler": last.get("fehler", "abgelehnt"), "code": last.get("code")}
+        # „Gerät antwortet nicht rechtzeitig“: Der Befehl kann trotzdem angekommen sein
+        kind = RESULT_UNKNOWN if err.code == CODE_DEVICE_TIMEOUT else RESULT_REJECTED
+        return {**base, "ok": False, "ergebnis": kind, "fehler": str(err), "code": err.code}
+    if not results:
+        return {**base, "ok": False, "ergebnis": RESULT_REJECTED, "fehler": "keine_variante"}
+    last = next((r for r in results if r["ok"]), results[-1])
+    answer: dict[str, Any] = {
+        **base,
+        "ok": last["ok"],
+        "ergebnis": last["ergebnis"],
+        "variante": last["variante"],
+        "versuche": len(results),
+        "gesendet": {"programm": mode, "temperatur": temp, "minuten": minutes, "zone": zone},
+    }
+    if not last["ok"]:
+        answer.update(fehler=last.get("fehler", "abgelehnt"), code=last.get("code"))
+    elif call.data[ATTR_CONFIRM]:
+        answer.update(await _confirm(coordinator, fryer, zone, temp, minutes, mode))
+    return answer
+
+
+async def _confirm(
+    coordinator: AirfryerCoordinator, fryer: FryerData, zone: int, temp: int, minutes: int, mode: str
+) -> dict[str, Any]:
+    """Ein paar Mal nachfragen, ob die Zone die Werte wirklich zeigt."""
+    seen: dict[str, Any] = {}
+    for attempt in range(CONFIRM_TRIES):
+        if attempt:
+            await asyncio.sleep(CONFIRM_WAIT_SECONDS)
+        await coordinator.async_refresh()
+        zs = zone_view(fryer.state, zone) if fryer.online else None
+        if zs is None:
+            seen = {"gemeldet": False}
+            continue
+        seen = {
+            "gemeldet": True,
+            "zustand": zs.status,
+            "programm": zs.mode,
+            "temperatur": zs.set_temp,
+            "minuten": None if zs.set_time_s is None else round(zs.set_time_s / 60),
+        }
+        ready = zs.status in (STATE_WAITING, STATE_HOLD) or zs.active
+        same = (
+            zs.mode is not None
+            and zs.mode.lower() == MODES[mode].lower()
+            and zs.set_temp == temp
+            and zs.set_time_s == minutes * 60
+        )
+        if ready and same:
+            return {"bestaetigt": True, "am_geraet": seen, "revision": fryer.revision}
+    return {"bestaetigt": False, "am_geraet": seen, "revision": fryer.revision}
+
+
+async def _capabilities(call: ServiceCall) -> ServiceResponse:
+    """Für alle (nur lesen): Programme, Grenzen und Zonen – mit „bestätigt“ oder „geschätzt“."""
+    _coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    return {
+        **capabilities(fryer),
+        "verbindung": fryer.connection,
+        "letzte_meldung": fryer.last_report.isoformat() if fryer.last_report else None,
+        "revision": fryer.revision,
+    }
 
 
 async def _require_admin(call: ServiceCall) -> None:
@@ -208,6 +321,13 @@ def async_register_services(hass: HomeAssistant) -> None:
         SERVICE_PROGRAM,
         _program,
         schema=PROGRAM_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CAPABILITIES,
+        _capabilities,
+        schema=CAPABILITIES_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(DOMAIN, SERVICE_MATCH, _match, schema=STOP_SCHEMA)

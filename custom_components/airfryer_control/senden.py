@@ -16,7 +16,12 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from .core.api import AirfryerDeviceOffline, AirfryerError
+from .core.api import (
+    AirfryerAuthError,
+    AirfryerConnectionError,
+    AirfryerDeviceOffline,
+    AirfryerError,
+)
 from .const import (
     STATE_COOKING,
     STATE_DRAWER_OPEN,
@@ -243,6 +248,12 @@ async def async_send_sync(
     return redact(answer) if isinstance(answer, dict) else {"antwort": answer}
 
 
+RESULT_ACCEPTED = "angenommen"  # die Cloud hat den Befehl angenommen
+RESULT_REJECTED = "abgelehnt"  # sicher nicht ausgeführt (Fehlercode, Anmeldung abgelaufen)
+RESULT_UNKNOWN = "unbekannt"  # Verbindung weg/Zeitüberschreitung: vielleicht angekommen
+SAFE_VARIANTS = ("multi_app", "multi_app_celsius", "multi_app_zone0")
+
+
 async def async_send(
     coordinator: AirfryerCoordinator,
     fryer: FryerData,
@@ -253,34 +264,59 @@ async def async_send(
     *,
     only: str | None = None,
     try_all: bool = False,
+    once: bool = False,
+    allow_start: bool = True,
 ) -> list[dict[str, Any]]:
     """Varianten durchprobieren. Merkt sich die erste, die angenommen wird.
 
     Mit ``only`` wird genau eine Variante geschickt, mit ``try_all`` alle
     (sonst Stopp beim ersten Treffer). Ist schon eine Variante bekannt, geht
-    sie zuerst raus. Nur mit ``only`` darf auch die startende Form raus.
+    sie zuerst raus. Nur mit ``only`` (und ``allow_start``) darf auch die
+    startende Form raus. Mit ``once`` geht genau ein Befehl raus: keine
+    weitere Variante und keine Wiederholung nach neuer Anmeldung.
+
+    Für Doofe: Ist das Ergebnis „unbekannt“ (Verbindung weg), wird NIE eine
+    weitere Variante geschickt – der erste Befehl könnte ja angekommen sein.
     """
     variants = build_variants(
-        coordinator.api.account_id, zone, temp, minutes, mode, include_start=bool(only)
+        coordinator.api.account_id,
+        zone,
+        temp,
+        minutes,
+        mode,
+        include_start=bool(only) and allow_start,
     )
     if only:
         variants = [v for v in variants if v.name == only]
     elif coordinator.send_variant:
         variants.sort(key=lambda v: v.name != coordinator.send_variant)
+    if once:
+        variants = variants[:1]
+    extra = {"retry": False} if once else {}
     results: list[dict[str, Any]] = []
     for i, variant in enumerate(variants):
         if i:
             await asyncio.sleep(PAUSE_SECONDS)
         entry: dict[str, Any] = {"variante": variant.name, "methode": variant.method}
         try:
-            answer = await coordinator.api.bypass_v2(fryer.info, variant.method, variant.payload)
+            answer = await coordinator.api.bypass_v2(
+                fryer.info, variant.method, variant.payload, **extra
+            )
         except AirfryerDeviceOffline:
             raise
+        except AirfryerConnectionError as err:
+            entry.update(ok=False, ergebnis=RESULT_UNKNOWN, code=err.code, fehler=str(err))
+            results.append(entry)
+            break
+        except AirfryerAuthError as err:
+            entry.update(ok=False, ergebnis=RESULT_REJECTED, code=err.code, fehler=str(err))
+            results.append(entry)
+            break
         except AirfryerError as err:
-            entry.update(ok=False, code=err.code, fehler=str(err))
+            entry.update(ok=False, ergebnis=RESULT_REJECTED, code=err.code, fehler=str(err))
             results.append(entry)
             continue
-        entry.update(ok=True, antwort=redact(answer))
+        entry.update(ok=True, ergebnis=RESULT_ACCEPTED, antwort=redact(answer))
         results.append(entry)
         if coordinator.send_variant != variant.name:
             coordinator.send_variant = variant.name

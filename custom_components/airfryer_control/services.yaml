@@ -134,3 +134,31 @@ programm_senden:
             - grill
             - reheat
             - dry
+    variante:
+      required: false
+      selector:
+        select:
+          options:
+            - multi_app
+            - multi_app_celsius
+            - multi_app_zone0
+    einmal:
+      default: false
+      selector:
+        boolean:
+    streng:
+      default: false
+      selector:
+        boolean:
+    bestaetigen:
+      default: false
+      selector:
+        boolean:
+
+faehigkeiten:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control

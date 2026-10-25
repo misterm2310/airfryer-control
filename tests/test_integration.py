@@ -21,6 +21,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.airfryer_control.core.api import (
     AirfryerAuthError,
+    AirfryerConnectionError,
     AirfryerDeviceOffline,
     AirfryerError,
     hash_password,
@@ -96,12 +97,14 @@ class FakeApi:
     status_rejected = False
     reject: set[str] = set()
     reject_code = 11000000
+    timeout: set[str] = set()
 
     def __init__(self, session, email, password_md5, region, terminal_id, time_zone="x"):
         self.email = email
         self.password_md5 = password_md5
         self.region = region
         self.calls: list[tuple[str, dict[str, Any] | None]] = []
+        self.retries: list[bool] = []
         FakeApi.instances.append(self)
 
     @property
@@ -115,8 +118,11 @@ class FakeApi:
     async def get_devices(self):
         return list(FakeApi.devices)
 
-    async def bypass_v2(self, device, method, data=None):
+    async def bypass_v2(self, device, method, data=None, *, retry=True):
         self.calls.append((method, data))
+        self.retries.append(retry)
+        if method in FakeApi.timeout:
+            raise AirfryerConnectionError("VeSync-Server nicht erreichbar: Zeitüberschreitung")
         if FakeApi.offline:
             raise AirfryerDeviceOffline("offline", -11300030)
         if method == "getAirfryerStatus":
@@ -143,6 +149,7 @@ def fake_api():
     FakeApi.login_error = None
     FakeApi.reject = set()
     FakeApi.reject_code = 11000000
+    FakeApi.timeout = set()
     FakeApi.devices = [DEVICE, LAMP]
     FakeApi.status = {"cookStatus": "cooking"}
     FakeApi.multi = cooking_multi()
@@ -746,7 +753,7 @@ async def test_program_service_is_for_everyone_and_never_starts(
         return_response=True,
         context=ctx,
     )
-    assert res == {"ok": True}
+    assert res["ok"] is True and res["ergebnis"] == "angenommen"
     sent = [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"][-1][1]
     assert sent["readyStart"] is True
     cfg = sent["cookConfigs"][0]
@@ -840,3 +847,147 @@ async def test_sync_reset_failure_gives_clear_error(hass: HomeAssistant, fake_ap
     with pytest.raises(HomeAssistantError, match="Zone 1.*zurücksetzen"):
         await hass.services.async_call(DOMAIN, "sync_senden", {"geraet": device.id}, blocking=True)
     assert len([c for c in api.calls if c[0] == "startMultiCook"]) == before
+
+
+# ------------------------------------------------- Schnittstelle für andere Integrationen
+async def _program_call(hass: HomeAssistant, **extra) -> dict[str, Any]:
+    data = {"zone": 1, "temperatur": 180, "minuten": 10, "programm": "airfry", **extra}
+    return await hass.services.async_call(
+        DOMAIN, "programm_senden", data, blocking=True, return_response=True
+    )
+
+
+def _sends() -> list[tuple[str, dict[str, Any] | None]]:
+    return [c for c in FakeApi.instances[-1].calls if c[0] == "startMultiCook"]
+
+
+async def test_program_once_sends_exactly_one_command(hass: HomeAssistant) -> None:
+    """einmal: nur eine Schreibweise, keine Wiederholung nach neuer Anmeldung."""
+    FakeApi.reject = {"startMultiCook"}
+    await setup(hass)
+    res = await _program_call(hass, einmal=True, variante="multi_app_celsius")
+    assert res["ok"] is False and res["ergebnis"] == "abgelehnt" and res["versuche"] == 1
+    assert len(_sends()) == 1
+    assert _sends()[0][1]["tempUnit"] == "celsius"
+    api = FakeApi.instances[-1]
+    assert [r for c, r in zip(api.calls, api.retries) if c[0] == "startMultiCook"] == [False]
+    # ohne „einmal“ werden wie bisher die sicheren Schreibweisen durchprobiert
+    await _program_call(hass)
+    assert len(_sends()) == 1 + 3
+
+
+async def test_program_timeout_is_unknown_and_never_tries_next_variant(hass: HomeAssistant) -> None:
+    """Verbindung weg = Ergebnis unbekannt. Dann keine zweite Schreibweise hinterher."""
+    FakeApi.timeout = {"startMultiCook"}
+    await setup(hass)
+    res = await _program_call(hass)
+    assert res["ok"] is False and res["ergebnis"] == "unbekannt"
+    assert len(_sends()) == 1
+
+
+async def test_program_device_timeout_is_unknown(hass: HomeAssistant, fake_api) -> None:
+    await setup(hass)
+    fake_api.offline = True  # Attrappe meldet -11300030 = offline → sicher nicht ausgeführt
+    res = await _program_call(hass, einmal=True)
+    assert res["ergebnis"] == "abgelehnt"
+    with patch.object(FakeApi, "bypass_v2", side_effect=AirfryerDeviceOffline("timeout", -11302030)):
+        res = await _program_call(hass, einmal=True)
+    assert res["ergebnis"] == "unbekannt"
+
+
+async def test_program_start_variant_is_never_allowed(hass: HomeAssistant) -> None:
+    import voluptuous as vol
+
+    await setup(hass)
+    with pytest.raises(vol.Invalid):
+        await _program_call(hass, variante="multi_app_startet")
+    assert _sends() == []
+
+
+async def test_program_strict_rejects_instead_of_clamping(hass: HomeAssistant) -> None:
+    await setup(hass)
+    res = await _program_call(hass, temperatur=240, streng=True)
+    assert res["ok"] is False and res["fehler"] == "ausserhalb_grenzen"
+    assert res["grenzen"] == {"temperatur": [120, 205], "minuten": [1, 60]}
+    assert _sends() == []
+    # ohne „streng“ wie bisher still angepasst – und in der Antwort sichtbar
+    res = await _program_call(hass, temperatur=240)
+    assert res["ok"] is True and res["gesendet"]["temperatur"] == 205
+
+
+async def test_program_confirm(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("ready", remaining=600, set_time=600, temp=180)
+    await setup(hass)
+    with patch("custom_components.airfryer_control.services.CONFIRM_WAIT_SECONDS", 0):
+        res = await _program_call(hass, bestaetigen=True)
+        assert res["ok"] is True and res["bestaetigt"] is True
+        assert res["am_geraet"]["zustand"] == "wartet_auf_start"
+        # Zone 2 zeigt etwas anderes → nicht bestätigt, aber trotzdem angenommen
+        res = await _program_call(hass, zone=2, bestaetigen=True)
+    assert res["ok"] is True and res["ergebnis"] == "angenommen" and res["bestaetigt"] is False
+
+
+async def test_zone_not_reported_is_marked_and_freshness_attributes(hass: HomeAssistant, fake_api) -> None:
+    await setup(hass)
+    # cooking_multi meldet Zone 1 und 2, aber nicht die Grandzone (3)
+    z1 = hass.states.get(eid(hass, "sensor", "zone1_status"))
+    z3 = hass.states.get(eid(hass, "sensor", "zone3_status"))
+    assert z1.attributes["gemeldet"] is True
+    assert z3.attributes["gemeldet"] is False and z3.state == "bereit"
+    main = hass.states.get(eid(hass, "sensor", "status"))
+    assert main.attributes["verbindung"] == "ok"
+    assert main.attributes["letzte_meldung"]
+    rev = main.attributes["revision"]
+    assert rev >= 1
+    # gleiche Antwort → gleiche Revision, neue Antwort → höhere Revision
+    coordinator = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(main.entity_id).attributes["revision"] == rev
+    fake_api.multi = finished_multi()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(main.entity_id).attributes["revision"] == rev + 1
+    fake_api.offline = True
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(main.entity_id).attributes["verbindung"] == "offline"
+    assert hass.states.get(z1.entity_id).attributes["gemeldet"] is False
+
+
+async def test_capabilities_service(hass: HomeAssistant, fake_api) -> None:
+    await setup(hass)
+    res = await hass.services.async_call(
+        DOMAIN, "faehigkeiten", {}, blocking=True, return_response=True
+    )
+    assert res["modell"] == "CAF-TF101S-AEUR" and res["modell_bekannt"] is True
+    assert res["zonen"] == [1, 2, 3]
+    assert res["programme"]["airfry"]["senden"] == "bestaetigt"
+    assert res["programme"]["bake"]["senden"] == "ungeprueft"
+    assert res["programme"]["airfry"]["grenzen"] == "vesync_app"
+    assert res["verbindung"] == "ok"
+
+
+async def test_capabilities_other_model_is_only_estimated(hass: HomeAssistant, fake_api) -> None:
+    fake_api.devices = [{**DEVICE, "deviceType": "CAF-DC111S-AEU"}]
+    fake_api.multi = {}
+    await setup(hass)
+    res = await hass.services.async_call(
+        DOMAIN, "faehigkeiten", {}, blocking=True, return_response=True
+    )
+    assert res["modell_bekannt"] is False
+    assert {p["grenzen"] for p in res["programme"].values()} == {"geschaetzt"}
+    assert {p["senden"] for p in res["programme"].values()} == {"ungeprueft"}
+
+
+async def test_switch_unknown_result_gives_clear_message(hass: HomeAssistant) -> None:
+    from homeassistant.exceptions import HomeAssistantError
+
+    FakeApi.timeout = {"startMultiCook"}
+    await setup(hass)
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(
+            "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+        )
+    assert err.value.translation_key == "ergebnis_unbekannt"
+    assert len(_sends()) == 1

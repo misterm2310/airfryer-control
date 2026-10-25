@@ -33,6 +33,15 @@ def _minutes(seconds: int | None) -> int | None:
     return int(math.ceil(seconds / 60))
 
 
+def _freshness(fryer: FryerData) -> dict[str, Any]:
+    """Wie frisch sind die Daten? Für Karten und andere Integrationen."""
+    return {
+        "letzte_meldung": fryer.last_report.isoformat() if fryer.last_report else None,
+        "verbindung": fryer.connection,
+        "revision": fryer.revision,
+    }
+
+
 def _zone_finish(fryer: FryerData, zone: int) -> datetime | None:
     """„Fertig um“ einer Zone (None, wenn die Fritteuse die Zone gerade nicht meldet)."""
     return fryer.zone_finish_at.get(zone)
@@ -168,6 +177,8 @@ class FryerSensor(AirfryerEntity, SensorEntity):
     """Sensor über die ganze Fritteuse."""
 
     entity_description: FryerSensorDescription
+    # Ändern sich bei jeder Abfrage – nicht in die Verlaufs-Datenbank schreiben
+    _unrecorded_attributes = frozenset({"letzte_meldung", "revision", "verbindung"})
 
     def __init__(self, coordinator, cid, description: FryerSensorDescription) -> None:
         super().__init__(coordinator, cid, description.key)
@@ -182,7 +193,7 @@ class FryerSensor(AirfryerEntity, SensorEntity):
         if self.entity_description.key != "status":
             return None
         state = self.fryer.state
-        attrs: dict[str, Any] = {"rohwert": state.status_raw}
+        attrs: dict[str, Any] = {"rohwert": state.status_raw, **_freshness(self.fryer)}
         if self.fryer.last_error:
             attrs["letzter_fehler"] = self.fryer.last_error
         return attrs
@@ -192,6 +203,7 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
     """Sensor für eine Zone (oder für die einzige Kammer)."""
 
     entity_description: ZoneSensorDescription
+    _unrecorded_attributes = frozenset({"letzte_meldung", "revision", "verbindung", "gemeldet"})
 
     def __init__(
         self, coordinator, cid, description: ZoneSensorDescription, zone: int, single: bool = False
@@ -224,7 +236,13 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
         if self.entity_description.key != "status":
             return None
         zs = self._zone_state
-        return {"rohwert": zs.status_raw if zs else None}
+        # „gemeldet: false“ = die Fritteuse hat diese Zone gerade gar nicht gemeldet
+        # (Zustand zeigt dann aus Gewohnheit „bereit“, ist aber nicht bestätigt).
+        return {
+            "rohwert": zs.status_raw if zs else None,
+            "gemeldet": zs is not None and self.fryer.online,
+            **_freshness(self.fryer),
+        }
 
 
 class RawDataSensor(AirfryerEntity, SensorEntity):

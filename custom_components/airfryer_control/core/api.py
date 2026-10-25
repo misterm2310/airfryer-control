@@ -290,12 +290,20 @@ class AirfryerApi:
 
     # ------------------------------------------------------------- bypassV2
     async def bypass_v2(
-        self, device: dict[str, Any], method: str, data: dict[str, Any] | None = None
+        self,
+        device: dict[str, Any],
+        method: str,
+        data: dict[str, Any] | None = None,
+        *,
+        retry: bool = True,
     ) -> dict[str, Any]:
         """Einen Befehl an ein Gerät schicken (so macht es die App).
 
         Gibt das innere Ergebnis zurück. Wirft AirfryerDeviceOffline, wenn die
         Fritteuse nicht erreichbar ist, sonst AirfryerError mit Code.
+        Mit ``retry=False`` geht die Anfrage höchstens einmal raus: Ist das
+        Token abgelaufen, gibt es einen AirfryerAuthError (nichts gesendet),
+        und beim nächsten Mal wird vorher neu angemeldet.
         """
         await self._ensure_login()
 
@@ -321,7 +329,10 @@ class AirfryerApi:
                 f"{self.base_url}/cloud/v2/deviceManaged/bypassV2", body
             )
 
-        res = await self._with_relogin(_do)
+        if retry:
+            res = await self._with_relogin(_do)
+        else:
+            res = await self._once(_do)
         return self._unwrap(res, method)
 
     async def bypass_v1_status(self, device: dict[str, Any]) -> dict[str, Any]:
@@ -375,6 +386,20 @@ class AirfryerApi:
                 return inner
             return result
         return {}
+
+    async def _once(self, func) -> dict[str, Any]:
+        """Anfrage genau einmal schicken – auch nach abgelaufenem Token keine Wiederholung."""
+        try:
+            res = await func()
+        except AirfryerAuthError:
+            res = {"code": -11001000}
+        if res.get("code") in AUTH_ERROR_CODES:
+            self._token = None  # beim nächsten Versuch vorher neu anmelden
+            raise AirfryerAuthError(
+                "Anmeldung abgelaufen – nichts gesendet, bitte erneut versuchen",
+                res.get("code"),
+            )
+        return res
 
     async def _with_relogin(self, func) -> dict[str, Any]:
         """Anfrage schicken; ist das Token abgelaufen, einmal neu anmelden."""

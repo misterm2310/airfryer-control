@@ -37,6 +37,7 @@ SERVICE_RAW = "befehl_senden"
 SERVICE_PROGRAM = "programm_senden"
 SERVICE_MATCH = "match_senden"
 SERVICE_SYNC = "sync_senden"
+SERVICE_CAPABILITIES = "faehigkeiten"
 
 # Zonen der TwinFry
 ZONE_1 = 1

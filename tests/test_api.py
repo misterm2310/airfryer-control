@@ -127,6 +127,22 @@ async def test_relogin_on_expired_token(hass, aioclient_mock) -> None:
     assert any(AUTH in p for p in paths), "Es wurde nicht neu angemeldet"
 
 
+async def test_once_never_repeats_after_expired_token(hass, aioclient_mock) -> None:
+    """retry=False: genau eine Anfrage, keine stille Wiederholung nach neuer Anmeldung."""
+    ok_login(aioclient_mock)
+    client = api(hass)
+    await client.login()
+    aioclient_mock.clear_requests()
+    ok_login(aioclient_mock)
+    aioclient_mock.post(EU + BYPASS, json={"code": -11001000, "msg": "token expired"})
+    with pytest.raises(AirfryerAuthError):
+        await client.bypass_v2({"cid": "x"}, "startMultiCook", {}, retry=False)
+    paths = [str(c[1]) for c in aioclient_mock.mock_calls]
+    assert sum(BYPASS in p for p in paths) == 1
+    assert not any(AUTH in p for p in paths)
+    assert not client.logged_in  # beim nächsten Versuch wird vorher neu angemeldet
+
+
 def test_is_air_fryer() -> None:
     assert is_air_fryer({"deviceType": "CAF-TF101S-AEUR", "configModule": "WiFi_AirFryer"})
     assert is_air_fryer({"deviceType": "CS158-AF"})

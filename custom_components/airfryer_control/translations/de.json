@@ -206,6 +206,9 @@
     },
     "wert_nicht_erlaubt": {
       "message": "Die Fritteuse nimmt diese Werte für das Programm „{programm}“ nicht an: {temp} °C, {minuten} Min. Ändere Temperatur oder Zeit (Heißluft braucht z. B. mindestens 120 °C) und versuche es nochmal."
+    },
+    "ergebnis_unbekannt": {
+      "message": "Keine klare Antwort von der Cloud ({fehler}). Der Befehl kann angekommen sein oder nicht – schau an der Fritteuse nach, bevor du es nochmal versuchst."
     }
   },
   "services": {
@@ -314,6 +317,32 @@
         "programm": {
           "name": "Programm",
           "description": "Welches Programm?"
+        },
+        "variante": {
+          "name": "Schreibweise",
+          "description": "Freiwillig: genau diese sichere Schreibweise schicken (multi_app, multi_app_celsius, multi_app_zone0). Leer = die sicheren der Reihe nach probieren."
+        },
+        "einmal": {
+          "name": "Nur einmal",
+          "description": "An = genau ein Befehl: keine zweite Schreibweise und keine automatische Wiederholung nach neuer Anmeldung. Ist das Ergebnis unklar, entscheidest du selbst über einen neuen Versuch."
+        },
+        "streng": {
+          "name": "Streng",
+          "description": "An = Werte außerhalb der Programm-Grenzen ablehnen statt still anzupassen."
+        },
+        "bestaetigen": {
+          "name": "Bestätigen",
+          "description": "An = nach dem Senden bis zu 3-mal (ca. 6 s) nachsehen, ob die Zone die Werte wirklich zeigt. Die Antwort enthält dann „bestaetigt“."
+        }
+      }
+    },
+    "faehigkeiten": {
+      "name": "Fähigkeiten",
+      "description": "Nur lesen, für alle Nutzer: Programme, Temperatur- und Zeitgrenzen und Zonen einer Fritteuse – jeweils mit „bestätigt“ oder „nur geschätzt“. Dazu Verbindung, letzte Meldung und Revision.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
         }
       }
     }

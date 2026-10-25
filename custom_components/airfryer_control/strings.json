@@ -206,6 +206,9 @@
     },
     "wert_nicht_erlaubt": {
       "message": "Die Fritteuse nimmt diese Werte für das Programm „{programm}“ nicht an: {temp} °C, {minuten} Min. Ändere Temperatur oder Zeit (Heißluft braucht z. B. mindestens 120 °C) und versuche es nochmal."
+    },
+    "ergebnis_unbekannt": {
+      "message": "No clear answer from the cloud ({fehler}). The command may or may not have reached the air fryer – check the device before you try again."
     }
   },
   "services": {
@@ -314,6 +317,32 @@
         "programm": {
           "name": "Program",
           "description": "Which program?"
+        },
+        "variante": {
+          "name": "Variant",
+          "description": "Optional: send exactly this safe variant (multi_app, multi_app_celsius, multi_app_zone0). Empty = try the safe variants in turn."
+        },
+        "einmal": {
+          "name": "Only once",
+          "description": "On = send exactly one command: no second variant and no automatic repeat after a new login. If the result is unclear, you decide whether to try again."
+        },
+        "streng": {
+          "name": "Strict",
+          "description": "On = reject values outside the program limits instead of adjusting them silently."
+        },
+        "bestaetigen": {
+          "name": "Confirm",
+          "description": "On = after sending, check up to 3 times (about 6 s) whether the zone really shows the values. The answer then contains “bestaetigt”."
+        }
+      }
+    },
+    "faehigkeiten": {
+      "name": "Capabilities",
+      "description": "Read only, for all users: programs, temperature and time limits and zones of an air fryer – each marked as confirmed or only estimated. Also connection, last report and revision.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
         }
       }
     }

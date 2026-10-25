@@ -28,7 +28,14 @@ from .const import (
 from .coordinator import AirfryerCoordinator
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import zone_view, zones_for_device
-from .senden import async_end, async_send, clamp_minutes, clamp_temp, get_plan
+from .senden import (
+    RESULT_UNKNOWN,
+    async_end,
+    async_send,
+    clamp_minutes,
+    clamp_temp,
+    get_plan,
+)
 
 
 async def async_setup_entry(
@@ -101,6 +108,14 @@ class ZoneSwitch(AirfryerEntity, SwitchEntity):
                 translation_placeholders={"fehler": str(err)},
             ) from err
         if not any(r["ok"] for r in results):
+            unknown = next((r for r in results if r.get("ergebnis") == RESULT_UNKNOWN), None)
+            if unknown is not None:
+                # Vielleicht ist der Befehl doch angekommen – darum nicht weiterprobieren
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="ergebnis_unbekannt",
+                    translation_placeholders={"fehler": str(unknown.get("fehler"))},
+                )
             if any(r.get("code") == CODE_VALUE_NOT_ALLOWED for r in results):
                 raise HomeAssistantError(
                     translation_domain=DOMAIN,
