@@ -4,15 +4,30 @@
 
 🇩🇪 **Deutsch?** → [README auf Deutsch](README.md)
 
-**Your Cosori air fryer on your dashboard.** Time remaining, “done at”, temperature and program – for each zone. Plus an event when the food is ready (“🍟 Fries are done!” on your phone or as an announcement), a stop button and actions for automations.
+**Your Cosori air fryer on your dashboard.** Time remaining, “done at”, temperature and program for each zone. Plus a notification when the food is ready (“🍟 Fries are done!”), a stop button, two ready-made cards and a small phone app. Built for models the official VeSync integration does **not** know, first of all the **Dual Blaze TwinFry 10 L** (CAF-TF101S / CAF-TF102S).
 
-Built for models the official VeSync integration does **not** know – first of all the **Dual Blaze TwinFry 10 L** (CAF-TF101S / CAF-TF102S).
+<p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Card on a phone"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Settings dialog, dark"></p>
 
-> 🧪 **Beta!** This integration is new. Cosori does not publish how its air fryers talk. Much of it is derived from the open ioBroker adapter and pyvesync and **has not been checked on every real air fryer yet**. If something looks odd, tell us (see below) and we'll fix it.
+<details><summary>📱 See the phone app</summary>
+
+<p align="center"><img src="docs/app-handy.png" width="520" alt="Phone app: normal and without connection"></p>
+
+</details>
+
+> 🧪 **Unofficial & partly beta:** Cosori does not publish how its fryers talk. Some things are **not yet checked on every real fryer** – see [what doesn't work (yet)](#-honestly-what-doesnt-work-yet).
 
 ---
 
 ## ✨ What can it do?
+
+- 🔥 **Status, time remaining and “done at”** – overall and per zone (Grandzone too).
+- 📤 **Send like the app:** program, temperature and time go to the fryer, you start on the device.
+- 🔔 **“Done” event** for phone notifications, announcements or pausing the TV.
+- 🃏 **Two ready-made cards** (zone card + ticker) and a 📱 **phone app** – nothing extra to install.
+- 🟰 **Match & Sync** so both zones finish at the same time.
+- 🛡️ **Privacy:** your password is not stored, only Home Assistant talks to VeSync.
+
+<details><summary>📋 All features in detail</summary>
 
 | Feature | How |
 |---|---|
@@ -27,6 +42,8 @@ Built for models the official VeSync integration does **not** know – first of 
 | 🎛️ **Change temperature & time** | Number fields per zone. If the zone is already cooking, new values go straight to the fryer. |
 | 🐢🐇 **Smart polling** | Idle: every 60 seconds (adjustable). Cooking: every 15 seconds. |
 | 🛡️ **Privacy** | Your password is not stored, identifiers are redacted everywhere. Details below. |
+
+</details>
 
 ---
 
@@ -44,9 +61,13 @@ Built for models the official VeSync integration does **not** know – first of 
 Copy `custom_components/airfryer_control` to `/config/custom_components/airfryer_control` and restart Home Assistant.
 </details>
 
+> 💡 **Tip:** The fryer has to be set up in the VeSync app first. You can keep using the app – both work at the same time.
+
 ---
 
 ## 👀 What you get
+
+<details><summary>All sensors, switches and buttons – <i>expand</i></summary>
 
 One device per air fryer. Entity IDs depend on the name in the app (here “Fritteuse”) and your Home Assistant language:
 
@@ -63,9 +84,15 @@ One device per air fryer. Entity IDs depend on the name in the app (here “Frit
 | `button.fritteuse_stop_cooking` | Stop |
 | *Diagnostic:* `binary_sensor.fritteuse_online`, `button.fritteuse_refresh_now`, `sensor.fritteuse_raw_data` | Connection, poll now, last cloud response (without identifiers) |
 
+</details>
+
 ---
 
-## 🃏 Ready-made cards (shipped with the integration)
+## 🃏 Ready-made cards
+
+Shipped with the integration and registered automatically: **Add card** → search for **Airfryer Control**. 🎉
+
+<details><summary>Zone card, ticker, Match & Sync – <i>expand</i></summary>
 
 Nothing extra to install – the integration ships two cards and registers them as dashboard resources automatically. In your dashboard choose **Add card** and search for **Airfryer Control** (reload the page once after an update).
 
@@ -97,7 +124,13 @@ Both cards have an editor, follow light/dark and run smoothly on a Fire TV. Zone
 
 > 🧪 The cards are still **beta** – if something is off, please report it.
 
-## 📱 The phone app (no app store needed)
+</details>
+
+---
+
+## 📱 The phone app
+
+<details><summary>Ticker and zone card full screen, no app store – <i>expand</i></summary>
 
 The integration ships **its own small page**: **`/airfryer_control/app/`** behind your Home Assistant address (e.g. `https://your-name.ui.nabu.casa/airfryer_control/app/`). It shows the ticker and the zone card full screen.
 
@@ -109,9 +142,13 @@ The **🔅 Keep screen on** button keeps the display awake (handy for a kitchen 
 
 **Honestly:** without a connection nothing works on the fryer, because every command goes through Home Assistant and the Cosori cloud. So the app then shows **“No connection”** and **never** remembers a command to send it later (a delayed start would be dangerous). Only the program is cached so it starts fast. “Add to home screen” and fast start usually need an **https address** (e.g. Nabu Casa).
 
-<p align="center"><img src="docs/app-handy.png" width="520" alt="Phone app: normal and without connection"></p>
+</details>
+
+---
 
 ## 🤖 Automations
+
+<details><summary>“Done” event, ready-made example and all actions – <i>expand</i></summary>
 
 The event `airfryer_control_fertig` carries `geraet` (name), `modell`, `zone` (`1`, `2`, `3` or `alle` = whole fryer), `zustand` and `programm`.
 
@@ -154,7 +191,9 @@ actions:
 | `airfryer_control.sync_senden` | **Sync:** sends both zones with their times; the shorter zone waits (state “Waiting for sync start”) so both finish together. Prepares only – start on the device. ⚠️ Not yet confirmed on the real fryer. |
 | `airfryer_control.befehl_senden` | **Tinkerers, admins only:** sends an app command and returns the response (without account data). |
 
-### 🔌 For other integrations and cards (e.g. Airfryer Recipes) – 🧪 beta
+</details>
+
+<details><summary><b>🔌 For other integrations (e.g. Airfryer Recipes) – 🧪 beta</b></summary>
 
 Other integrations should **not** talk to the cloud themselves. They just use the actions above. Login and device communication stay entirely with Airfryer Control.
 
@@ -179,20 +218,30 @@ Other integrations should **not** talk to the cloud themselves. They just use th
 
 **Honestly:** programs and limits were read from the VeSync app on the **TwinFry**. “Send” is only confirmed there for **Air Fry**. For every other model (e.g. Turbo Tower Pro CAF-DC111S) `faehigkeiten` reports the values as `geschaetzt`/`ungeprueft`.
 
+</details>
+
 ---
 
 ## 🛡️ Privacy
 
-Only Home Assistant talks to the VeSync server – exactly like your app. Nobody else.
+In short: **Only Home Assistant talks to the VeSync server – exactly like your app. Nobody else.**
+
+<details><summary>What is stored, what goes online, what is redacted – <i>expand</i></summary>
 
 - **Stored** (in Home Assistant, so also in your backups): your account **email**, **not** your password but only its **MD5 value** (VeSync needs it to log in; ⚠️ it can be used to log in, so treat backups like a key), a **random device ID**, your options.
 - **Sent** only to **VeSync** (`smartapi.vesync.eu` / `smartapi.vesync.com`): login, device list, fryer status (every 15–60 s), your commands. **Nothing** goes to the developer or anyone else. No telemetry.
 - **Redacted** everywhere (raw-data sensor, diagnostics, “send command” responses): token, account ID, device IDs (cid/uuid/MAC), email, image links. Password and token are never logged.
 - **Removing** the integration deletes everything above from Home Assistant.
 
+</details>
+
 ---
 
 ## 🙈 Honestly: what doesn't work (yet)
+
+In short: **unofficial**, **no remote start** (Cosori blocks it in the EU), and some things are **only checked on the TwinFry**.
+
+<details><summary>All limitations in detail – <i>expand</i></summary>
 
 - **Unofficial.** If Cosori/VeSync change their server, it may break until updated.
 - **Remote start** is blocked by Cosori in the EU – so there is no start button. “Send” only wakes the fryer; you start on the device.
@@ -203,13 +252,13 @@ Only Home Assistant talks to the VeSync server – exactly like your app. Nobody
 - **Match/Sync and zones you already prepared:** If you prepared single zones with “Send” first, the integration resets those (and **only** those, never a running zone) before Match/Sync. Reported on a Turbo Tower Pro Smart; whether the reset works there is not confirmed yet. If any zone is running, nothing is ended.
 - **Older 3.7/5.8 qt models** (CS…): display only, no start.
 
-**Time remaining 60× too large/small?** Devices & services → Airfryer Control → **Configure** → “Time values of the air fryer” → seconds or minutes.
-
-**When are new versions released?** Official releases on **Sundays**, beta versions on other days (HACS → ⋮ → Redownload → “Show beta versions”).
+</details>
 
 ---
 
 ## 🍳 Got a different model?
+
+<details><summary>What works and how to help get your model added – <i>expand</i></summary>
 
 So far Airfryer Control is only tested on the **Cosori Dual Blaze TwinFry (CAF-TF101S)**. Other models show up automatically, but:
 
@@ -224,18 +273,50 @@ So far Airfryer Control is only tested on the **Cosori Dual Blaze TwinFry (CAF-T
 
 That lets the model be added properly. Without this data it would be guesswork.
 
+</details>
+
 ---
 
-## 💙 Like it?
+## ❓ FAQ
+
+**Time remaining 60× too large or too small?** Devices & services → Airfryer Control → **Configure** → “Time values of the air fryer” → seconds or minutes.
+
+**Status says “Offline”.** The cloud cannot reach the fryer (plug, Wi-Fi). Does it work in the app? If yes, press `button.…_refresh_now` once.
+
+**Do I have to remove the official VeSync integration?** No, both can run side by side.
+
+**My model is not found.** Then the cloud does not see it as an air fryer (device type does not start with CA/CS). Open an issue with the model number from the type plate.
+
+**When are new versions released?** Official releases on **Sundays**, beta versions on other days (HACS → ⋮ → Redownload → “Show beta versions”).
+
+---
+
+## 💙 Like Airfryer Control?
 
 It is and stays **free**. If you like, you can send a small voluntary donation via PayPal: [paypal.me/MarcoStrickmann](https://paypal.me/MarcoStrickmann). Thank you! 🙏
 
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-0070BA?logo=paypal&logoColor=white)](https://paypal.me/MarcoStrickmann)
 
-Ideas → [Discussions](https://github.com/misterm2310/airfryer-control/discussions) · Bugs → [Issues](https://github.com/misterm2310/airfryer-control/issues) (please attach **Download diagnostics**, identifiers are already redacted).
+---
 
-## 🙌 Credits & legal
+## 💡 Ideas, wishes and bugs
 
-Made by **Mister-M** – with help from **Claude**. Login flow and commands are based on the open [ioBroker adapter “vesync”](https://github.com/TA2k/ioBroker.vesync) (MIT) and [pyvesync](https://github.com/webdjoe/pyvesync) (MIT) – thanks! 🙏
+- **Idea or wish?** Post it in the [Discussions](https://github.com/misterm2310/airfryer-control/discussions).
+- **Something broken?** Open an [issue](https://github.com/misterm2310/airfryer-control/issues). Most helpful: model number, version and the file from **Settings → Devices & services → Airfryer Control → ⋮ → Download diagnostics** (identifiers are already redacted).
 
-Not an official product of Cosori, VeSync or Arovast. All trademarks belong to their owners. License: [MIT](LICENSE).
+---
+
+## 🧪 For developers
+
+<details><summary>Tests – <i>expand</i></summary>
+
+```bash
+pip install -r requirements_test.txt
+pytest -q
+```
+
+The tests run against a fake cloud – nothing is sent to the internet.
+
+</details>
+
+Made by **Mister-M** with help from **Claude** · Login flow and commands based on [ioBroker.vesync](https://github.com/TA2k/ioBroker.vesync) (MIT) and [pyvesync](https://github.com/webdjoe/pyvesync) (MIT) – thanks! 🙏 · Not an official product of Cosori, VeSync or Arovast. License: [MIT](LICENSE)

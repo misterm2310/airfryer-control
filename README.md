@@ -4,15 +4,30 @@
 
 🇬🇧 **English?** → [README in English](README.en.md)
 
-**Deine Cosori-Heißluftfritteuse im Dashboard.** Restzeit, „Fertig um“, Temperatur und Programm – für jede Zone einzeln. Dazu ein Ereignis, wenn das Essen fertig ist („🍟 Pommes sind fertig!“ aufs Handy oder als Durchsage), ein Stopp-Knopf und Dienste für Automationen.
+**Deine Cosori-Heißluftfritteuse im Dashboard.** Restzeit, „Fertig um“, Temperatur und Programm für jede Zone einzeln. Dazu eine Nachricht, wenn das Essen fertig ist („🍟 Pommes sind fertig!“), ein Stopp-Knopf, zwei fertige Karten und eine kleine Handy-App. Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt, allen voran die **Dual Blaze TwinFry 10 L** (CAF-TF101S / CAF-TF102S).
 
-Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – allen voran die **Dual Blaze TwinFry 10 L** (CAF-TF101S / CAF-TF102S).
+<p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Karte auf dem Handy"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Einstellfenster dunkel"></p>
 
-> 🧪 **Beta!** Die Integration ist neu. Cosori legt die Daten der Fritteuse nirgends offen. Vieles ist aus dem offenen ioBroker-Adapter und pyvesync abgeleitet und **noch nicht an jeder echten Fritteuse geprüft**. Wenn etwas komisch angezeigt wird: Sag Bescheid (siehe unten), dann bessern wir nach.
+<details><summary>📱 Handy-App ansehen</summary>
+
+<p align="center"><img src="docs/app-handy.png" width="520" alt="Handy-App: normal und ohne Verbindung"></p>
+
+</details>
+
+> 🧪 **Inoffiziell & teils Beta:** Cosori legt die Daten nirgends offen. Vieles ist **noch nicht an jeder echten Fritteuse geprüft** – was genau, steht unter [Was (noch) nicht geht](#-ehrlich-gesagt-was-noch-nicht-geht).
 
 ---
 
 ## ✨ Was kann das Ding?
+
+- 🔥 **Zustand, Restzeit und „Fertig um“** – gesamt und für jede Zone (auch die Grandzone).
+- 📤 **Senden wie in der App:** Programm, Temperatur und Zeit hinschicken, gestartet wird am Gerät.
+- 🔔 **Ereignis „fertig“** für Handy-Nachricht, Durchsage oder „Fernseher pausieren“.
+- 🃏 **Zwei fertige Karten** (Zonen-Karte + Laufband) und eine 📱 **Handy-App** – nichts extra installieren.
+- 🟰 **Match & Sync**, damit beide Zonen gleichzeitig fertig werden.
+- 🛡️ **Datenschutz:** Passwort wird nicht gespeichert, es redet nur Home Assistant mit VeSync.
+
+<details><summary>📋 Alle Funktionen im Detail</summary>
 
 | Funktion | So klappt's |
 |---|---|
@@ -27,6 +42,8 @@ Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt – 
 | 🎛️ **Temperatur & Zeit ändern** | Eingabefelder pro Zone. Gart die Zone schon, gehen neue Werte direkt an die Fritteuse. |
 | 🐢🐇 **Schlauer Takt** | Tut sie nichts: alle 60 Sekunden nachfragen (einstellbar). Arbeitet sie: alle 15 Sekunden. |
 | 🛡️ **Datenschutz** | Dein Passwort wird nicht gespeichert, Kennungen werden überall geschwärzt. Details unten. |
+
+</details>
 
 ---
 
@@ -50,6 +67,8 @@ Den Ordner `custom_components/airfryer_control` nach `/config/custom_components/
 
 ## 👀 Was du danach bekommst
 
+<details><summary>Alle Sensoren, Schalter und Knöpfe – <i>aufklappen</i></summary>
+
 Pro Fritteuse ein Gerät. Die Namen hängen davon ab, wie deine Fritteuse in der App heißt (hier: „Fritteuse“) und ob dein Home Assistant auf Deutsch läuft:
 
 | Entität | Was steht drin |
@@ -70,9 +89,15 @@ Einfache Fritteusen mit nur einer Kammer bekommen statt der Zonen-Sensoren einfa
 
 > ⏱️ **Wie oft wird nachgefragt?** Tut die Fritteuse nichts: alle 60 Sekunden (einstellbar unter Konfigurieren). Gart sie: alle 15 Sekunden. Das sind bei 20 Minuten Pommes rund 80 kleine Anfragen – für den Server ein Klacks.
 
+</details>
+
 ---
 
-## 🃏 Die fertigen Karten (kommen mit der Integration)
+## 🃏 Die fertigen Karten
+
+Kommen mit der Integration und werden automatisch eingetragen: **Karte hinzufügen** → nach **Airfryer Control** suchen. 🎉
+
+<details><summary>Zonen-Karte, Laufband, Match & Sync – <i>aufklappen</i></summary>
 
 Du musst **nichts extra installieren** – die Integration bringt zwei Karten selbst mit und trägt sie automatisch bei den Dashboard-Ressourcen ein. Im Dashboard auf **Karte hinzufügen** gehen und nach **Airfryer Control** suchen (nach einem Update einmal die Seite neu laden).
 
@@ -97,29 +122,15 @@ Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeige
 
 Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.
 
-<p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Karte auf dem Handy"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Einstellfenster dunkel"></p>
-
 **📋 Match und 🔗 Sync (in der Karte):** Im Fenster einer Zone übernimmt **„Einstellungen auf Zone 2 übernehmen“** Programm, Temperatur und Zeit auf die andere Zone (Match). Darüber sagt dir ein Hinweis, **wann du die andere Zone starten sollst, damit beide gleichzeitig fertig werden** (Sync), z. B. „Zone 2 in 4 Min starten“. Ehrlich: Die Cosori-Cloud bietet dafür keine bekannten Befehle. Deshalb ist das **meine eigene Lösung**: Die Karte rechnet nur und kopiert Werte. Gestartet wird weiterhin von dir am Gerät. Für die Grandzone gibt es beides nicht.
 
 **🟰 Match senden / 🔗 Sync senden (neu, ungetestet):** Im Zonen-Fenster gibt es zusätzlich zwei Knöpfe (und die Dienste `match_senden` / `sync_senden`), die Match bzw. Sync wie in der VeSync-App an die Fritteuse schicken – **nur bereitstellen** (Zone steht auf „Wartet auf Start“), gestartet wird am Gerät. Beim Sync bekommt die kürzere Zone eine Wartezeit (Zustand „Wartet auf Sync-Start“ mit Restzeit). ⚠️ Ehrlich: Den genauen App-Befehl habe ich nicht mitgeschnitten, er ist nach dem beobachteten Zustand der Fritteuse **nachgebaut** (`startMultiCook` mit `syncType` 1/2) und **noch nicht an der echten Fritteuse geprüft**. Bitte erst mit kurzer Zeit und neben der Fritteuse probieren.
 
 > 🧪 Die Karten sind noch **Beta** – wenn etwas hakt, sag Bescheid (Fehler melden, siehe unten).
 
-## 📱 Die Handy-App (ohne Installation aus dem Store)
+</details>
 
-Die Integration bringt eine **eigene kleine Seite** mit: **`/airfryer_control/app/`** hinter deiner Home-Assistant-Adresse (z. B. `https://dein-name.ui.nabu.casa/airfryer_control/app/`). Sie zeigt das Laufband und die Zonenkarte im Vollbild.
-
-1. Adresse auf dem Handy oder Tablet im Browser öffnen.
-2. **Anmelden** (mit deinem Home-Assistant-Konto, genau wie bei der Home-Assistant-App). Die Seite selbst enthält keine Daten.
-3. Im Browser-Menü **„Zum Startbildschirm hinzufügen“** – fertig, das Symbol öffnet direkt die Fritteuse.
-
-Der Knopf **🔅 Bildschirm anlassen** hält das Display an (praktisch für ein Küchen-Tablet).
-
-**Ehrlich:** Ohne Netz geht an der Fritteuse nichts, denn jeder Befehl läuft über Home Assistant und die Cosori-Cloud. Deshalb zeigt die App dann **„Keine Verbindung“** und merkt sich **nie** einen Befehl, um ihn später nachzuschicken (ein verspäteter Start wäre gefährlich). Gespeichert wird nur das Programm, damit sie schnell startet. Für „Zum Startbildschirm“ und den Schnellstart braucht der Browser meist eine **https-Adresse** (z. B. Nabu Casa).
-
-<p align="center"><img src="docs/app-handy.png" width="520" alt="Handy-App: normal und ohne Verbindung"></p>
-
-## 🖼️ Beispiel fürs Dashboard
+<details><summary><b>🖼️ Dashboard ohne eigene Karte (nur HA-Kacheln)</b></summary>
 
 ```yaml
 type: vertical-stack
@@ -162,11 +173,33 @@ cards:
     name: Alles stoppen
 ```
 
+</details>
+
+---
+
+## 📱 Die Handy-App
+
+<details><summary>Laufband und Zonen-Karte im Vollbild, ohne App-Store – <i>aufklappen</i></summary>
+
+Die Integration bringt eine **eigene kleine Seite** mit: **`/airfryer_control/app/`** hinter deiner Home-Assistant-Adresse (z. B. `https://dein-name.ui.nabu.casa/airfryer_control/app/`). Sie zeigt das Laufband und die Zonenkarte im Vollbild.
+
+1. Adresse auf dem Handy oder Tablet im Browser öffnen.
+2. **Anmelden** (mit deinem Home-Assistant-Konto, genau wie bei der Home-Assistant-App). Die Seite selbst enthält keine Daten.
+3. Im Browser-Menü **„Zum Startbildschirm hinzufügen“** – fertig, das Symbol öffnet direkt die Fritteuse.
+
+Der Knopf **🔅 Bildschirm anlassen** hält das Display an (praktisch für ein Küchen-Tablet).
+
+**Ehrlich:** Ohne Netz geht an der Fritteuse nichts, denn jeder Befehl läuft über Home Assistant und die Cosori-Cloud. Deshalb zeigt die App dann **„Keine Verbindung“** und merkt sich **nie** einen Befehl, um ihn später nachzuschicken (ein verspäteter Start wäre gefährlich). Gespeichert wird nur das Programm, damit sie schnell startet. Für „Zum Startbildschirm“ und den Schnellstart braucht der Browser meist eine **https-Adresse** (z. B. Nabu Casa).
+
+</details>
+
 ---
 
 ## 🤖 Für Automationen
 
-### 🔔 Das Ereignis `airfryer_control_fertig`
+<details><summary>Ereignis „fertig“, fertiges Beispiel und alle Dienste – <i>aufklappen</i></summary>
+
+#### 🔔 Das Ereignis `airfryer_control_fertig`
 
 Kommt, sobald etwas aufhört zu garen. Mit dabei:
 
@@ -178,7 +211,7 @@ Kommt, sobald etwas aufhört zu garen. Mit dabei:
 | `zustand` | `fertig` | Zustand danach (`fertig`, `bereit`, `warmhalten` …) |
 | `programm` | `AirFry` | Programm der Zone (falls bekannt) |
 
-### 🍟 Beispiel: „Pommes sind fertig!“ aufs Handy
+#### 🍟 Beispiel: „Pommes sind fertig!“ aufs Handy
 
 ```yaml
 alias: Fritteuse – Essen ist fertig
@@ -212,7 +245,7 @@ actions:
 
 > 💡 Nur Zone 1? Dann bei `event_data` statt `zone: alle` einfach `zone: 1` schreiben.
 
-### 🛠️ Dienste
+#### 🛠️ Dienste
 
 | Dienst | Was er tut |
 |---|---|
@@ -224,7 +257,9 @@ actions:
 | `airfryer_control.sync_senden` | **Sync:** schickt beide Zonen mit ihren Zeiten; die kürzere Zone wartet (Zustand „Wartet auf Sync-Start“), damit beide zusammen fertig werden. Nur bereitstellen – Start am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
 | `airfryer_control.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
 
-### 🔌 Für andere Integrationen und Karten (z. B. Airfryer Recipes) – 🧪 Beta
+</details>
+
+<details><summary><b>🔌 Für andere Integrationen (z. B. Airfryer Recipes) – 🧪 Beta</b></summary>
 
 Andere Integrationen sollen **nicht** an der Cloud vorbei bauen. Sie benutzen einfach die Dienste oben. Anmeldung und Gerätekommunikation bleiben komplett bei Airfryer Control.
 
@@ -249,11 +284,15 @@ Andere Integrationen sollen **nicht** an der Cloud vorbei bauen. Sie benutzen ei
 
 **Ehrlich:** Programme und Grenzen hat Marco an der **TwinFry** in der VeSync-App abgelesen. „Senden“ ist dort nur für **Heißluft** bestätigt. Für alle anderen Modelle (z. B. Turbo Tower Pro CAF-DC111S) meldet `faehigkeiten` die Werte als `geschaetzt`/`ungeprueft`.
 
+</details>
+
 ---
 
 ## 🛡️ Datenschutz
 
 Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie deine App. Sonst niemand.**
+
+<details><summary>Was gespeichert wird, was ins Internet geht, was geschwärzt wird – <i>aufklappen</i></summary>
 
 **Was wird gespeichert?** (in Home Assistant, Datei `/config/.storage/core.config_entries`, also auch in deinen HA-Backups)
 - deine **E-Mail** des VeSync-Kontos,
@@ -270,9 +309,15 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 
 **Was passiert beim Entfernen?** Integration löschen = alles oben Gespeicherte ist aus Home Assistant weg. Dein VeSync-Konto und die App bleiben, wie sie sind. Wer ganz sichergehen will, ändert danach in der App sein Passwort – dann ist auch der alte MD5-Wert wertlos.
 
+</details>
+
 ---
 
 ## 🙈 Ehrlich gesagt: Was (noch) nicht geht
+
+Kurz: **inoffiziell**, **kein Start aus der Ferne** (sperrt Cosori in der EU), und manches ist **nur an der TwinFry** geprüft.
+
+<details><summary>Alle Einschränkungen im Detail – <i>aufklappen</i></summary>
 
 - **Inoffiziell.** Cosori/VeSync bieten keine offene Schnittstelle. Ändern sie etwas am Server, kann die Integration ausfallen, bis sie angepasst ist.
 - **Starten aus der Ferne:** In der EU erlaubt Cosori das **nicht** – darum gibt es keinen Start-Knopf. „Senden“ weckt die Fritteuse nur auf; gestartet wird am Gerät.
@@ -283,9 +328,13 @@ Kurz gesagt: **Es redet nur Home Assistant mit dem VeSync-Server – genau wie d
 - **Feldnamen:** Den Stillstand der TwinFry kennen wir aus einer echten Antwort, die Werte **während des Garens** noch nicht. Zeigt ein Sensor Quatsch, schau in `sensor.…_rohdaten` – dort steht, was die Fritteuse wirklich geschickt hat.
 - **Ältere 3,7/5,8-Quart-Modelle** (CS…): nur Anzeige, kein Start. Für die gibt es auch die offizielle VeSync-Integration.
 
+</details>
+
 ---
 
 ## 🍳 Du hast ein anderes Modell?
+
+<details><summary>Was geht und wie du hilfst, dass dein Modell dazukommt – <i>aufklappen</i></summary>
 
 Getestet ist Airfryer Control bisher nur an der **Cosori Dual Blaze TwinFry (CAF-TF101S)**. Andere Modelle tauchen zwar automatisch auf, aber:
 
@@ -299,6 +348,8 @@ Getestet ist Airfryer Control bisher nur an der **Cosori Dual Blaze TwinFry (CAF
 3. Schreibe ein [Issue](https://github.com/misterm2310/airfryer-control/issues) mit **Modellnummer** (steht am Gerät und in der App), der Diagnose-Datei und den **Grenzen aus der VeSync-App** (kleinste/größte Temperatur und Zeit je Programm).
 
 Daraus kann das Modell sauber eingebaut werden. Ohne diese Daten wäre es geraten.
+
+</details>
 
 ---
 
@@ -322,6 +373,8 @@ Sie ist und bleibt **kostenlos**. Wenn du magst, kannst du mir ganz freiwillig e
 
 [![PayPal](https://img.shields.io/badge/PayPal-Spenden-0070BA?logo=paypal&logoColor=white)](https://paypal.me/MarcoStrickmann)
 
+---
+
 ## 💡 Ideen, Wünsche und Fehler
 
 - **Idee oder Wunsch?** Schreib sie bei den [Diskussionen](https://github.com/misterm2310/airfryer-control/discussions).
@@ -331,6 +384,8 @@ Sie ist und bleibt **kostenlos**. Wenn du magst, kannst du mir ganz freiwillig e
 
 ## 🧪 Für Entwickler
 
+<details><summary>Tests – <i>aufklappen</i></summary>
+
 ```bash
 pip install -r requirements_test.txt
 pytest -q
@@ -338,9 +393,6 @@ pytest -q
 
 Die Tests laufen mit einer Attrappe der Cloud – es wird nichts ins Internet geschickt.
 
-## 🙌 Credits & Rechtliches
+</details>
 
-Gemacht von **Mister-M** – mit Hilfe von **Claude**.
-Der Anmelde-Ablauf und die Befehle stammen aus dem offenen [ioBroker-Adapter „vesync“](https://github.com/TA2k/ioBroker.vesync) (MIT) und [pyvesync](https://github.com/webdjoe/pyvesync) (MIT) – danke! 🙏
-
-Kein offizielles Produkt von Cosori, VeSync oder Arovast. Alle Marken gehören ihren Inhabern. Lizenz: [MIT](LICENSE).
+Gemacht von **Mister-M** mit Hilfe von **Claude** · Anmelde-Ablauf und Befehle aus [ioBroker.vesync](https://github.com/TA2k/ioBroker.vesync) (MIT) und [pyvesync](https://github.com/webdjoe/pyvesync) (MIT) – danke! 🙏 · Kein offizielles Produkt von Cosori, VeSync oder Arovast. Lizenz: [MIT](LICENSE)
