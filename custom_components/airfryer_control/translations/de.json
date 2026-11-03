@@ -39,12 +39,14 @@
         "data": {
           "intervall": "Abfrage-Takt, wenn die Fritteuse nichts tut",
           "zeiteinheit": "Zeitangaben der Fritteuse",
-          "sidebar": "📌 In der Seitenleiste anzeigen"
+          "sidebar": "📌 In der Seitenleiste anzeigen",
+          "maskottchen": "🍟 Maskottchen in der Seitenleiste zeigen"
         },
         "data_description": {
           "intervall": "Solange sie arbeitet, wird immer alle 15 Sekunden nachgefragt.",
           "zeiteinheit": "Nur ändern, wenn die Restzeit 60-mal zu groß oder zu klein angezeigt wird.",
-          "sidebar": "Legt einen Eintrag „Fritteuse“ in der Seitenleiste an (Vollbild mit Laufband und Zonenkarte). Standardmäßig aus."
+          "sidebar": "Legt einen Eintrag „Fritteuse“ in der Seitenleiste an (Vollbild mit Laufband und Zonenkarte). Standardmäßig aus.",
+          "maskottchen": "Zeigt den kleinen Airfryer mit Gesicht in der Seitenleisten-Ansicht (auf Dashboard-Karten schaltest du ihn im Karten-Editor). Standardmäßig aus."
         }
       }
     }

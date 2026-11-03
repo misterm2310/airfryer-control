@@ -146,6 +146,18 @@ const BASE_CSS = `
   @keyframes achop { 0%,100% { transform:translateY(0); } 40% { transform:translateY(-3px); } }
   @media (prefers-reduced-motion: reduce) { .ac-mascot { animation:none !important; } }
   .ac-head h2 { margin:0; font-size:1.1rem; font-weight:600; flex:1; }
+  /* 🟢 Leiste über der Karte – genau wie bei der Einkaufsliste */
+  .ac-top { display:flex; align-items:center; gap:8px; margin:0 4px 8px; font-size:13px; color:var(--secondary-text-color); }
+  .ac-pill { border-radius:999px; padding:2px 10px; background:color-mix(in srgb, var(--success-color,#43a047) 18%, transparent); color:var(--primary-text-color); white-space:nowrap; }
+  .ac-pill.off { background:color-mix(in srgb, var(--error-color,#db4437) 20%, transparent); }
+  .ac-greet { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; text-align:center; color:var(--primary-text-color); }
+  .ac-top .ac-ibtn { padding:2px; } .ac-top .ac-ibtn ha-icon { --mdc-icon-size:20px; }
+  .ac-ver { opacity:.8; }
+  .ac-badge { background:var(--primary-color,#03a9f4); color:var(--text-primary-color,#fff); border-radius:999px; padding:1px 9px; font-size:.75em; font-weight:600; }
+  /* 📖 Knopfreihe unter der Karte – wie bei der Einkaufsliste */
+  .ac-foot { display:flex; justify-content:center; gap:10px; margin:14px 6px 8px; font-size:13px; color:var(--secondary-text-color); }
+  .ac-foot button { font:inherit; color:inherit; background:none; text-decoration:underline; border:1px solid var(--divider-color, rgba(127,127,127,.3)); border-radius:12px; padding:8px 18px; cursor:pointer; }
+  .ac-guide h4 { margin:14px 0 4px; } .ac-guide p { margin:4px 0; line-height:1.45; }
   .ac-dot { width:10px; height:10px; border-radius:50%; background:#43A047; }
   .ac-dot.off { background:#9e9e9e; }
   .ac-ibtn { background:none; border:none; color:var(--secondary-text-color); cursor:pointer; padding:6px; border-radius:50%; display:flex; }
@@ -213,6 +225,27 @@ function creditsHtml(hass) {
   </div>`;
 }
 
+// 👋 Gruß in der Leiste oben – dieselben Zeiten wie bei der Einkaufsliste
+function acGreeting(hass, now = new Date()) {
+  const hr = now.getHours();
+  const de = hr >= 22 || hr < 5 ? "🌙 Gute Nacht" : hr < 10 ? "☀️ Guten Morgen" : hr < 12 ? "🍽️ Mahlzeit" : hr < 18 ? "👋 Grüß dich" : "🌆 Guten Abend";
+  const en = hr >= 22 || hr < 5 ? "🌙 Good night" : hr < 12 ? "☀️ Good morning" : hr < 18 ? "👋 Hi" : "🌆 Good evening";
+  const first = String(hass?.user?.name || "").trim().split(/\s+/)[0];
+  const base = tr(hass, de, en);
+  return first ? `${base}, ${first}` : base;
+}
+// 📖 Kurze Anleitung (öffnet sich über den Knopf unter der Karte)
+function acGuideHtml(hass) {
+  const t = (d, e) => tr(hass, d, e);
+  return `<h3 style="margin:0 0 6px">📖 ${t("Anleitung", "Guide")}</h3>
+    <h4>🍟 ${t("Zonen", "Zones")}</h4><p>${t("Jede Zeile ist eine Zone deiner Fritteuse. Farbe und Text zeigen, was sie gerade macht: <b>grün</b> = gart, <b>orange</b> = wartet auf Start, <b>grau</b> = bereit oder aus.", "Each row is one zone of your air fryer. Colour and text show what it is doing: <b>green</b> = cooking, <b>orange</b> = waiting for start, <b>grey</b> = ready or off.")}</p>
+    <h4>⚙️ ${t("Programm einstellen", "Set a program")}</h4><p>${t("Zeile antippen → Programm, Temperatur und Zeit wählen → <b>Senden</b>. Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>.", "Tap a row → choose program, temperature and time → <b>Send</b>. The fryer is then prepared – <b>you always start it on the device</b>.")}</p>
+    <h4>⏹️ ${t("Runder Knopf rechts", "Round button on the right")}</h4><p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>
+    <h4>🔗 ${t("Match & Sync", "Match & Sync")}</h4><p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. Sync sagt dir, wann du die zweite Zone startest, damit beide gleichzeitig fertig sind.", "With two zones: “Use settings” copies the other zone. Sync tells you when to start the second zone so both finish together.")}</p>
+    <h4>🔢 ${t("Oben", "At the top")}</h4><p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. ⚙️ (nur Admins) öffnet die Einstellungen der Integration, z. B. Seitenleiste und Maskottchen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. ⚙️ (admins only) opens the integration settings, e.g. sidebar and mascot.")}</p>
+    <h4>🎃 ${t("Maskottchen", "Mascot")}</h4><p>${t("Im Karten-Editor (oder für die Seitenleiste in den Optionen der Integration) einschalten. Es zieht sich je nach Jahreszeit um.", "Switch it on in the card editor (or, for the sidebar, in the integration options). It changes costumes with the seasons.")}</p>`;
+}
+
 // ---------- Hauptkarte ----------
 class AirfryerControlCard extends HTMLElement {
   constructor() {
@@ -236,7 +269,7 @@ class AirfryerControlCard extends HTMLElement {
     const zones = findZones(hass);
     const sig = zones.map((z) => [z.state, z.finish, z.mode, z.temp, z.time, z.sw]
       .map((e) => { const s = hass.states[e]; return s ? s.state + "|" + (s.attributes?.min ?? "") + (s.attributes?.max ?? "") : "-"; }).join(",")).join(";")
-      + "#" + (hass.states["binary_sensor.cosori_online"]?.state || "") + this._open + (hass.language || "");
+      + "#" + (hass.states["binary_sensor.cosori_online"]?.state || "") + this._open + (hass.language || "") + new Date().getHours();
     if (sig === this._sig) return;
     this._sig = sig;
     this._zones = zones;
@@ -271,14 +304,22 @@ class AirfryerControlCard extends HTMLElement {
         <button class="ac-go" data-go="${esc(z.key)}" style="--b:${b.color}" title="${esc(b.text)}" ${z.sw ? "" : "disabled"}><ha-icon icon="${b.icon}"></ha-icon></button>
       </div>`;
     }).join("");
-    this.shadowRoot.innerHTML = `<style>${BASE_CSS}</style>
+    const running = zones.filter((z) => RUNNING.includes(hass.states[z.state]?.state)).length; // 🔢 Zahl-Blase = wie viele Zonen gerade garen
+    const on = online?.state === "on";
+    const top = this._config.statuszeile === false ? "" : `<div class="ac-top">
+        <span class="ac-pill ${on ? "" : "off"}">${on ? `🟢 ${esc(tr(hass, "verbunden", "connected"))}` : `🔴 ${esc(tr(hass, "offline", "offline"))}`}</span>
+        <span class="ac-greet">${esc(acGreeting(hass))}</span>
+        ${hass.user?.is_admin ? `<button class="ac-ibtn" data-settings title="${esc(tr(hass, "Einstellungen der Integration", "Integration settings"))}"><ha-icon icon="mdi:cog-outline"></ha-icon></button>` : ""}
+        ${AC_VERSION ? `<span class="ac-ver" translate="no">v${esc(AC_VERSION)}</span>` : ""}</div>`;
+    this.shadowRoot.innerHTML = `<style>${BASE_CSS}</style>${top}
       <ha-card>
-        <div class="ac-head">${this._config.maskottchen ? `<span class="ac-masc" title="${esc(tr(hass, "Maskottchen (im Karten-Editor abschaltbar)", "Mascot (switch off in the card editor)"))}">${acMascotSvg(acMood(hass, zones), acDeco())}</span>` : `<img class="ac-logo" src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="30" height="30">`}<h2>${esc(title)}</h2>
+        <div class="ac-head">${this._config.maskottchen ? `<span class="ac-masc" title="${esc(tr(hass, "Maskottchen (im Karten-Editor abschaltbar)", "Mascot (switch off in the card editor)"))}">${acMascotSvg(acMood(hass, zones), acDeco())}</span>` : `<img class="ac-logo" src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="30" height="30">`}${running ? `<span class="ac-badge" title="${esc(tr(hass, "Zonen, die gerade garen", "Zones cooking right now"))}">${running}</span>` : ""}<h2>${esc(title)}</h2>
           <span class="ac-dot ${online && online.state === "on" ? "" : "off"}" title="${online?.state === "on" ? "Online" : "Offline"}"></span>
           <button class="ac-ibtn" data-info title="Info"><ha-icon icon="mdi:information-outline"></ha-icon></button></div>
         <div class="ac-zones">${rows || `<div class="ac-empty">${esc(tr(hass, "Keine Zonen gefunden. Ist die Integration „Airfryer Control“ eingerichtet und die Fritteuse online?", "No zones found. Is the “Airfryer Control” integration set up and the fryer online?"))}</div>`}</div>
         ${this._dialogHtml(zones)}
-      </ha-card>`;
+      </ha-card>
+      ${this._config.anleitung === false ? "" : `<div class="ac-foot"><button type="button" data-guide>📖 ${esc(tr(hass, "Anleitung", "Guide"))}</button></div>`}`;
     this._wire();
   }
 
@@ -367,6 +408,9 @@ class AirfryerControlCard extends HTMLElement {
   _dialogHtml(zones) {
     const hass = this._hass;
     if (!this._open) return "";
+    if (this._open === "__guide") {
+      return `<div class="ac-over" data-close><div class="ac-dlg ac-guide">${acGuideHtml(hass)}<button class="ac-big" data-close style="--b:var(--primary-color)">${esc(tr(hass, "Schließen", "Close"))}</button></div></div>`;
+    }
     if (this._open === "__credits") {
       return `<div class="ac-over" data-close><div class="ac-dlg">${creditsHtml(hass)}<button class="ac-big" data-close style="--b:var(--primary-color)">${esc(tr(hass, "Schließen", "Close"))}</button></div></div>`;
     }
@@ -408,6 +452,11 @@ class AirfryerControlCard extends HTMLElement {
     }));
     const info = root.querySelector("[data-info]");
     if (info) info.addEventListener("click", () => { this._open = "__credits"; this._sig = ""; this.hass = this._hass; });
+    root.querySelector("[data-guide]")?.addEventListener("click", () => { this._open = "__guide"; this._sig = ""; this.hass = this._hass; });
+    root.querySelector("[data-settings]")?.addEventListener("click", () => { // ⚙️ direkt zu den Optionen der Integration
+      history.pushState(null, "", "/config/integrations/integration/airfryer_control");
+      window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+    });
     root.querySelectorAll("[data-close]").forEach((el) => el.addEventListener("click", (e) => {
       if (el.classList.contains("ac-over") && e.target !== el) return;
       this._open = null; this._sig = ""; this.hass = this._hass;
@@ -555,8 +604,9 @@ class AirfryerControlTicker extends HTMLElement {
 }
 
 // ---------- Editoren ----------
-function makeEditor(schemaFn, labelFn) {
+function makeEditor(schemaFn, labelFn, defaults) {
   return class extends HTMLElement {
+    get _defaults() { return defaults; }
     setConfig(config) { this._config = config; this._draw(); }
     set hass(hass) { this._hass = hass; this._draw(); }
     _draw() {
@@ -570,16 +620,16 @@ function makeEditor(schemaFn, labelFn) {
         this.appendChild(this._form);
       }
       this._form.hass = this._hass;
-      this._form.data = this._config;
+      this._form.data = { ...(this._defaults || {}), ...this._config }; // 🟢 Schalter, die standardmäßig AN sind, auch so anzeigen
       this._form.schema = schemaFn(this._hass);
       this._form.computeLabel = (s) => labelFn(this._hass, s.name);
     }
   };
 }
-const cardLabels = { title: ["Titel", "Title"], maskottchen: ["🍟 Maskottchen Airfryer oben links zeigen", "🍟 Show air fryer mascot top left"] };
+const cardLabels = { title: ["Titel", "Title"], maskottchen: ["🍟 Maskottchen Airfryer oben links zeigen", "🍟 Show air fryer mascot top left"], statuszeile: ["🟢 Leiste über der Karte (verbunden, Gruß, Version)", "🟢 Bar above the card (connected, greeting, version)"], anleitung: ["📖 Knopf „Anleitung“ unter der Karte", "📖 “Guide” button below the card"] };
 customElements.define("airfryer-control-card-editor", makeEditor(
-  () => [{ name: "title", selector: { text: {} } }, { name: "maskottchen", selector: { boolean: {} } }],
-  (h, n) => { const l = cardLabels[n]; return l ? tr(h, l[0], l[1]) : n; }));
+  () => [{ name: "title", selector: { text: {} } }, { name: "maskottchen", selector: { boolean: {} } }, { name: "statuszeile", selector: { boolean: {} } }, { name: "anleitung", selector: { boolean: {} } }],
+  (h, n) => { const l = cardLabels[n]; return l ? tr(h, l[0], l[1]) : n; }, { statuszeile: true, anleitung: true }));
 const tickLabels = {
   extra_entities: ["Zusätzliche Kochtimer (z. B. sensor.einkaufsliste_kochtimer)", "Extra timers (e.g. sensor.einkaufsliste_kochtimer)"],
   hide_when_idle: ["Ausblenden, wenn nichts läuft", "Hide when idle"],

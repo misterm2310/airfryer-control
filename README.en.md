@@ -106,6 +106,9 @@ Nothing extra to install – the integration ships two cards and registers them 
 ```yaml
 type: custom:airfryer-control-card
 title: Air fryer
+maskottchen: true   # 🍟 little air fryer with a face top left (default: off)
+statuszeile: true   # 🟢 bar above the card: connected, greeting, ⚙️, version (default: on)
+anleitung: true     # 📖 “Guide” button below the card (default: on)
 ```
 ```yaml
 type: custom:airfryer-control-ticker
@@ -114,7 +117,7 @@ extra_entities:
   - sensor.einkaufsliste_kochtimer
 ```
 
-The phone page and the sidebar (option “📌 Show in sidebar”, off by default) show the same cards.
+The phone page and the sidebar (option “📌 Show in sidebar”, off by default) show the same cards. For the sidebar you switch the mascot on in the same options (“🍟 Show mascot in the sidebar”).
 
 Both cards have an editor, follow light/dark and run smoothly on a Fire TV. Zones are detected automatically. The cards only talk to your Home Assistant.
 

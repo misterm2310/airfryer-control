@@ -39,12 +39,14 @@
         "data": {
           "intervall": "Polling interval while idle",
           "zeiteinheit": "Time values of the air fryer",
-          "sidebar": "📌 Show in sidebar"
+          "sidebar": "📌 Show in sidebar",
+          "maskottchen": "🍟 Show mascot in the sidebar"
         },
         "data_description": {
           "intervall": "While cooking, it is always polled every 15 seconds.",
           "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small.",
-          "sidebar": "Adds a \"Fritteuse\" entry to the sidebar (full-page view with the ticker and the zone card). Off by default."
+          "sidebar": "Adds a \"Fritteuse\" entry to the sidebar (full-page view with the ticker and the zone card). Off by default.",
+          "maskottchen": "Shows the little air fryer with a face in the sidebar view (on dashboard cards you switch it in the card editor). Off by default."
         }
       }
     }

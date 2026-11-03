@@ -41,6 +41,7 @@ from .const import (
     MAX_INTERVAL,
     MIN_INTERVAL,
     OPT_INTERVAL,
+    OPT_MASCOT,
     OPT_SIDEBAR,
     OPT_TIME_UNIT,
     REGIONS,
@@ -179,6 +180,7 @@ class AirfryerOptionsFlow(OptionsFlow):
         if user_input is not None:
             user_input[OPT_INTERVAL] = int(user_input[OPT_INTERVAL])
             user_input[OPT_SIDEBAR] = bool(user_input.get(OPT_SIDEBAR, False))
+            user_input[OPT_MASCOT] = bool(user_input.get(OPT_MASCOT, False))
             return self.async_create_entry(data=user_input)
         opts = self.config_entry.options
         schema = vol.Schema(
@@ -204,6 +206,7 @@ class AirfryerOptionsFlow(OptionsFlow):
                     )
                 ),
                 vol.Optional(OPT_SIDEBAR, default=bool(opts.get(OPT_SIDEBAR, False))): BooleanSelector(),
+                vol.Optional(OPT_MASCOT, default=bool(opts.get(OPT_MASCOT, False))): BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

@@ -50,7 +50,7 @@ class AirfryerControlPanel extends HTMLElement {
       const ticker = document.createElement("airfryer-control-ticker");
       ticker.setConfig({ hide_when_idle: true });
       const card = document.createElement("airfryer-control-card");
-      card.setConfig({ title: this._de() ? "Heißluftfritteuse" : "Air fryer" });
+      card.setConfig({ title: this._de() ? "Heißluftfritteuse" : "Air fryer", maskottchen: !!this._panel?.config?.maskottchen }); // 🍟 Schalter in den Integrations-Optionen
       this._cards = [ticker, card];
       this._wrap.append(ticker, card);
       if (this._hass) for (const c of this._cards) c.hass = this._hass;

@@ -111,6 +111,9 @@ Du musst **nichts extra installieren** – die Integration bringt zwei Karten se
 ```yaml
 type: custom:airfryer-control-card
 title: Heißluftfritteuse
+maskottchen: true   # 🍟 kleiner Airfryer mit Gesicht oben links (Standard: aus)
+statuszeile: true   # 🟢 Leiste über der Karte: verbunden, Gruß, ⚙️, Version (Standard: an)
+anleitung: true     # 📖 Knopf „Anleitung“ unter der Karte (Standard: an)
 ```
 ```yaml
 type: custom:airfryer-control-ticker
@@ -120,7 +123,7 @@ extra_entities:
 speed: 60      # Pixel pro Sekunde (20–200)
 ```
 
-Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeigen“, standardmäßig aus) zeigen dieselben Karten.
+Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeigen“, standardmäßig aus) zeigen dieselben Karten. Das Maskottchen schaltest du für die Seitenleiste in denselben Optionen ein („🍟 Maskottchen in der Seitenleiste zeigen“).
 
 Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.
 

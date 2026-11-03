@@ -163,3 +163,4 @@ CARD_FILENAME = "airfryer-control-card.js"
 PANEL_URL_PATH = "airfryer-control"
 PANEL_FILENAME = "airfryer-control-panel.js"
 OPT_SIDEBAR = "sidebar"  # Eintrag in der Seitenleiste (Standard: aus)
+OPT_MASCOT = "maskottchen"  # 🍟 Maskottchen in der Seitenleisten-Ansicht (Standard: aus)

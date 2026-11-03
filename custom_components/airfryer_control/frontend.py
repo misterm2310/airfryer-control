@@ -116,7 +116,7 @@ def sidebar_wanted(hass: HomeAssistant, skip_entry_id: str | None = None) -> boo
     )
 
 
-async def async_set_sidebar(hass: HomeAssistant, enabled: bool) -> None:
+async def async_set_sidebar(hass: HomeAssistant, enabled: bool, mascot: bool = False) -> None:
     """📌 Fritteuse als eigener Eintrag in der Seitenleiste (Option, standardmäßig aus)."""
     from homeassistant.components import frontend, panel_custom  # noqa: PLC0415
 
@@ -135,7 +135,7 @@ async def async_set_sidebar(hass: HomeAssistant, enabled: bool) -> None:
             sidebar_title="Fritteuse",
             sidebar_icon="mdi:toaster-oven",
             require_admin=False,
-            config={"card_url": f"{CARD_URL}?v={version}"},
+            config={"card_url": f"{CARD_URL}?v={version}", "maskottchen": mascot},  # 🍟 Maskottchen auch in der Seitenleiste
         )
     except Exception:  # noqa: BLE001
         _LOGGER.warning("Seitenleisten-Eintrag konnte nicht angelegt werden", exc_info=True)

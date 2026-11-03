@@ -238,7 +238,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
         result["flow_id"], {"intervall": 120, "zeiteinheit": "minuten"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False}
+    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False}
 
 
 async def test_reauth_when_login_fails(hass: HomeAssistant, fake_api) -> None:
@@ -678,6 +678,12 @@ async def test_sidebar_option_registers_and_removes_panel(hass: HomeAssistant, f
     assert panel.sidebar_title == "Fritteuse"
     assert panel.sidebar_icon == "mdi:toaster-oven"
     assert panel.require_admin is False
+    assert panel.config["maskottchen"] is False  # 🍟 Standard: aus
+
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "maskottchen": True})
+    await hass.async_block_till_done()
+    panel = hass.data[frontend.DATA_PANELS][PANEL_URL_PATH]
+    assert panel.config["maskottchen"] is True  # 🍟 Schalter in den Optionen kommt in der Seitenleiste an
 
     hass.config_entries.async_update_entry(entry, options={**entry.options, OPT_SIDEBAR: False})
     await hass.async_block_till_done()
