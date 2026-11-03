@@ -1,6 +1,6 @@
 /*
  * Airfryer Control – Karten für Home Assistant
- *   custom:airfryer-control-card    Zonen, Einstellungen im Fenster, Senden/Beenden
+ *   custom:airfryer-control-card    Zonen, Einstellungen klappen unter der Zeile auf, Senden/Beenden
  *   custom:airfryer-control-ticker  Laufband mit den Fertig-Zeiten (optional mit Kochtimern)
  *
  * Für Doofe: Die Integration liefert diese Datei selbst aus. Du musst nichts
@@ -156,22 +156,29 @@ const BASE_CSS = `
   .ac-badge { background:var(--primary-color,#03a9f4); color:var(--text-primary-color,#fff); border-radius:999px; padding:1px 9px; font-size:.75em; font-weight:600; }
   /* 📖 Knopfreihe unter der Karte – wie bei der Einkaufsliste */
   .ac-foot { display:flex; justify-content:center; gap:10px; margin:14px 6px 8px; font-size:13px; color:var(--secondary-text-color); }
-  .ac-foot button { font:inherit; color:inherit; background:none; text-decoration:underline; border:1px solid var(--divider-color, rgba(127,127,127,.3)); border-radius:12px; padding:8px 18px; cursor:pointer; }
+  .ac-foot button { font:inherit; color:inherit; background:none; border:1px solid var(--divider-color, rgba(127,127,127,.3)); border-radius:12px; padding:8px 18px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .ac-foot button span { text-decoration:underline; }
+  .ac-foot button ha-icon { --mdc-icon-size:18px; }
   .ac-guide h4 { margin:14px 0 4px; } .ac-guide p { margin:4px 0; line-height:1.45; }
   .ac-dot { width:10px; height:10px; border-radius:50%; background:#43A047; }
   .ac-dot.off { background:#9e9e9e; }
   .ac-ibtn { background:none; border:none; color:var(--secondary-text-color); cursor:pointer; padding:6px; border-radius:50%; display:flex; }
   .ac-ibtn:hover { background:rgba(127,127,127,.15); }
   .ac-ibtn ha-icon { --mdc-icon-size:22px; }
-  .ac-zones { display:flex; flex-direction:column; padding:4px 0 8px; }
-  .ac-row { display:flex; align-items:center; gap:12px; padding:10px 16px 10px 12px; border-left:4px solid var(--c, #9e9e9e); margin:2px 0; cursor:pointer; }
-  .ac-row:hover { background:rgba(127,127,127,.08); }
+  .ac-zones { display:flex; flex-direction:column; gap:4px; padding:4px 10px 8px; }
+  /* 🧺 Zeilen wie die Artikel der Einkaufsliste: abgerundet, Farbstreifen links */
+  .ac-row { display:flex; align-items:center; gap:12px; padding:8px 10px 8px 10px; border-left:4px solid var(--c, #9e9e9e); border-radius:12px; margin:0; cursor:pointer; transition:background .2s; }
+  .ac-row:hover { background:color-mix(in srgb, var(--primary-color) 6%, transparent); }
+  .ac-row.open { background:color-mix(in srgb, var(--primary-color) 10%, transparent); }
+  .ac-edit { margin:2px 0 8px; padding:12px; border:1px solid var(--divider-color, rgba(127,127,127,.3)); border-left:4px solid var(--c, #9e9e9e); border-radius:12px; }
+  .ac-edit .ac-modes { margin-top:0; }
+  .ac-close { display:block; margin:10px auto 0; font:inherit; font-size:.9em; color:var(--secondary-text-color); background:none; border:1px solid var(--divider-color, rgba(127,127,127,.3)); border-radius:12px; padding:6px 16px; cursor:pointer; }
   .ac-row > ha-icon { color:var(--c, #9e9e9e); --mdc-icon-size:30px; flex:none; }
   .ac-txt { flex:1; min-width:0; }
   .ac-name { font-weight:600; }
   .ac-state { color:var(--c, var(--secondary-text-color)); font-size:.95em; }
   .ac-sub { opacity:.75; font-size:.85em; }
-  .ac-go { width:46px; height:46px; border-radius:50%; border:none; cursor:pointer; background:var(--b, #43A047); color:#fff; display:flex; align-items:center; justify-content:center; flex:none; }
+  .ac-go { width:46px; height:46px; border-radius:12px; border:none; cursor:pointer; background:var(--b, #43A047); color:#fff; display:flex; align-items:center; justify-content:center; flex:none; }
   .ac-go:disabled { opacity:.4; cursor:default; }
   .ac-go ha-icon { --mdc-icon-size:22px; }
   .ac-empty { padding:16px; color:var(--secondary-text-color); }
@@ -239,8 +246,8 @@ function acGuideHtml(hass) {
   const t = (d, e) => tr(hass, d, e);
   return `<h3 style="margin:0 0 6px">📖 ${t("Anleitung", "Guide")}</h3>
     <h4>🍟 ${t("Zonen", "Zones")}</h4><p>${t("Jede Zeile ist eine Zone deiner Fritteuse. Farbe und Text zeigen, was sie gerade macht: <b>grün</b> = gart, <b>orange</b> = wartet auf Start, <b>grau</b> = bereit oder aus.", "Each row is one zone of your air fryer. Colour and text show what it is doing: <b>green</b> = cooking, <b>orange</b> = waiting for start, <b>grey</b> = ready or off.")}</p>
-    <h4>⚙️ ${t("Programm einstellen", "Set a program")}</h4><p>${t("Zeile antippen → Programm, Temperatur und Zeit wählen → <b>Senden</b>. Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>.", "Tap a row → choose program, temperature and time → <b>Send</b>. The fryer is then prepared – <b>you always start it on the device</b>.")}</p>
-    <h4>⏹️ ${t("Runder Knopf rechts", "Round button on the right")}</h4><p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>
+    <h4>⚙️ ${t("Programm einstellen", "Set a program")}</h4><p>${t("Zeile antippen → darunter klappen Programm, Temperatur und Zeit auf (nochmal antippen = zu) → <b>Senden</b>. Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>.", "Tap a row → program, temperature and time unfold below it (tap again to close) → <b>Send</b>. The fryer is then prepared – <b>you always start it on the device</b>.")}</p>
+    <h4>⏹️ ${t("Knopf rechts", "Button on the right")}</h4><p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>
     <h4>🔗 ${t("Match & Sync", "Match & Sync")}</h4><p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. Sync sagt dir, wann du die zweite Zone startest, damit beide gleichzeitig fertig sind.", "With two zones: “Use settings” copies the other zone. Sync tells you when to start the second zone so both finish together.")}</p>
     <h4>🔢 ${t("Oben", "At the top")}</h4><p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. ⚙️ (nur Admins) öffnet die Einstellungen der Integration, z. B. Seitenleiste und Maskottchen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. ⚙️ (admins only) opens the integration settings, e.g. sidebar and mascot.")}</p>
     <h4>🎃 ${t("Maskottchen", "Mascot")}</h4><p>${t("Im Karten-Editor (oder für die Seitenleiste in den Optionen der Integration) einschalten. Es zieht sich je nach Jahreszeit um.", "Switch it on in the card editor (or, for the sidebar, in the integration options). It changes costumes with the seasons.")}</p>`;
@@ -251,7 +258,7 @@ class AirfryerControlCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._open = null; // Schlüssel der Zone, deren Fenster offen ist ("__credits" = Credits)
+    this._open = null; // Schlüssel der Zone, die aufgeklappt ist ("__credits" = Credits)
     this._sig = "";
   }
   setConfig(config) {
@@ -296,13 +303,13 @@ class AirfryerControlCard extends HTMLElement {
       const fin = hass.states[z.finish];
       const b = this._btn(z);
       const sub = valid(fin) ? tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`) : "";
-      return `<div class="ac-row" data-z="${esc(z.key)}" style="--c:${this._color(z)}">
+      return `<div class="ac-row ${this._open === z.key ? "open" : ""}" data-z="${esc(z.key)}" style="--c:${this._color(z)}" title="${esc(tr(hass, "Antippen = Programm, Temperatur und Zeit", "Tap = program, temperature and time"))}">
         <ha-icon icon="mdi:toaster-oven"></ha-icon>
         <div class="ac-txt"><div class="ac-name">${esc(z.name)}</div>
           <div class="ac-state">${esc(stateText(hass, st?.state))}</div>
           ${sub ? `<div class="ac-sub">${esc(sub)}</div>` : ""}</div>
         <button class="ac-go" data-go="${esc(z.key)}" style="--b:${b.color}" title="${esc(b.text)}" ${z.sw ? "" : "disabled"}><ha-icon icon="${b.icon}"></ha-icon></button>
-      </div>`;
+      </div>${this._open === z.key ? this._zoneHtml(z, zones) : ""}`;
     }).join("");
     const running = zones.filter((z) => RUNNING.includes(hass.states[z.state]?.state)).length; // 🔢 Zahl-Blase = wie viele Zonen gerade garen
     const on = online?.state === "on";
@@ -319,7 +326,7 @@ class AirfryerControlCard extends HTMLElement {
         <div class="ac-zones">${rows || `<div class="ac-empty">${esc(tr(hass, "Keine Zonen gefunden. Ist die Integration „Airfryer Control“ eingerichtet und die Fritteuse online?", "No zones found. Is the “Airfryer Control” integration set up and the fryer online?"))}</div>`}</div>
         ${this._dialogHtml(zones)}
       </ha-card>
-      ${this._config.anleitung === false ? "" : `<div class="ac-foot"><button type="button" data-guide>📖 ${esc(tr(hass, "Anleitung", "Guide"))}</button></div>`}`;
+      ${this._config.anleitung === false ? "" : `<div class="ac-foot"><button type="button" data-guide><ha-icon icon="mdi:book-open-page-variant-outline"></ha-icon><span>${esc(tr(hass, "Anleitung", "Guide"))}</span></button></div>`}`;
     this._wire();
   }
 
@@ -414,8 +421,12 @@ class AirfryerControlCard extends HTMLElement {
     if (this._open === "__credits") {
       return `<div class="ac-over" data-close><div class="ac-dlg">${creditsHtml(hass)}<button class="ac-big" data-close style="--b:var(--primary-color)">${esc(tr(hass, "Schließen", "Close"))}</button></div></div>`;
     }
-    const z = zones.find((x) => x.key === this._open);
-    if (!z) return "";
+    return "";
+  }
+
+  // ✏️ Zone einstellen – klappt UNTER der Zeile auf, die Zeile bleibt stehen (wie in der Einkaufsliste)
+  _zoneHtml(z, zones) {
+    const hass = this._hass;
     const mode = hass.states[z.mode];
     const temp = hass.states[z.temp];
     const time = hass.states[z.time];
@@ -424,9 +435,7 @@ class AirfryerControlCard extends HTMLElement {
     const modes = opts.map((o) => `<button class="ac-mode ${mode.state === o ? "on" : ""}" data-mode="${esc(o)}"><ha-icon icon="${(MODE_TEXT[o] || [])[2] || "mdi:chef-hat"}"></ha-icon>${esc(modeText(hass, o))}</button>`).join("");
     const step = (what, label, st, unit) => st ? `<div class="ac-step"><label>${esc(label)}</label><button data-step="${what}" data-d="-1">−</button><b>${esc(st.state)} ${unit}</b><button data-step="${what}" data-d="1">+</button></div>` : "";
     const min = temp?.attributes?.min, max = temp?.attributes?.max;
-    return `<div class="ac-over" data-close><div class="ac-dlg" style="--c:${this._color(z)}">
-      <h3><ha-icon icon="mdi:toaster-oven" style="color:${this._color(z)}"></ha-icon><span>${esc(z.name)}</span><button class="ac-ibtn" data-close><ha-icon icon="mdi:close"></ha-icon></button></h3>
-      <div class="ac-state" style="color:${this._color(z)}">${esc(stateText(hass, hass.states[z.state]?.state))}</div>
+    return `<div class="ac-edit" style="--c:${this._color(z)}">
       ${opts.length ? `<div class="ac-modes">${modes}</div>` : ""}
       ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C")}
       ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min")}
@@ -436,14 +445,15 @@ class AirfryerControlCard extends HTMLElement {
       ${this._syncSendHtml(z, zones)}
       <button class="ac-big" data-go="${esc(z.key)}" style="--b:${b.color}" ${z.sw ? "" : "disabled"}>${esc(b.text)}</button>
       <p class="ac-note">${esc(tr(hass, "Senden bereitet die Fritteuse vor – gestartet wird am Gerät.", "Send prepares the fryer – you start it on the device."))}</p>
-    </div></div>`;
+      <button class="ac-close" data-close>${esc(tr(hass, "Zuklappen", "Close"))}</button>
+    </div>`;
   }
 
   _wire() {
     const root = this.shadowRoot;
     root.querySelectorAll(".ac-row").forEach((el) => el.addEventListener("click", (e) => {
       if (e.target.closest("[data-go]")) return;
-      this._open = el.dataset.z; this._sig = ""; this.hass = this._hass;
+      this._open = this._open === el.dataset.z ? null : el.dataset.z; this._sig = ""; this.hass = this._hass; // nochmal antippen = zuklappen
     }));
     root.querySelectorAll("[data-go]").forEach((el) => el.addEventListener("click", (e) => {
       e.stopPropagation();

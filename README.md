@@ -105,7 +105,7 @@ Du musst **nichts extra installieren** – die Integration bringt zwei Karten se
 
 | Karte | Was sie macht |
 |---|---|
-| `custom:airfryer-control-card` | Eine Zeile pro Zone (Zone 1, Zone 2, Grandzone) mit Status, „fertig um …“ und rundem Knopf zum **Senden / Abbrechen / Beenden**. Antippen der Zeile öffnet ein Fenster mit Programm, Temperatur und Zeit (Grenzen je Programm werden beachtet). Das (i) oben zeigt Credits, Spenden-Link und Datenschutz. |
+| `custom:airfryer-control-card` | Eine Zeile pro Zone (Zone 1, Zone 2, Grandzone) mit Status, „fertig um …“ und Knopf zum **Senden / Abbrechen / Beenden**. Antippen der Zeile klappt direkt darunter Programm, Temperatur und Zeit auf (die Zeile bleibt stehen, nochmal antippen = zu) (Grenzen je Programm werden beachtet). Das (i) oben zeigt Credits, Spenden-Link und Datenschutz. |
 | `custom:airfryer-control-ticker` | Das **Laufband**: „Fritteuse Zone 1: fertig um 19:42 Uhr +++ Zone 2: wartet auf Start“. Rahmen **rot und blinkend**, wenn eine Zone fertig ist, sonst türkis. Blendet sich aus, wenn nichts läuft. Optional mit weiteren Kochtimern (z. B. `sensor.einkaufsliste_kochtimer`). |
 
 ```yaml
@@ -127,9 +127,9 @@ Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeige
 
 Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.
 
-**📋 Match und 🔗 Sync (in der Karte):** Im Fenster einer Zone übernimmt **„Einstellungen auf Zone 2 übernehmen“** Programm, Temperatur und Zeit auf die andere Zone (Match). Darüber sagt dir ein Hinweis, **wann du die andere Zone starten sollst, damit beide gleichzeitig fertig werden** (Sync), z. B. „Zone 2 in 4 Min starten“. Ehrlich: Die Cosori-Cloud bietet dafür keine bekannten Befehle. Deshalb ist das **meine eigene Lösung**: Die Karte rechnet nur und kopiert Werte. Gestartet wird weiterhin von dir am Gerät. Für die Grandzone gibt es beides nicht.
+**📋 Match und 🔗 Sync (in der Karte):** In der aufgeklappten Zone übernimmt **„Einstellungen auf Zone 2 übernehmen“** Programm, Temperatur und Zeit auf die andere Zone (Match). Darüber sagt dir ein Hinweis, **wann du die andere Zone starten sollst, damit beide gleichzeitig fertig werden** (Sync), z. B. „Zone 2 in 4 Min starten“. Ehrlich: Die Cosori-Cloud bietet dafür keine bekannten Befehle. Deshalb ist das **meine eigene Lösung**: Die Karte rechnet nur und kopiert Werte. Gestartet wird weiterhin von dir am Gerät. Für die Grandzone gibt es beides nicht.
 
-**🟰 Match senden / 🔗 Sync senden (neu, ungetestet):** Im Zonen-Fenster gibt es zusätzlich zwei Knöpfe (und die Dienste `match_senden` / `sync_senden`), die Match bzw. Sync wie in der VeSync-App an die Fritteuse schicken – **nur bereitstellen** (Zone steht auf „Wartet auf Start“), gestartet wird am Gerät. Beim Sync bekommt die kürzere Zone eine Wartezeit (Zustand „Wartet auf Sync-Start“ mit Restzeit). ⚠️ Ehrlich: Den genauen App-Befehl habe ich nicht mitgeschnitten, er ist nach dem beobachteten Zustand der Fritteuse **nachgebaut** (`startMultiCook` mit `syncType` 1/2) und **noch nicht an der echten Fritteuse geprüft**. Bitte erst mit kurzer Zeit und neben der Fritteuse probieren.
+**🟰 Match senden / 🔗 Sync senden (neu, ungetestet):** In der aufgeklappten Zone gibt es zusätzlich zwei Knöpfe (und die Dienste `match_senden` / `sync_senden`), die Match bzw. Sync wie in der VeSync-App an die Fritteuse schicken – **nur bereitstellen** (Zone steht auf „Wartet auf Start“), gestartet wird am Gerät. Beim Sync bekommt die kürzere Zone eine Wartezeit (Zustand „Wartet auf Sync-Start“ mit Restzeit). ⚠️ Ehrlich: Den genauen App-Befehl habe ich nicht mitgeschnitten, er ist nach dem beobachteten Zustand der Fritteuse **nachgebaut** (`startMultiCook` mit `syncType` 1/2) und **noch nicht an der echten Fritteuse geprüft**. Bitte erst mit kurzer Zeit und neben der Fritteuse probieren.
 
 > 🧪 Die Karten sind noch **Beta** – wenn etwas hakt, sag Bescheid (Fehler melden, siehe unten).
 
