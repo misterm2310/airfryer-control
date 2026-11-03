@@ -27,6 +27,7 @@ from .const import DOMAIN, zone_label
 from .coordinator import AirfryerCoordinator
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, zone_view, zones_for_device
+from .modelle import temp_step
 from .senden import clamp_minutes, clamp_temp, get_plan, temp_limits, time_limits
 
 
@@ -43,7 +44,7 @@ NUMBERS: tuple[ZoneNumberDescription, ...] = (
         translation_key="zone_temperatur",
         device_class=NumberDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        native_min_value=35,
+        native_min_value=30,
         native_max_value=240,
         native_step=5,
         mode=NumberMode.BOX,
@@ -109,20 +110,30 @@ class ZoneNumber(AirfryerEntity, NumberEntity, RestoreEntity):
                 pass
 
     @property
+    def _model(self) -> str:
+        fryer = self.coordinator.fryers.get(self._cid)
+        return fryer.model if fryer else ""
+
+    @property
     def native_min_value(self) -> float:
-        if self.entity_description.key == "temperatur":
-            mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
-            return temp_limits(mode)[0]
         mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
-        return time_limits(mode)[0]
+        if self.entity_description.key == "temperatur":
+            return temp_limits(mode, self._model)[0]
+        return time_limits(mode, self._model)[0]
 
     @property
     def native_max_value(self) -> float:
-        if self.entity_description.key == "temperatur":
-            mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
-            return temp_limits(mode)[1]
         mode = get_plan(self.coordinator, self._cid, self._zone)["mode"]
-        return time_limits(mode)[1]
+        if self.entity_description.key == "temperatur":
+            return temp_limits(mode, self._model)[1]
+        return time_limits(mode, self._model)[1]
+
+    @property
+    def native_step(self) -> float:
+        """Gären an der Turbo Tower: 1 °C, sonst 5 °C (Zeit: 1 Minute)."""
+        if self.entity_description.key == "temperatur":
+            return temp_step(get_plan(self.coordinator, self._cid, self._zone)["mode"], self._model)
+        return 1
 
     @property
     def native_value(self) -> float:
@@ -131,9 +142,9 @@ class ZoneNumber(AirfryerEntity, NumberEntity, RestoreEntity):
     async def async_set_native_value(self, value: float) -> None:
         plan = get_plan(self.coordinator, self._cid, self._zone)
         if self.entity_description.key == "temperatur":
-            value = clamp_temp(plan["mode"], int(value))
+            value = clamp_temp(plan["mode"], int(value), self._model)
         else:
-            value = clamp_minutes(plan["mode"], int(value))
+            value = clamp_minutes(plan["mode"], int(value), self._model)
         plan[self.entity_description.plan_key] = int(value)
         self.async_write_ha_state()
         zs = zone_view(self.fryer.state, self._zone)

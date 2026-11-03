@@ -70,7 +70,8 @@
         "bake": "Backen (Bake)",
         "grill": "Grillen (Grill)",
         "reheat": "Aufwärmen (Reheat)",
-        "dry": "Dörren (Dry)"
+        "dry": "Dörren (Dry)",
+        "proof": "Gären (Proof)"
       }
     }
   },

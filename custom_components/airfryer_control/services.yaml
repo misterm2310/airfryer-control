@@ -41,6 +41,7 @@ senden_testen:
             - grill
             - reheat
             - dry
+            - proof
     variante:
       example: multi_c
       selector:
@@ -134,6 +135,7 @@ programm_senden:
             - grill
             - reheat
             - dry
+            - proof
     variante:
       required: false
       selector:

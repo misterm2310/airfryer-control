@@ -34,7 +34,7 @@ class AirfryerControlPanel extends HTMLElement {
     bar.appendChild(menu);
     this._menu = menu;
     const wrap = document.createElement("div");
-    wrap.style.cssText = "max-width:700px;margin:0 auto;padding:8px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;";
+    wrap.style.cssText = "max-width:900px;margin:0 auto;padding:8px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;";
     this.append(bar, wrap);
     this._wrap = wrap;
   }

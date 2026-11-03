@@ -29,7 +29,6 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 from .core.api import CODE_DEVICE_TIMEOUT, AirfryerError
 from .const import (
     DOMAIN,
-    MODES,
     SERVICE_CAPABILITIES,
     SERVICE_MATCH,
     SERVICE_PROGRAM,
@@ -43,6 +42,7 @@ from .const import (
 from .coordinator import AirfryerCoordinator, FryerData
 from .core.parser import zone_view
 from .faehigkeiten import capabilities, outside_limits
+from .modelle import ALL_MODES, modes_for
 from .senden import (
     RESULT_REJECTED,
     RESULT_UNKNOWN,
@@ -76,11 +76,11 @@ SEND_TEST_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_DEVICE): cv.string,
         vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
-        vol.Optional(ATTR_TEMP, default=180): vol.All(vol.Coerce(int), vol.Range(min=35, max=240)),
+        vol.Optional(ATTR_TEMP, default=180): vol.All(vol.Coerce(int), vol.Range(min=30, max=240)),
         vol.Optional(ATTR_MINUTES, default=10): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=2880)
         ),
-        vol.Optional(ATTR_MODE, default="airfry"): vol.In(list(MODES)),
+        vol.Optional(ATTR_MODE, default="airfry"): vol.In(list(ALL_MODES)),
         vol.Optional(ATTR_VARIANT): cv.string,
         vol.Optional(ATTR_ALL, default=False): cv.boolean,
     }
@@ -91,7 +91,7 @@ PROGRAM_SCHEMA = vol.Schema(
         vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
         vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
         vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=5000)),
-        vol.Required(ATTR_MODE): vol.In(list(MODES)),
+        vol.Required(ATTR_MODE): vol.In(list(ALL_MODES)),
         # Nur die sicheren Schreibweisen – die startende ist hier nie erlaubt
         vol.Optional(ATTR_VARIANT): vol.In(list(SAFE_VARIANTS)),
         vol.Optional(ATTR_ONCE, default=False): cv.boolean,
@@ -178,8 +178,10 @@ async def _program(call: ServiceCall) -> ServiceResponse:
     temp = call.data[ATTR_TEMP]
     minutes = call.data[ATTR_MINUTES]
     base: dict[str, Any] = {"revision_vorher": fryer.revision}
+    if mode not in modes_for(fryer.model):  # z. B. Gären nur an der Turbo Tower
+        return {**base, "ok": False, "ergebnis": RESULT_REJECTED, "fehler": "programm_unbekannt", "programme": list(modes_for(fryer.model))}
     if call.data[ATTR_STRICT]:
-        limits = outside_limits(mode, temp, minutes)
+        limits = outside_limits(mode, temp, minutes, fryer.model)
         if limits is not None:
             return {
                 **base,
@@ -189,8 +191,8 @@ async def _program(call: ServiceCall) -> ServiceResponse:
                 "grenzen": limits,
             }
     else:
-        temp = clamp_temp(mode, temp)
-        minutes = clamp_minutes(mode, minutes)
+        temp = clamp_temp(mode, temp, fryer.model)
+        minutes = clamp_minutes(mode, minutes, fryer.model)
     try:
         results = await async_send(
             coordinator,
@@ -248,7 +250,7 @@ async def _confirm(
         ready = zs.status in (STATE_WAITING, STATE_HOLD) or zs.active
         same = (
             zs.mode is not None
-            and zs.mode.lower() == MODES[mode].lower()
+            and zs.mode.lower() == ALL_MODES[mode].lower()
             and zs.set_temp == temp
             and zs.set_time_s == minutes * 60
         )

@@ -31,15 +31,9 @@ from .const import (
     STATE_WAITING,
     DEFAULT_MODE,
     MODE_DEFAULTS,
-    MODE_TEMP_RANGE,
-    MODE_TIME_RANGE,
-    MODES,
-    TEMP_MAX_DEFAULT,
-    TEMP_MIN_DEFAULT,
-    TIME_MAX_DEFAULT,
-    TIME_MIN_DEFAULT,
 )
 from .coordinator import AirfryerCoordinator, FryerData
+from . import modelle
 from .core.parser import zones_for_device
 from .core.util import redact
 
@@ -60,25 +54,25 @@ def get_plan(coordinator: AirfryerCoordinator, cid: str, zone: int) -> dict[str,
     return plan
 
 
-def temp_limits(mode: str) -> tuple[int, int]:
-    """Erlaubter Temperaturbereich (°C) für ein Programm."""
-    return MODE_TEMP_RANGE.get(mode, (TEMP_MIN_DEFAULT, TEMP_MAX_DEFAULT))
+def temp_limits(mode: str, model: str | None = None) -> tuple[int, int]:
+    """Erlaubter Temperaturbereich (°C) für ein Programm (je Modell, siehe modelle.py)."""
+    return modelle.temp_limits(mode, model)
 
 
-def clamp_temp(mode: str, temp: int) -> int:
+def clamp_temp(mode: str, temp: int, model: str | None = None) -> int:
     """Temperatur in den erlaubten Bereich schieben."""
-    low, high = temp_limits(mode)
+    low, high = temp_limits(mode, model)
     return max(low, min(high, int(temp)))
 
 
-def time_limits(mode: str) -> tuple[int, int]:
-    """Erlaubte Garzeit (Minuten) für ein Programm."""
-    return MODE_TIME_RANGE.get(mode, (TIME_MIN_DEFAULT, TIME_MAX_DEFAULT))
+def time_limits(mode: str, model: str | None = None) -> tuple[int, int]:
+    """Erlaubte Garzeit (Minuten) für ein Programm (je Modell)."""
+    return modelle.time_limits(mode, model)
 
 
-def clamp_minutes(mode: str, minutes: int) -> int:
+def clamp_minutes(mode: str, minutes: int, model: str | None = None) -> int:
     """Garzeit in den erlaubten Bereich schieben."""
-    low, high = time_limits(mode)
+    low, high = time_limits(mode, model)
     return max(low, min(high, int(minutes)))
 
 
@@ -101,7 +95,7 @@ def build_variants(
     include_start: bool = False,
 ) -> list[SendVariant]:
     """Schreibweisen für „Senden“ (bereitstellen) – mit Start nur, wenn include_start an ist."""
-    app_mode = MODES.get(mode, mode)
+    app_mode = modelle.ALL_MODES.get(mode, mode)
     secs = int(minutes) * 60
     acc = account_id or ""
 
@@ -163,7 +157,7 @@ def build_sync_payload(
     times = [zone1[2] * 60, zone2[2] * 60]
     longest = max(times)
     for chamber, (mode, temp, minutes) in enumerate((zone1, zone2), start=1):
-        app_mode = MODES.get(mode, mode)
+        app_mode = modelle.ALL_MODES.get(mode, mode)
         config: dict[str, Any] = {
             "cookSetTime": minutes * 60,
             "cookTemp": int(temp),
@@ -240,7 +234,7 @@ async def async_send_sync(
     for zone in (1, 2):
         plan = get_plan(coordinator, cid, zone)
         plans.append(
-            (plan["mode"], clamp_temp(plan["mode"], plan["temp"]), clamp_minutes(plan["mode"], int(plan["minuten"])))
+            (plan["mode"], clamp_temp(plan["mode"], plan["temp"], fryer.model), clamp_minutes(plan["mode"], int(plan["minuten"]), fryer.model))
         )
     payload = build_sync_payload(coordinator.api.account_id, sync_type, plans[0], plans[1])
     answer = await coordinator.api.bypass_v2(fryer.info, "startMultiCook", payload)

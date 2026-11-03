@@ -70,7 +70,8 @@
         "bake": "Bake",
         "grill": "Grill",
         "reheat": "Reheat",
-        "dry": "Dry"
+        "dry": "Dry",
+        "proof": "Proof"
       }
     }
   },

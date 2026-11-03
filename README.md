@@ -6,6 +6,8 @@
 
 **Deine Cosori-Heißluftfritteuse im Dashboard.** Restzeit, „Fertig um“, Temperatur und Programm für jede Zone einzeln. Dazu eine Nachricht, wenn das Essen fertig ist („🍟 Pommes sind fertig!“), ein Stopp-Knopf, zwei fertige Karten und eine kleine Handy-App. Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt, allen voran die **Dual Blaze TwinFry 10 L** (CAF-TF101S / CAF-TF102S).
 
+Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=misterm2310&repository=airfryer-control&category=integration) [![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=airfryer_control)
+
 <p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Karte auf dem Handy"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Einstellfenster dunkel"></p>
 
 <details><summary>📱 Handy-App ansehen</summary>

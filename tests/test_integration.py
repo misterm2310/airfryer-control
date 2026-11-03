@@ -969,7 +969,7 @@ async def test_capabilities_service(hass: HomeAssistant, fake_api) -> None:
 
 
 async def test_capabilities_other_model_is_only_estimated(hass: HomeAssistant, fake_api) -> None:
-    fake_api.devices = [{**DEVICE, "deviceType": "CAF-DC111S-AEU"}]
+    fake_api.devices = [{**DEVICE, "deviceType": "CAF-XX999S-AEU"}]
     fake_api.multi = {}
     await setup(hass)
     res = await hass.services.async_call(
@@ -991,3 +991,43 @@ async def test_switch_unknown_result_gives_clear_message(hass: HomeAssistant) ->
         )
     assert err.value.translation_key == "ergebnis_unbekannt"
     assert len(_sends()) == 1
+
+
+async def test_turbo_tower_profile_and_proof(hass: HomeAssistant, fake_api) -> None:
+    """🗼 Turbo Tower Pro (CAF-DC111S): eigene Grenzen je Programm + Gären 30–45 °C in 1-°C-Schritten (Issue #5)."""
+    fake_api.devices = [{**DEVICE, "deviceType": "CAF-DC111S-AEU"}]
+    await setup(hass)
+    res = await hass.services.async_call(DOMAIN, "faehigkeiten", {}, blocking=True, return_response=True)
+    assert res["modell_bekannt"] is True and res["modellfamilie"] == "turbotower"
+    pr = res["programme"]
+    assert pr["airfry"]["temperatur"] == [120, 230] and pr["roast"]["temperatur"] == [175, 230]
+    assert pr["grill"]["temperatur"] == [160, 230] and pr["grill"]["vorschlag"]["temperatur"] == 230
+    assert pr["proof"]["temperatur"] == [30, 45] and pr["proof"]["temperatur_schritt"] == 1
+    assert {p["grenzen"] for p in pr.values()} == {"besitzer"}
+    # streng: modellgültige Werte gehen unverändert raus, ungültige werden abgelehnt
+    for t in (30, 31, 45):
+        r = await _program_call(hass, programm="proof", temperatur=t, minuten=60, streng=True, einmal=True)
+        assert r["ok"] is True and r["gesendet"]["temperatur"] == t, r
+    for t in (29, 46):
+        r = await _program_call(hass, programm="proof", temperatur=t, minuten=60, streng=True)
+        assert r["fehler"] == "ausserhalb_grenzen" and r["grenzen"]["temperatur"] == [30, 45]
+    r = await _program_call(hass, programm="airfry", temperatur=230, streng=True, einmal=True)
+    assert r["ok"] is True
+    assert _sends()[-1][1]["cookConfigs"][0]["cookTemp"] == 230
+    proof = [c for c in _sends() if c[1]["cookConfigs"][0]["mode"] == "Proof"]
+    assert len(proof) == 3
+    # Auswahl: Gären ist da, Programmwechsel setzt Vorschlag und 1-°C-Schritte
+    sel = eid(hass, "select", "zone1_programm_waehlen")
+    assert "proof" in hass.states.get(sel).attributes["options"]
+    await hass.services.async_call("select", "select_option", {"entity_id": sel, "option": "proof"}, blocking=True)
+    st = hass.states.get(eid(hass, "number", "zone1_temperatur"))
+    assert st.state == "35" and st.attributes["min"] == 30 and st.attributes["max"] == 45 and st.attributes["step"] == 1
+
+
+async def test_twinfry_has_no_proof(hass: HomeAssistant) -> None:
+    """TwinFry bleibt, wie sie war: kein Gären, Grill 205–240 °C."""
+    await setup(hass)
+    r = await _program_call(hass, programm="proof", temperatur=35, minuten=60)
+    assert r["ok"] is False and r["fehler"] == "programm_unbekannt"
+    assert "proof" not in hass.states.get(eid(hass, "select", "zone1_programm_waehlen")).attributes["options"]
+    assert _sends() == []

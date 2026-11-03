@@ -90,8 +90,8 @@ class ZoneSwitch(AirfryerEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         plan = get_plan(self.coordinator, self._cid, self._zone)
-        plan["temp"] = clamp_temp(plan["mode"], plan["temp"])
-        plan["minuten"] = clamp_minutes(plan["mode"], plan["minuten"])
+        plan["temp"] = clamp_temp(plan["mode"], plan["temp"], self.fryer.model)
+        plan["minuten"] = clamp_minutes(plan["mode"], plan["minuten"], self.fryer.model)
         try:
             results = await async_send(
                 self.coordinator,
