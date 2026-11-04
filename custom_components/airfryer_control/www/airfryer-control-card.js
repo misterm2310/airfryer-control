@@ -187,12 +187,12 @@ const BASE_CSS = `
   .ac-dlg h3 { margin:0 0 4px; display:flex; align-items:center; gap:8px; }
   .ac-dlg h3 span { flex:1; }
   .ac-modes { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
-  .ac-mode { border:2px solid transparent; border-radius:12px; background:var(--secondary-background-color, rgba(127,127,127,.12)); color:inherit; padding:10px 4px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font:inherit; font-size:.85em; }
-  .ac-mode.on { border-color:var(--primary-color); color:var(--primary-color); font-weight:600; }
+  .ac-mode { border:1.5px solid var(--divider-color, rgba(127,127,127,.35)); border-radius:12px; background:none; color:inherit; padding:10px 4px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font:inherit; font-size:.85em; }
+  .ac-mode.on { border-color:var(--primary-color); background:color-mix(in srgb, var(--primary-color) 15%, transparent); color:var(--primary-color); font-weight:600; } /* wie die Symbol-Auswahl der Einkaufsliste */
   .ac-mode ha-icon { --mdc-icon-size:24px; }
   .ac-step { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:10px 0; }
   .ac-step label { flex:1; opacity:.8; }
-  .ac-step button { width:44px; height:44px; border-radius:50%; border:none; background:var(--secondary-background-color, rgba(127,127,127,.12)); color:inherit; font-size:1.4rem; cursor:pointer; }
+  .ac-step button { width:44px; height:44px; border-radius:12px; border:1px solid var(--divider-color, rgba(127,127,127,.3)); background:none; color:inherit; font-size:1.4rem; cursor:pointer; }
   .ac-step b { min-width:84px; text-align:center; font-size:1.3rem; }
   .ac-big { width:100%; border:none; border-radius:12px; padding:14px; font-size:1.05rem; font-weight:700; color:#fff; background:var(--b, #43A047); cursor:pointer; margin-top:8px; }
   .ac-sync { margin:10px 0 0; padding:10px 12px; border-radius:12px; background:var(--secondary-background-color, rgba(127,127,127,.12)); font-size:.92em; }
