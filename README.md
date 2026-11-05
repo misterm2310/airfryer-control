@@ -51,7 +51,7 @@ Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https:
 
 ## 📦 Installation
 
-1. **HACS** öffnen → oben rechts **⋮ → Benutzerdefinierte Repositories**.
+1. **HACS** öffnen (ab Home Assistant 2026.11: **Einstellungen › Marketplace**) → oben rechts **⋮ → Benutzerdefinierte Repositories**.
 2. `https://github.com/misterm2310/airfryer-control` eintragen, Typ **Integration**, **Hinzufügen**.
 3. Nach **Airfryer Control** suchen → ⋮ → **Neu herunterladen** → neueste Version wählen → **Herunterladen**.
 4. **Home Assistant neu starten.**
@@ -129,7 +129,7 @@ Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flü
 
 **📋 Match und 🔗 Sync (in der Karte):** In der aufgeklappten Zone übernimmt **„Einstellungen auf Zone 2 übernehmen“** Programm, Temperatur und Zeit auf die andere Zone (Match). Darüber sagt dir ein Hinweis, **wann du die andere Zone starten sollst, damit beide gleichzeitig fertig werden** (Sync), z. B. „Zone 2 in 4 Min starten“. Ehrlich: Die Cosori-Cloud bietet dafür keine bekannten Befehle. Deshalb ist das **meine eigene Lösung**: Die Karte rechnet nur und kopiert Werte. Gestartet wird weiterhin von dir am Gerät. Für die Grandzone gibt es beides nicht.
 
-**🟰 Match senden / 🔗 Sync senden (neu, ungetestet):** In der aufgeklappten Zone gibt es zusätzlich zwei Knöpfe (und die Dienste `match_senden` / `sync_senden`), die Match bzw. Sync wie in der VeSync-App an die Fritteuse schicken – **nur bereitstellen** (Zone steht auf „Wartet auf Start“), gestartet wird am Gerät. Beim Sync bekommt die kürzere Zone eine Wartezeit (Zustand „Wartet auf Sync-Start“ mit Restzeit). ⚠️ Ehrlich: Den genauen App-Befehl habe ich nicht mitgeschnitten, er ist nach dem beobachteten Zustand der Fritteuse **nachgebaut** (`startMultiCook` mit `syncType` 1/2) und **noch nicht an der echten Fritteuse geprüft**. Bitte erst mit kurzer Zeit und neben der Fritteuse probieren.
+**🟰 Match senden / 🔗 Sync senden:** In der aufgeklappten Zone gibt es zusätzlich zwei Knöpfe (und die Dienste `match_senden` / `sync_senden`), die Match bzw. Sync wie in der VeSync-App an die Fritteuse schicken – **nur bereitstellen** (Zone steht auf „Wartet auf Start“), gestartet wird am Gerät. Match nimmt die Werte der Zone, in der du gerade bist. Beim Sync bekommt die kürzere Zone eine Wartezeit (Zustand „Wartet auf Sync-Start“ mit Restzeit). **Arbeitet eine Zone gerade, wird nichts gesendet** – die Fritteuse wird nie mittendrin umgestellt. ⚠️ Ehrlich: Den App-Befehl habe ich nachgebaut (`startMultiCook` mit `syncType` 1/2). An einer **Turbo Tower Pro** wurde er getestet, an der **TwinFry noch nicht**.
 
 > 🧪 Die Karten sind noch **Beta** – wenn etwas hakt, sag Bescheid (Fehler melden, siehe unten).
 
@@ -258,8 +258,8 @@ actions:
 | `airfryer_control.garen_beenden` | Stopp. |
 | `airfryer_control.programm_senden` | **Für alle Nutzer** (auch ohne Admin-Rechte, z. B. für die Einkaufsliste): schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse – **nur zum Bereitstellen**, sie startet nie von selbst. Temperatur und Zeit werden auf den Bereich des Programms gesetzt. Ohne `geraet` wird die einzige Fritteuse genommen. Antwort: `ok`, `ergebnis` und bei Fehler `fehler`/`code`. Extras für andere Integrationen siehe unten. |
 | `airfryer_control.faehigkeiten` | **Für alle Nutzer, nur lesen:** Programme, Temperatur- und Zeitgrenzen und Zonen einer Fritteuse – jeweils mit Angabe, ob **bestätigt** oder nur **geschätzt**. Dazu `verbindung`, `letzte_meldung` und `revision`. |
-| `airfryer_control.match_senden` | **Match:** schickt Programm, Temperatur und Zeit von Zone 1 an beide Zonen. Nur bereitstellen – gestartet wird am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
-| `airfryer_control.sync_senden` | **Sync:** schickt beide Zonen mit ihren Zeiten; die kürzere Zone wartet (Zustand „Wartet auf Sync-Start“), damit beide zusammen fertig werden. Nur bereitstellen – Start am Gerät. ⚠️ Noch nicht an der echten Fritteuse bestätigt. |
+| `airfryer_control.match_senden` | **Match:** schickt Programm, Temperatur und Zeit einer Zone (`quelle`, Standard 1) an beide Zonen. Nur bereitstellen – gestartet wird am Gerät. Arbeitet eine Zone, wird nichts gesendet. Extras siehe „Für andere Integrationen“. |
+| `airfryer_control.sync_senden` | **Sync:** schickt beide Zonen mit ihren Zeiten; die kürzere Zone wartet (Zustand „Wartet auf Sync-Start“), damit beide zusammen fertig werden. Nur bereitstellen – Start am Gerät. Arbeitet eine Zone, wird nichts gesendet. Extras siehe „Für andere Integrationen“. |
 | `airfryer_control.befehl_senden` | **Für Bastler, nur Admins:** schickt einen App-Befehl (z. B. `getAirfryerMultiStatus`) und zeigt die Antwort – ohne Konto-Daten. Damit finden wir in der Beta heraus, was die Fritteuse alles versteht. |
 
 </details>
@@ -284,6 +284,18 @@ Andere Integrationen sollen **nicht** an der Cloud vorbei bauen. Sie benutzen ei
 | `angenommen` | Die Cloud hat den Befehl angenommen. Ob die Werte am Gerät stehen, sagt erst `bestaetigt`. |
 | `abgelehnt` | Sicher **nicht** ausgeführt (Fehlercode, Fritteuse offline, Anmeldung abgelaufen, außerhalb der Grenzen). |
 | `unbekannt` | Verbindung weg, Zeitüberschreitung oder die Fritteuse antwortet nicht rechtzeitig: Der Befehl **kann** angekommen sein. Es wird dann **nie** automatisch eine weitere Schreibweise geschickt – erst an der Fritteuse nachsehen. |
+
+**`match_senden` / `sync_senden` – Extras (alle freiwillig):**
+
+| Feld | Was es tut |
+|---|---|
+| `zone1`, `zone2` | Eigene Werte pro Zone, z. B. `{programm: airfry, temperatur: 200, minuten: 12}`. Ohne sie gelten die Einstellungen der Karte. Sync braucht beide oder keine. |
+| `quelle` | Nur Match: Von welcher Zone (1 oder 2) die Werte kommen. Standard 1. |
+| `einmal: true` | Genau ein Befehl, keine Wiederholung nach neuer Anmeldung. |
+| `streng: true` | Werte außerhalb der Grenzen werden abgelehnt statt angepasst. |
+| `zuruecksetzen: false` | Schon vorbereitete Zonen **nicht** zurücksetzen, sondern abbrechen (`fehler: zone_vorbereitet`). |
+
+**Antwort:** `ok`, `ergebnis` (`angenommen`/`abgelehnt`/`unbekannt`), `art` (`match`/`sync`), `gesendet` (Werte je Zone), `revision_vorher`, bei Fehler `fehler`. Mögliche `fehler`: `zone_arbeitet` (eine Zone kocht gerade – nichts gesendet), `zone_vorbereitet`, `zuruecksetzen_dauert`, `offline`, `beide_zonen_noetig`, `quelle_fehlt`, `programm_unbekannt`, `ausserhalb_grenzen`. Ohne Antwort-Abfrage (normale Automation) gibt es wie bisher eine Fehlermeldung.
 
 **Wie frisch sind die Daten?** Der Status-Sensor der Fritteuse und jeder Zonen-Status haben die Attribute `letzte_meldung` (Zeitpunkt der letzten echten Antwort), `verbindung` (`ok`, `offline`, `fehler`) und `revision` (zählt hoch, sobald sich die Antwort der Fritteuse ändert – praktisch, um Änderungen zwischen Vorschau und Bestätigung zu erkennen). Zonen haben zusätzlich `gemeldet`: `false` heißt, die Fritteuse hat diese Zone gerade **gar nicht** gemeldet. Der Zustand zeigt dann aus Gewohnheit „Bereit“ (damit bestehende Automationen nicht brechen), ist aber nicht bestätigt.
 
@@ -327,7 +339,7 @@ Kurz: **inoffiziell**, **kein Start aus der Ferne** (sperrt Cosori in der EU), u
 - **Inoffiziell.** Cosori/VeSync bieten keine offene Schnittstelle. Ändern sie etwas am Server, kann die Integration ausfallen, bis sie angepasst ist.
 - **Starten aus der Ferne:** In der EU erlaubt Cosori das **nicht** – darum gibt es keinen Start-Knopf. „Senden“ weckt die Fritteuse nur auf; gestartet wird am Gerät.
 - **„Senden“ ist neu.** Der Befehl (`startMultiCook` mit `readyStart: true`) stammt von einer Schwester-Fritteuse (Cosori Turbo Tower Pro, pyvesync). An der TwinFry stellt er das Programm bereit; die Zone steht dann auf „Wartet auf Start“ und wartet auf den Start-Knopf am Gerät. Bestätigt ist bisher nur das Programm **Heißluft (AirFry)**; bei Backen, Braten, Grillen, Aufwärmen und Dörren ist die Rezept-Nummer geraten. ⚠️ Mit `readyStart: false` **startet** die TwinFry sofort – das schickt die Integration nie von selbst (nur im Dienst „Senden testen“ mit `variante: multi_app_startet`).
-- **Match/Sync und schon vorbereitete Zonen:** Hast du vorher einzelne Zonen mit „Senden“ vorbereitet, setzt die Integration diese (und **nur** diese, nie eine laufende Zone) vor Match/Sync zurück. Gemeldet an einer Turbo Tower Pro Smart; ob das Zurücksetzen dort klappt, ist noch nicht bestätigt. Läuft irgendeine Zone, wird nichts beendet.
+- **Match/Sync und schon vorbereitete Zonen:** Hast du vorher einzelne Zonen mit „Senden“ vorbereitet, setzt die Integration diese (und **nur** diese) vor Match/Sync zurück. Gemeldet an einer Turbo Tower Pro Smart. **Arbeitet irgendeine Zone, wird gar nichts gesendet und nichts beendet.**
 - **Pausieren/Fortsetzen:** Den Befehl dafür kennen wir noch nicht sicher – darum gibt es (noch) keinen Knopf.
 - **Zone einzeln beenden und Temperatur/Zeit ändern** schicken die Befehle so, wie die App es nach heutigem Wissen tut (`endCook` mit Zone, `setTimeOrTemp`). An der echten TwinFry ist das noch **nicht ausprobiert**. Lehnt sie ab, bekommst du eine Meldung mit dem Grund.
 - **Feldnamen:** Den Stillstand der TwinFry kennen wir aus einer echten Antwort, die Werte **während des Garens** noch nicht. Zeigt ein Sensor Quatsch, schau in `sensor.…_rohdaten` – dort steht, was die Fritteuse wirklich geschickt hat.
@@ -368,7 +380,7 @@ Daraus kann das Modell sauber eingebaut werden. Ohne diese Daten wäre es gerate
 
 **Mein Modell wird nicht gefunden.** Dann ist es keine Fritteuse laut Cloud (Gerätetyp beginnt nicht mit CA/CS). Mach ein Issue auf, mit Modellnummer vom Typenschild.
 
-**Wann kommen neue Versionen?** Offizielle Versionen immer **sonntags**. An den anderen Tagen gibt es nur **Test-Versionen (Beta)**. Die siehst du in HACS, wenn du ⋮ → „Neu herunterladen“ wählst und **„Beta-Versionen anzeigen“** einschaltest.
+**Wann kommen neue Versionen?** Offizielle Versionen immer **sonntags**. An den anderen Tagen gibt es nur **Test-Versionen (Beta)**. Die siehst du in HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace), wenn du ⋮ → „Neu herunterladen“ wählst und **„Beta-Versionen anzeigen“** einschaltest.
 
 ---
 

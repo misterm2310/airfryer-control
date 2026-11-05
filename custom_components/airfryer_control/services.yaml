@@ -79,18 +79,72 @@ befehl_senden:
 match_senden:
   fields:
     geraet:
-      required: true
+      required: false
       selector:
         device:
           integration: airfryer_control
+    zone1:
+      example: '{"programm": "airfry", "temperatur": 200, "minuten": 15}'
+      selector:
+        object:
+    zone2:
+      example: '{"programm": "bake", "temperatur": 180, "minuten": 10}'
+      selector:
+        object:
+    quelle:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+    einmal:
+      default: false
+      selector:
+        boolean:
+    streng:
+      default: false
+      selector:
+        boolean:
+    zuruecksetzen:
+      default: true
+      selector:
+        boolean:
 
 sync_senden:
   fields:
     geraet:
-      required: true
+      required: false
       selector:
         device:
           integration: airfryer_control
+    zone1:
+      example: '{"programm": "airfry", "temperatur": 200, "minuten": 15}'
+      selector:
+        object:
+    zone2:
+      example: '{"programm": "bake", "temperatur": 180, "minuten": 10}'
+      selector:
+        object:
+    quelle:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+    einmal:
+      default: false
+      selector:
+        boolean:
+    streng:
+      default: false
+      selector:
+        boolean:
+    zuruecksetzen:
+      default: true
+      selector:
+        boolean:
 
 programm_senden:
   fields:

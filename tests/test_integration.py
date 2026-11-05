@@ -697,7 +697,8 @@ async def test_sidebar_option_registers_and_removes_panel(hass: HomeAssistant, f
     assert PANEL_URL_PATH not in hass.data[frontend.DATA_PANELS]
 
 
-async def test_match_and_sync_services_only_prepare(hass: HomeAssistant) -> None:
+async def test_match_and_sync_services_only_prepare(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("standby")  # beide Zonen frei
     await setup(hass)
     device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
     for name, sync in (("match_senden", 1), ("sync_senden", 2)):
@@ -832,13 +833,16 @@ async def test_sync_resets_prepared_zone_first(hass: HomeAssistant, fake_api, mo
 
 
 async def test_sync_never_ends_running_zone(hass: HomeAssistant, fake_api) -> None:
-    """Läuft eine Zone, wird nichts beendet – die Fritteuse entscheidet selbst."""
+    """Issue #6: Läuft eine Zone, wird nichts beendet UND nichts gesendet – mit klarer Meldung."""
+    from homeassistant.exceptions import HomeAssistantError
+
     fake_api.multi = real_twinfry("cooking", remaining=600, set_time=600, temp=180)
     device = await _sync_device(hass)
-    await hass.services.async_call(DOMAIN, "sync_senden", {"geraet": device.id}, blocking=True)
+    with pytest.raises(HomeAssistantError, match="Zone 1 arbeitet gerade"):
+        await hass.services.async_call(DOMAIN, "sync_senden", {"geraet": device.id}, blocking=True)
     api = FakeApi.instances[-1]
     assert not [c for c in api.calls if c[0] == "endCook"]
-    assert [c for c in api.calls if c[0] == "startMultiCook"]
+    assert not [c for c in api.calls if c[0] == "startMultiCook"]
 
 
 async def test_sync_reset_failure_gives_clear_error(hass: HomeAssistant, fake_api) -> None:
@@ -1037,3 +1041,110 @@ async def test_twinfry_has_no_proof(hass: HomeAssistant) -> None:
     assert r["ok"] is False and r["fehler"] == "programm_unbekannt"
     assert "proof" not in hass.states.get(eid(hass, "select", "zone1_programm_waehlen")).attributes["options"]
     assert _sends() == []
+
+
+# ------------------------------------------------- Match/Sync für andere Integrationen (Issue #6)
+async def _sync_call(hass: HomeAssistant, name: str = "sync_senden", **extra) -> dict[str, Any]:
+    return await hass.services.async_call(
+        DOMAIN, name, extra, blocking=True, return_response=True
+    )
+
+
+async def test_sync_busy_zone_answer_instead_of_error(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("cooking", remaining=600, set_time=600, temp=180)
+    await setup(hass)
+    res = await _sync_call(hass)
+    assert res["ok"] is False and res["ergebnis"] == "abgelehnt" and res["fehler"] == "zone_arbeitet"
+    assert _sends() == []
+
+
+async def test_sync_without_reset_aborts_on_prepared_zone(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("ready", remaining=600, set_time=600, temp=180)
+    await setup(hass)
+    res = await _sync_call(hass, zuruecksetzen=False)
+    assert res["fehler"] == "zone_vorbereitet"
+    api = FakeApi.instances[-1]
+    assert not [c for c in api.calls if c[0] in ("endCook", "startMultiCook")]
+
+
+async def test_sync_reset_that_never_clears_aborts(hass: HomeAssistant, fake_api, monkeypatch) -> None:
+    """Bleibt die Zone nach dem Zurücksetzen vorbereitet, wird NICHT trotzdem gesendet."""
+    from custom_components.airfryer_control import senden
+
+    monkeypatch.setattr(senden, "RESET_WAIT_SECONDS", 0)
+    fake_api.multi = real_twinfry("ready", remaining=600, set_time=600, temp=180)
+    await setup(hass)
+    res = await _sync_call(hass)
+    assert res["fehler"] == "zuruecksetzen_dauert"
+    assert _sends() == []
+
+
+async def test_sync_with_own_values_per_zone(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("standby")
+    await setup(hass)
+    res = await _sync_call(
+        hass,
+        zone1={"programm": "airfry", "temperatur": 200, "minuten": 15},
+        zone2={"programm": "bake", "temperatur": 160, "minuten": 10},
+        einmal=True,
+    )
+    assert res["ok"] is True and res["ergebnis"] == "angenommen" and res["art"] == "sync"
+    sent = _sends()[-1][1]
+    cfg = {c["chamber"]: c for c in sent["cookConfigs"]}
+    assert cfg[1]["cookTemp"] == 200 and cfg[1]["cookSetTime"] == 900 and cfg[1]["holdTime"] == 0
+    assert cfg[2]["mode"] == "Bake" and cfg[2]["cookTemp"] == 160 and cfg[2]["holdTime"] == 300
+    api = FakeApi.instances[-1]
+    assert [r for c, r in zip(api.calls, api.retries) if c[0] == "startMultiCook"] == [False]
+    assert res["gesendet"]["zone2"] == {"programm": "bake", "temperatur": 160, "minuten": 10}
+
+
+async def test_sync_needs_both_zones_or_none(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("standby")
+    await setup(hass)
+    res = await _sync_call(hass, zone1={"programm": "airfry", "temperatur": 200, "minuten": 15})
+    assert res["fehler"] == "beide_zonen_noetig" and _sends() == []
+
+
+async def test_match_source_zone_2(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("standby")
+    await setup(hass)
+    res = await _sync_call(
+        hass, "match_senden", quelle=2, zone2={"programm": "roast", "temperatur": 190, "minuten": 25}
+    )
+    assert res["ok"] is True and res["art"] == "match"
+    cfgs = _sends()[-1][1]["cookConfigs"]
+    assert [c["cookTemp"] for c in cfgs] == [190, 190] and [c["chamber"] for c in cfgs] == [1, 2]
+    # Quelle angegeben, aber ihre Werte fehlen → nichts senden
+    res = await _sync_call(hass, "match_senden", quelle=1, zone2={"programm": "roast", "temperatur": 190, "minuten": 25})
+    assert res["fehler"] == "quelle_fehlt"
+
+
+async def test_sync_strict_rejects_instead_of_clamping(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("standby")
+    await setup(hass)
+    values = {
+        "zone1": {"programm": "airfry", "temperatur": 240, "minuten": 15},
+        "zone2": {"programm": "bake", "temperatur": 160, "minuten": 10},
+    }
+    res = await _sync_call(hass, streng=True, **values)
+    assert res["fehler"] == "ausserhalb_grenzen" and res["zone"] == 1 and _sends() == []
+    res = await _sync_call(hass, **values)  # ohne „streng“ wie bisher angepasst
+    assert res["ok"] is True and res["gesendet"]["zone1"]["temperatur"] == 205
+
+
+async def test_sync_unknown_program_for_model(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("standby")
+    await setup(hass)  # TwinFry kennt kein Gären
+    res = await _sync_call(
+        hass, "match_senden", zone1={"programm": "proof", "temperatur": 35, "minuten": 60}
+    )
+    assert res["fehler"] == "programm_unbekannt" and _sends() == []
+
+
+async def test_sync_connection_lost_is_unknown(hass: HomeAssistant, fake_api) -> None:
+    fake_api.multi = real_twinfry("standby")
+    FakeApi.timeout = {"startMultiCook"}
+    await setup(hass)
+    res = await _sync_call(hass, einmal=True)
+    assert res["ok"] is False and res["ergebnis"] == "unbekannt"
+    assert len(_sends()) == 1

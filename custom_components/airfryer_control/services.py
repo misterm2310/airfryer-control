@@ -26,7 +26,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
-from .core.api import CODE_DEVICE_TIMEOUT, AirfryerError
+from .core.api import CODE_DEVICE_TIMEOUT, AirfryerConnectionError, AirfryerError
 from .const import (
     DOMAIN,
     SERVICE_CAPABILITIES,
@@ -44,14 +44,17 @@ from .core.parser import zone_view
 from .faehigkeiten import capabilities, outside_limits
 from .modelle import ALL_MODES, modes_for
 from .senden import (
+    RESULT_ACCEPTED,
     RESULT_REJECTED,
     RESULT_UNKNOWN,
     SAFE_VARIANTS,
+    SyncBlocked,
     async_end,
     async_send,
     async_send_sync,
     clamp_minutes,
     clamp_temp,
+    sync_plans,
 )
 from .core.util import redact
 
@@ -67,6 +70,10 @@ ATTR_DATA = "daten"
 ATTR_ONCE = "einmal"
 ATTR_STRICT = "streng"
 ATTR_CONFIRM = "bestaetigen"
+ATTR_ZONE1 = "zone1"
+ATTR_ZONE2 = "zone2"
+ATTR_SOURCE = "quelle"
+ATTR_RESET = "zuruecksetzen"
 
 # „bestätigen“: so oft und so lange nachsehen, ob die Werte an der Zone angekommen sind
 CONFIRM_TRIES = 3
@@ -97,6 +104,26 @@ PROGRAM_SCHEMA = vol.Schema(
         vol.Optional(ATTR_ONCE, default=False): cv.boolean,
         vol.Optional(ATTR_STRICT, default=False): cv.boolean,
         vol.Optional(ATTR_CONFIRM, default=False): cv.boolean,
+    }
+)
+ZONE_VALUES = vol.Schema(
+    {
+        vol.Required(ATTR_MODE): vol.In(list(ALL_MODES)),
+        vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
+        vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=5000)),
+    }
+)
+SYNC_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Optional(ATTR_ZONE1): ZONE_VALUES,
+        vol.Optional(ATTR_ZONE2): ZONE_VALUES,
+        # Match: von welcher Zone die Werte für beide kommen
+        vol.Optional(ATTR_SOURCE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2])),
+        vol.Optional(ATTR_ONCE, default=False): cv.boolean,
+        vol.Optional(ATTR_STRICT, default=False): cv.boolean,
+        # true (wie bisher) = vorbereitete Zonen vorher zurücksetzen; false = dann abbrechen
+        vol.Optional(ATTR_RESET, default=True): cv.boolean,
     }
 )
 CAPABILITIES_SCHEMA = vol.Schema({vol.Optional(ATTR_DEVICE): cv.string})
@@ -133,20 +160,73 @@ async def _stop(call: ServiceCall) -> None:
     await coordinator.async_request_fast_refresh()
 
 
-async def _send_sync(call: ServiceCall, sync_type: int) -> None:
-    coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
+async def _send_sync(call: ServiceCall, sync_type: int) -> ServiceResponse:
+    """Match (1) oder Sync (2) bereitstellen – nie starten.
+
+    Ohne Extras wie bisher: Werte aus den Zonen-Eingaben, vorbereitete Zonen werden
+    vorher zurückgesetzt, ein Fehler erscheint als Meldung. Mit ``return_response``
+    gibt es statt der Meldung eine Antwort mit ``ergebnis``.
+    """
+    coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    base: dict[str, Any] = {"art": "match" if sync_type == 1 else "sync", "revision_vorher": fryer.revision}
+    values = {
+        zone: (v[ATTR_MODE], v[ATTR_TEMP], v[ATTR_MINUTES])
+        for zone, key in ((1, ATTR_ZONE1), (2, ATTR_ZONE2))
+        if (v := call.data.get(key))
+    }
+    source = call.data[ATTR_SOURCE]
+    if sync_type == 2 and len(values) == 1:
+        return _sync_fail(call, {**base, "fehler": "beide_zonen_noetig"},
+                          "Für Sync bitte Werte für beide Zonen angeben (zone1 und zone2) – oder keine.")
+    if sync_type == 1 and values and source not in values:
+        return _sync_fail(call, {**base, "fehler": "quelle_fehlt"},
+                          f"Für Match fehlen die Werte der Quelle (zone{source}).")
+    for zone, (mode, _t, _m) in values.items():
+        if mode not in modes_for(fryer.model):
+            return _sync_fail(call, {**base, "fehler": "programm_unbekannt", "zone": zone},
+                              f"Das Programm „{mode}“ gibt es an diesem Modell nicht (Zone {zone}).")
     try:
-        await async_send_sync(coordinator, fryer, sync_type)
+        plans = sync_plans(
+            coordinator, fryer, sync_type, values, source=source, strict=call.data[ATTR_STRICT]
+        )
+    except ValueError as err:
+        zone, limits = err.args
+        return _sync_fail(call, {**base, "fehler": "ausserhalb_grenzen", "zone": zone, "grenzen": limits},
+                          f"Zone {zone}: Werte außerhalb der Grenzen {limits}. Nichts gesendet.")
+    sent = {
+        f"zone{zone}": {"programm": p[0], "temperatur": p[1], "minuten": p[2]}
+        for zone, p in ((1, plans[0]), (2, plans[1]))
+    }
+    try:
+        await async_send_sync(
+            coordinator, fryer, sync_type, plans=plans,
+            once=call.data[ATTR_ONCE], reset=call.data[ATTR_RESET],
+        )
+    except SyncBlocked as err:
+        return _sync_fail(call, {**base, "fehler": err.reason}, str(err))
     except AirfryerError as err:
-        raise HomeAssistantError(f"Fritteuse hat Match/Sync abgelehnt: {err}") from err
+        unknown = isinstance(err, AirfryerConnectionError) or err.code == CODE_DEVICE_TIMEOUT
+        answer = {**base, "ergebnis": RESULT_UNKNOWN if unknown else RESULT_REJECTED,
+                  "fehler": str(err), "code": err.code, "gesendet": sent}
+        return _sync_fail(call, answer, f"Fritteuse hat Match/Sync abgelehnt: {err}")
+    if not call.return_response:
+        return None
+    return {**base, "ok": True, "ergebnis": RESULT_ACCEPTED, "gesendet": sent}
 
 
-async def _match(call: ServiceCall) -> None:
-    await _send_sync(call, 1)
+def _sync_fail(call: ServiceCall, answer: dict[str, Any], message: str) -> ServiceResponse:
+    """Ohne Antwort-Wunsch wie bisher eine Meldung, sonst eine Antwort mit ``ergebnis``."""
+    if not call.return_response:
+        raise HomeAssistantError(message)
+    return {"ok": False, "ergebnis": RESULT_REJECTED, **answer}
 
 
-async def _sync(call: ServiceCall) -> None:
-    await _send_sync(call, 2)
+async def _match(call: ServiceCall) -> ServiceResponse:
+    return await _send_sync(call, 1)
+
+
+async def _sync(call: ServiceCall) -> ServiceResponse:
+    return await _send_sync(call, 2)
 
 
 def _find_any(hass: HomeAssistant, device_id: str | None) -> tuple[AirfryerCoordinator, FryerData]:
@@ -332,8 +412,12 @@ def async_register_services(hass: HomeAssistant) -> None:
         schema=CAPABILITIES_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
-    hass.services.async_register(DOMAIN, SERVICE_MATCH, _match, schema=STOP_SCHEMA)
-    hass.services.async_register(DOMAIN, SERVICE_SYNC, _sync, schema=STOP_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, SERVICE_MATCH, _match, schema=SYNC_SCHEMA, supports_response=SupportsResponse.OPTIONAL
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SYNC, _sync, schema=SYNC_SCHEMA, supports_response=SupportsResponse.OPTIONAL
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_TEST,

@@ -186,18 +186,46 @@ def _zone_status(fryer: FryerData, zone: int) -> str | None:
     return zs.status if zs else None
 
 
-async def _reset_prepared_zones(coordinator: AirfryerCoordinator, fryer: FryerData) -> None:
-    """Vorbereitete (nicht gestartete) Zonen zurücksetzen, damit Match/Sync angenommen wird.
+class SyncBlocked(AirfryerError):
+    """Match/Sync geht gerade nicht (Zone arbeitet, vorbereitete Zone, offline) – nichts gesendet."""
 
-    Sicherung: Nur wenn **keine** Zone arbeitet. Beendet wird nur, was auf „Wartet auf Start“
-    (oder „Wartet auf Sync“) steht – nie etwas, das schon läuft.
+    def __init__(self, message: str, reason: str) -> None:
+        super().__init__(message)
+        self.reason = reason
+
+
+async def _check_and_reset(
+    coordinator: AirfryerCoordinator, fryer: FryerData, *, reset: bool
+) -> None:
+    """Vor Match/Sync prüfen – und vorbereitete Zonen nur zurücksetzen, wenn ``reset`` an ist.
+
+    Für Doofe: Arbeitet eine Zone (heizt, gart, pausiert, Schublade offen), wird
+    NICHTS gesendet und NICHTS beendet – es gibt eine klare Meldung (SyncBlocked).
+    Vorbereitete (noch nicht gestartete) Zonen lehnt die Fritteuse bei Match/Sync ab
+    (Code 11912000). Mit ``reset`` werden nur diese zurückgesetzt; klappt das nicht
+    rechtzeitig, wird ebenfalls abgebrochen statt trotzdem zu senden.
     """
     await coordinator.async_refresh()  # aktuellen Stand holen, nicht den von vor einer Minute
+    if not fryer.online:
+        raise SyncBlocked("Die Fritteuse ist offline – Match/Sync wurde nicht gesendet.", "offline")
     zones = (1, 2)
     states = {z: _zone_status(fryer, z) for z in zones}
-    if any(st in BUSY for st in states.values()):
-        return  # irgendwas arbeitet: nichts anfassen, die Fritteuse entscheidet selbst
+    busy = [z for z in zones if states[z] in BUSY]
+    if busy:
+        names = " und ".join(f"Zone {z}" for z in busy)
+        raise SyncBlocked(
+            f"{names} {'arbeiten' if len(busy) > 1 else 'arbeitet'} gerade – Match/Sync geht erst, wenn beide Zonen frei sind. Nichts gesendet.",
+            "zone_arbeitet",
+        )
     todo = [z for z in zones if states[z] in PREPARED]
+    if not todo:
+        return
+    if not reset:
+        names = " und ".join(f"Zone {z}" for z in todo)
+        raise SyncBlocked(
+            f"{names} {'sind' if len(todo) > 1 else 'ist'} schon vorbereitet. Ohne „zuruecksetzen“ wird nichts gesendet.",
+            "zone_vorbereitet",
+        )
     for z in todo:
         try:
             await coordinator.api.bypass_v2(fryer.info, "endCook", {"chamber": z})
@@ -209,35 +237,80 @@ async def _reset_prepared_zones(coordinator: AirfryerCoordinator, fryer: FryerDa
             raise AirfryerError(
                 f"Das vorbereitete Programm in Zone {z} ließ sich nicht zurücksetzen: {err}", err.code
             ) from err
-    if not todo:
-        return
     for _ in range(RESET_TRIES):  # warten, bis beide Zonen wieder frei sind
         await asyncio.sleep(RESET_WAIT_SECONDS)
         await coordinator.async_refresh()
         if not any(_zone_status(fryer, z) in PREPARED for z in zones):
             return
+    raise SyncBlocked(
+        "Die vorbereiteten Zonen sind nach dem Zurücksetzen noch nicht frei – Match/Sync wurde nicht gesendet.",
+        "zuruecksetzen_dauert",
+    )
+
+
+def sync_plans(
+    coordinator: AirfryerCoordinator,
+    fryer: FryerData,
+    sync_type: int,
+    values: dict[int, tuple[str, int, int]] | None = None,
+    *,
+    source: int = 1,
+    strict: bool = False,
+) -> tuple[tuple[str, int, int], tuple[str, int, int]]:
+    """Werte für Zone 1 und 2: übergeben (``values``) oder aus den Eingaben der Karte.
+
+    Match: die Werte der Quell-Zone gelten für beide. Mit ``strict`` wird nichts still
+    angepasst – Werte außerhalb der Grenzen werfen ValueError(zone, grenzen).
+    """
+    from .faehigkeiten import outside_limits  # spät laden: faehigkeiten importiert senden
+
+    values = values or {}
+    plans: dict[int, tuple[str, int, int]] = {}
+    for zone in (1, 2):
+        if zone in values:
+            mode, temp, minutes = values[zone]
+        else:
+            plan = get_plan(coordinator, fryer.cid, zone)
+            mode, temp, minutes = plan["mode"], int(plan["temp"]), int(plan["minuten"])
+        plans[zone] = (mode, temp, minutes)
+    if sync_type == 1:
+        plans = {1: plans[source], 2: plans[source]}
+    checked: dict[int, tuple[str, int, int]] = {}
+    for zone, (mode, temp, minutes) in plans.items():
+        if strict:
+            limits = outside_limits(mode, temp, minutes, fryer.model)
+            if limits is not None:
+                raise ValueError(zone, limits)
+            checked[zone] = (mode, temp, minutes)
+        else:
+            checked[zone] = (
+                mode,
+                clamp_temp(mode, temp, fryer.model),
+                clamp_minutes(mode, minutes, fryer.model),
+            )
+    return checked[1], checked[2]
 
 
 async def async_send_sync(
-    coordinator: AirfryerCoordinator, fryer: FryerData, sync_type: int
+    coordinator: AirfryerCoordinator,
+    fryer: FryerData,
+    sync_type: int,
+    *,
+    plans: tuple[tuple[str, int, int], tuple[str, int, int]] | None = None,
+    once: bool = False,
+    reset: bool = True,
 ) -> dict[str, Any]:
-    """Match/Sync mit den Werten der beiden Zonen-Eingaben bereitstellen.
+    """Match/Sync bereitstellen (nie starten). Ohne ``plans``: die Werte der Zonen-Eingaben.
 
-    Für Doofe: Hat man vorher einzelne Zonen mit „Senden“ vorbereitet, lehnt die Fritteuse
-    Match/Sync ab (Code 11912000, gemeldet an einer Turbo Tower Pro Smart). Darum werden
-    zuerst nur **vorbereitete, noch nicht gestartete** Zonen zurückgesetzt. Läuft irgendeine
-    Zone (heizt, gart, pausiert, Schublade offen), wird NICHTS beendet.
+    Wirft SyncBlocked, wenn gerade nichts gesendet werden darf (dann ist auch nichts
+    rausgegangen). Mit ``once`` keine Wiederholung nach neuer Anmeldung.
     """
-    cid = fryer.cid
-    await _reset_prepared_zones(coordinator, fryer)
-    plans = []
-    for zone in (1, 2):
-        plan = get_plan(coordinator, cid, zone)
-        plans.append(
-            (plan["mode"], clamp_temp(plan["mode"], plan["temp"], fryer.model), clamp_minutes(plan["mode"], int(plan["minuten"]), fryer.model))
-        )
+    await _check_and_reset(coordinator, fryer, reset=reset)
+    if plans is None:
+        plans = sync_plans(coordinator, fryer, sync_type)
     payload = build_sync_payload(coordinator.api.account_id, sync_type, plans[0], plans[1])
-    answer = await coordinator.api.bypass_v2(fryer.info, "startMultiCook", payload)
+    extra = {"retry": False} if once else {}
+    answer = await coordinator.api.bypass_v2(fryer.info, "startMultiCook", payload, **extra)
     await coordinator.async_request_fast_refresh()
     return redact(answer) if isinstance(answer, dict) else {"antwort": answer}
 

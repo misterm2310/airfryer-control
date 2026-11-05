@@ -279,21 +279,69 @@
     },
     "match_senden": {
       "name": "Match senden",
-      "description": "Schickt die Werte von Zone 1 an beide Zonen (Match). Nur bereitstellen – gestartet wird am Gerät. Noch nicht an der echten Fritteuse bestätigt.",
+      "description": "Schickt die Werte einer Zone (Standard Zone 1) an beide Zonen (Match). Nur bereitstellen – gestartet wird am Gerät. Arbeitet eine Zone gerade, wird nichts gesendet. An einer Turbo Tower Pro getestet, an der TwinFry noch nicht.",
       "fields": {
         "geraet": {
           "name": "Fritteuse",
-          "description": "Welche Fritteuse?"
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "zone1": {
+          "name": "Werte Zone 1",
+          "description": "Freiwillig: Programm, Temperatur und Minuten für Zone 1, z. B. {\"programm\": \"airfry\", \"temperatur\": 200, \"minuten\": 15}. Leer = die in Home Assistant eingestellten Werte."
+        },
+        "zone2": {
+          "name": "Werte Zone 2",
+          "description": "Freiwillig: wie Zone 1, für Zone 2. Sync braucht beide oder keine."
+        },
+        "quelle": {
+          "name": "Quelle (Match)",
+          "description": "Nur Match: Von welcher Zone kommen die Werte für beide Zonen? Standard 1."
+        },
+        "einmal": {
+          "name": "Nur einmal",
+          "description": "An = genau ein Befehl, keine automatische Wiederholung nach neuer Anmeldung."
+        },
+        "streng": {
+          "name": "Streng",
+          "description": "An = Werte außerhalb der Grenzen ablehnen statt still anzupassen."
+        },
+        "zuruecksetzen": {
+          "name": "Vorbereitete Zonen zurücksetzen",
+          "description": "An (Standard, wie bisher) = vorbereitete, noch nicht gestartete Zonen werden vorher zurückgesetzt. Aus = dann wird nichts gesendet, und du bekommst eine Antwort."
         }
       }
     },
     "sync_senden": {
       "name": "Sync senden",
-      "description": "Schickt beide Zonen mit ihren Zeiten (Sync): beide werden zusammen fertig. Nur bereitstellen – gestartet wird am Gerät. Noch nicht an der echten Fritteuse bestätigt.",
+      "description": "Schickt beide Zonen mit ihren Zeiten (Sync): beide werden zusammen fertig. Nur bereitstellen – gestartet wird am Gerät. Arbeitet eine Zone gerade, wird nichts gesendet. An einer Turbo Tower Pro getestet, an der TwinFry noch nicht.",
       "fields": {
         "geraet": {
           "name": "Fritteuse",
-          "description": "Welche Fritteuse?"
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "zone1": {
+          "name": "Werte Zone 1",
+          "description": "Freiwillig: Programm, Temperatur und Minuten für Zone 1, z. B. {\"programm\": \"airfry\", \"temperatur\": 200, \"minuten\": 15}. Leer = die in Home Assistant eingestellten Werte."
+        },
+        "zone2": {
+          "name": "Werte Zone 2",
+          "description": "Freiwillig: wie Zone 1, für Zone 2. Sync braucht beide oder keine."
+        },
+        "quelle": {
+          "name": "Quelle (Match)",
+          "description": "Nur Match: Von welcher Zone kommen die Werte für beide Zonen? Standard 1."
+        },
+        "einmal": {
+          "name": "Nur einmal",
+          "description": "An = genau ein Befehl, keine automatische Wiederholung nach neuer Anmeldung."
+        },
+        "streng": {
+          "name": "Streng",
+          "description": "An = Werte außerhalb der Grenzen ablehnen statt still anzupassen."
+        },
+        "zuruecksetzen": {
+          "name": "Vorbereitete Zonen zurücksetzen",
+          "description": "An (Standard, wie bisher) = vorbereitete, noch nicht gestartete Zonen werden vorher zurückgesetzt. Aus = dann wird nichts gesendet, und du bekommst eine Antwort."
         }
       }
     },

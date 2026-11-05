@@ -202,6 +202,17 @@ const BASE_CSS = `
   .ac-pair .ac-match { flex:1; }
   .ac-match:disabled { opacity:.4; cursor:default; }
   .ac-note { font-size:.85em; opacity:.7; margin:6px 0 0; text-align:center; }
+  /* ⓘ Hilfe zum Antippen (wie in der Einkaufsliste): kleines i neben dem Feld statt Textwand */
+  .finfo { flex:none; width:20px; height:20px; padding:0; border-radius:50%; border:1.5px solid var(--primary-color, #03a9f4); background:none; color:var(--primary-color, #03a9f4); font:700 11px/1 serif; font-style:italic; cursor:pointer; }
+  .finfo[aria-expanded="true"] { background:var(--primary-color, #03a9f4); color:#fff; }
+  .ac-flab { display:flex; align-items:center; gap:6px; margin:12px 0 0; font-size:.9em; opacity:.85; }
+  .ac-hint { font-size:.85em; margin:6px 0 0; padding:8px 10px; border-radius:10px; background:var(--secondary-background-color, rgba(127,127,127,.12)); }
+  .ac-hint[hidden] { display:none; }
+  .ac-step label { display:flex; align-items:center; gap:6px; }
+  .ac-step button.finfo { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--primary-color, #03a9f4); font:700 11px/1 serif; font-style:italic; color:var(--primary-color, #03a9f4); } /* nicht so groß wie die −/+ Knöpfe */
+  .ac-step button.finfo[aria-expanded="true"] { background:var(--primary-color, #03a9f4); color:#fff; }
+  .ac-withinfo { display:flex; align-items:center; gap:8px; }
+  .ac-withinfo > :first-child { flex:1; }
   .elcredits { text-align:center; } .elcredits p { margin:8px 0; }
   .ellogo { background:#fff; border-radius:16px; padding:10px; display:inline-block; max-width:100%; box-shadow:0 1px 4px rgba(0,0,0,.12); }
   .ellogo img { display:block; max-width:100%; width:200px; height:auto; }
@@ -219,7 +230,7 @@ function creditsHtml(hass) {
     <p><img src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="56" height="56" style="border-radius:14px;vertical-align:middle;margin-right:8px"><b>Airfryer Control</b> v${esc(AC_VERSION)}</p>
     <p>${t("Gemacht von <b>Mister-M</b> – mit Hilfe von Claude 🤖", "Made by <b>Mister-M</b> – with help from Claude 🤖")}</p>
     <p>${t("Ich versuche, Updates und Fehler-Korrekturen zeitnah zu erledigen.", "I try to ship updates and fixes promptly.")}</p>
-    <p class="elcsmall">📅 ${t("Neue offizielle Versionen kommen immer sonntags. An den anderen Tagen gibt es nur Test-Versionen (Beta) – die siehst du in HACS unter „Beta-Versionen anzeigen“.", "New official versions always come out on Sundays. On the other days there are only test versions (beta) – you see them in HACS under “Show beta versions”.")}</p>
+    <p class="elcsmall">📅 ${t("Neue offizielle Versionen kommen immer sonntags. An den anderen Tagen gibt es nur Test-Versionen (Beta) – die siehst du in HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace) unter „Beta-Versionen anzeigen“.", "New official versions always come out on Sundays. On the other days there are only test versions (beta) – you see them in HACS (from Home Assistant 2026.11: Settings › Marketplace) under “Show beta versions”.")}</p>
     <div class="elcbtns">
       <a class="elcbtn" href="${AC_REPO}" target="_blank" rel="noopener">🐙 GitHub</a>
       <a class="elcbtn" href="${AC_REPO}/discussions" target="_blank" rel="noopener">💡 ${t("Idee oder Wunsch", "Idea or request")}</a>
@@ -246,10 +257,11 @@ function acGuideHtml(hass) {
   const t = (d, e) => tr(hass, d, e);
   return `<h3 style="margin:0 0 6px">📖 ${t("Anleitung", "Guide")}</h3>
     <h4>🍟 ${t("Zonen", "Zones")}</h4><p>${t("Jede Zeile ist eine Zone deiner Fritteuse. Farbe und Text zeigen, was sie gerade macht: <b>grün</b> = gart, <b>orange</b> = wartet auf Start, <b>grau</b> = bereit oder aus.", "Each row is one zone of your air fryer. Colour and text show what it is doing: <b>green</b> = cooking, <b>orange</b> = waiting for start, <b>grey</b> = ready or off.")}</p>
-    <h4>⚙️ ${t("Programm einstellen", "Set a program")}</h4><p>${t("Zeile antippen → darunter klappen Programm, Temperatur und Zeit auf (nochmal antippen = zu) → <b>Senden</b>. Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>.", "Tap a row → program, temperature and time unfold below it (tap again to close) → <b>Send</b>. The fryer is then prepared – <b>you always start it on the device</b>.")}</p>
+    <h4>⚙️ ${t("Programm einstellen", "Set a program")}</h4><p>${t("Zeile antippen → darunter klappen Programm, Temperatur und Zeit auf (nochmal antippen = zu) → <b>Senden</b>. Das kleine <b>ⓘ</b> neben einem Feld erklärt es kurz. Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>.", "Tap a row → program, temperature and time unfold below it (tap again to close) → <b>Send</b>. The small <b>ⓘ</b> next to a field explains it briefly. The fryer is then prepared – <b>you always start it on the device</b>.")}</p>
     <h4>⏹️ ${t("Knopf rechts", "Button on the right")}</h4><p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>
     <h4>🔗 ${t("Match & Sync", "Match & Sync")}</h4><p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. Sync sagt dir, wann du die zweite Zone startest, damit beide gleichzeitig fertig sind.", "With two zones: “Use settings” copies the other zone. Sync tells you when to start the second zone so both finish together.")}</p>
     <h4>🔢 ${t("Oben", "At the top")}</h4><p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. ⚙️ (nur Admins) öffnet die Einstellungen der Integration, z. B. Seitenleiste und Maskottchen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. ⚙️ (admins only) opens the integration settings, e.g. sidebar and mascot.")}</p>
+    <h4>📦 ${t("Installieren & Updates", "Install & updates")}</h4><p>${t("Installation über HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace). Dort kommen auch die Updates an.", "Install via HACS (from Home Assistant 2026.11: Settings › Marketplace). Updates arrive there too.")}</p>
     <h4>🎃 ${t("Maskottchen", "Mascot")}</h4><p>${t("Im Karten-Editor (oder für die Seitenleiste in den Optionen der Integration) einschalten. Es zieht sich je nach Jahreszeit um.", "Switch it on in the card editor (or, for the sidebar, in the integration options). It changes costumes with the seasons.")}</p>`;
 }
 
@@ -259,6 +271,7 @@ class AirfryerControlCard extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._open = null; // Schlüssel der Zone, die aufgeklappt ist ("__credits" = Credits)
+    this._helpOpen = new Set(); // ⓘ-Hilfen, die gerade offen sind (bleiben beim Neuzeichnen offen)
     this._sig = "";
   }
   setConfig(config) {
@@ -337,6 +350,15 @@ class AirfryerControlCard extends HTMLElement {
   }
 
   // 🔗 Sync: Hinweis, wann die Zone gestartet werden soll, damit beide gleichzeitig fertig werden
+  // ⓘ Knopf + versteckter Hilfetext (antippen = auf, nochmal antippen = zu)
+  _info(key, label) {
+    const open = this._helpOpen.has(key);
+    return `<button type="button" class="finfo" data-help="${esc(key)}" aria-expanded="${open}" title="${esc(tr(this._hass, "Was ist das?", "What is this?"))}" aria-label="${esc(tr(this._hass, `Erklärung: ${label}`, `Explanation: ${label}`))}">i</button>`;
+  }
+  _hint(key, html) {
+    return `<p class="ac-hint" data-hint="${esc(key)}" ${this._helpOpen.has(key) ? "" : "hidden"}>${html}</p>`;
+  }
+
   _syncHtml(z, zones) {
     const hass = this._hass;
     const o = this._other(z, zones);
@@ -378,7 +400,9 @@ class AirfryerControlCard extends HTMLElement {
     if (!dev || this._syncing) return;
     this._syncing = true;
     try {
-      await hass.callService("airfryer_control", kind === "match" ? "match_senden" : "sync_senden", { geraet: dev });
+      const num = Number((/zone_(\d+)$/.exec(z.key) || [])[1]);
+      const data = { geraet: dev, ...(kind === "match" && (num === 1 || num === 2) ? { quelle: num } : {}) }; // Match: Werte DIESER Zone für beide
+      await hass.callService("airfryer_control", kind === "match" ? "match_senden" : "sync_senden", data);
     } catch (_) { /* Fehler zeigt Home Assistant selbst */ } finally { this._syncing = false; }
   }
 
@@ -388,11 +412,12 @@ class AirfryerControlCard extends HTMLElement {
     if (!o || !hass.entities?.[z.state]?.device_id) return "";
     const dis = [z, o].some((x) => RUNNING.includes(hass.states[x.state]?.state)) ? "disabled" : "";
     const lab = (de, en) => esc(tr(hass, de, en));
-    return `<div class="ac-pair">
+    const key = `${z.key}:sync`;
+    return `<div class="ac-withinfo"><div class="ac-pair">
       <button class="ac-match" data-sendsync="match" data-z="${esc(z.key)}" ${dis}>🟰 ${lab("Match senden", "Send Match")}</button>
       <button class="ac-match" data-sendsync="sync" data-z="${esc(z.key)}" ${dis}>🔗 ${lab("Sync senden", "Send Sync")}</button>
-    </div>
-    <p class="ac-note">${lab("Match: beide Zonen wie diese. Sync: beide fertig zur selben Zeit. Es wird nur bereitgestellt – starten am Gerät. (Noch nicht an der echten Fritteuse bestätigt.)", "Match: both zones like this one. Sync: both finish together. Only prepares – start on the device. (Not yet confirmed on the real fryer.)")}</p>`;
+    </div>${this._info(key, "Match & Sync")}</div>
+    ${this._hint(key, lab("Match: beide Zonen bekommen die Werte dieser Zone. Sync: beide werden zur selben Zeit fertig. Es wird nur bereitgestellt – gestartet wird am Gerät. Gart eine Zone gerade, geht beides nicht. An einer Turbo Tower Pro getestet, an der TwinFry noch nicht.", "Match: both zones get this zone's values. Sync: both finish at the same time. Only prepares – you start on the device. Not possible while a zone is cooking. Tested on a Turbo Tower Pro, not yet on the TwinFry."))}`;
   }
 
   async _match(z) {
@@ -433,24 +458,37 @@ class AirfryerControlCard extends HTMLElement {
     const b = this._btn(z);
     const opts = mode?.attributes?.options || [];
     const modes = opts.map((o) => `<button class="ac-mode ${mode.state === o ? "on" : ""}" data-mode="${esc(o)}"><ha-icon icon="${(MODE_TEXT[o] || [])[2] || "mdi:chef-hat"}"></ha-icon>${esc(modeText(hass, o))}</button>`).join("");
-    const step = (what, label, st, unit) => st ? `<div class="ac-step"><label>${esc(label)}</label><button data-step="${what}" data-d="-1">−</button><b>${esc(st.state)} ${unit}</b><button data-step="${what}" data-d="1">+</button></div>` : "";
-    const min = temp?.attributes?.min, max = temp?.attributes?.max;
+    const t = (de, en) => esc(tr(hass, de, en));
+    // Zahl mit −/+ und ⓘ am Namen; die Hilfe klappt direkt darunter auf
+    const step = (what, label, st, unit, help) => st ? `<div class="ac-step"><label>${esc(label)}${help ? this._info(`${z.key}:${what}`, label) : ""}</label><button data-step="${what}" data-d="-1">−</button><b>${esc(st.state)} ${unit}</b><button data-step="${what}" data-d="1">+</button></div>${help ? this._hint(`${z.key}:${what}`, help) : ""}` : "";
+    const ta = temp?.attributes || {}, ma = time?.attributes || {};
+    const tHelp = ta.min != null ? t(`Für dieses Programm: ${ta.min}–${ta.max} °C${ta.step ? `, in ${ta.step}-°C-Schritten` : ""}.`, `For this program: ${ta.min}–${ta.max} °C${ta.step ? `, in ${ta.step} °C steps` : ""}.`) : "";
+    const mHelp = ma.min != null ? t(`Für dieses Programm: ${ma.min}–${ma.max} Min.`, `For this program: ${ma.min}–${ma.max} min.`) : "";
+    const other = this._other(z, zones);
+    const copyKey = `${z.key}:copy`, goKey = `${z.key}:go`, modeKey = `${z.key}:mode`;
     return `<div class="ac-edit" style="--c:${this._color(z)}">
-      ${opts.length ? `<div class="ac-modes">${modes}</div>` : ""}
-      ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C")}
-      ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min")}
-      ${min != null ? `<p class="ac-note">${esc(tr(hass, `Für dieses Programm: ${min}–${max} °C`, `For this program: ${min}–${max} °C`))}${time?.attributes?.max != null ? esc(tr(hass, `, ${time.attributes.min}–${time.attributes.max} Min`, `, ${time.attributes.min}–${time.attributes.max} min`)) : ""}</p>` : ""}
+      ${opts.length ? `<div class="ac-flab"><span>${t("Programm", "Program")}</span>${this._info(modeKey, tr(hass, "Programm", "Program"))}</div>${this._hint(modeKey, t("Tippe ein Programm an. Temperatur und Zeit springen dann auf den Vorschlag der Fritteuse für dieses Programm.", "Tap a program. Temperature and time then jump to the fryer's suggestion for that program."))}<div class="ac-modes">${modes}</div>` : ""}
+      ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C", tHelp)}
+      ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min", mHelp)}
       ${this._syncHtml(z, zones)}
-      ${this._other(z, zones) ? `<button class="ac-match" data-match="${esc(z.key)}" ${RUNNING.includes(hass.states[this._other(z, zones).state]?.state) ? "disabled" : ""}>📋 ${esc(tr(hass, `Einstellungen auf ${this._other(z, zones).name} übernehmen`, `Copy settings to ${this._other(z, zones).name}`))}</button>` : ""}
+      ${other ? `<div class="ac-withinfo"><button class="ac-match" data-match="${esc(z.key)}" ${RUNNING.includes(hass.states[other.state]?.state) ? "disabled" : ""}>📋 ${t(`Einstellungen auf ${other.name} übernehmen`, `Copy settings to ${other.name}`)}</button>${this._info(copyKey, tr(hass, "Einstellungen übernehmen", "Copy settings"))}</div>${this._hint(copyKey, t(`Kopiert Programm, Temperatur und Zeit nur in die Felder von ${other.name}. An die Fritteuse geht dabei noch nichts.`, `Copies program, temperature and time into the fields of ${other.name} only. Nothing is sent to the fryer yet.`))}` : ""}
       ${this._syncSendHtml(z, zones)}
-      <button class="ac-big" data-go="${esc(z.key)}" style="--b:${b.color}" ${z.sw ? "" : "disabled"}>${esc(b.text)}</button>
-      <p class="ac-note">${esc(tr(hass, "Senden bereitet die Fritteuse vor – gestartet wird am Gerät.", "Send prepares the fryer – you start it on the device."))}</p>
+      <div class="ac-withinfo"><button class="ac-big" data-go="${esc(z.key)}" style="--b:${b.color}" ${z.sw ? "" : "disabled"}>${esc(b.text)}</button>${this._info(goKey, b.text)}</div>
+      ${this._hint(goKey, t("Senden bereitet die Fritteuse nur vor – gestartet wird immer am Gerät. Abbrechen nimmt ein vorbereitetes Programm wieder weg, Beenden stoppt das Garen.", "Send only prepares the fryer – you always start it on the device. Cancel removes a prepared program, Stop ends cooking."))}
       <button class="ac-close" data-close>${esc(tr(hass, "Zuklappen", "Close"))}</button>
     </div>`;
   }
 
   _wire() {
     const root = this.shadowRoot;
+    root.querySelectorAll("[data-help]").forEach((el) => el.addEventListener("click", (e) => {
+      e.stopPropagation(); // ⓘ: nur die Hilfe auf-/zuklappen, ohne neu zu zeichnen
+      const k = el.dataset.help;
+      const open = !this._helpOpen.has(k);
+      if (open) this._helpOpen.add(k); else this._helpOpen.delete(k);
+      el.setAttribute("aria-expanded", String(open));
+      root.querySelectorAll("[data-hint]").forEach((h) => { if (h.dataset.hint === k) h.hidden = !open; });
+    }));
     root.querySelectorAll(".ac-row").forEach((el) => el.addEventListener("click", (e) => {
       if (e.target.closest("[data-go]")) return;
       this._open = this._open === el.dataset.z ? null : el.dataset.z; this._sig = ""; this.hass = this._hass; // nochmal antippen = zuklappen

@@ -51,7 +51,7 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 
 ## 📦 Installation
 
-1. Open **HACS** → top right **⋮ → Custom repositories**.
+1. Open **HACS** (from Home Assistant 2026.11: **Settings › Marketplace**) → top right **⋮ → Custom repositories**.
 2. Add `https://github.com/misterm2310/airfryer-control`, type **Integration**.
 3. Search **Airfryer Control** → ⋮ → **Redownload** → pick the newest → **Download**.
 4. **Restart Home Assistant.**
@@ -125,7 +125,7 @@ Both cards have an editor, follow light/dark and run smoothly on a Fire TV. Zone
 
 **📋 Match and 🔗 Sync (in the card):** In a zone's dialog, **“Copy settings to Zone 2”** copies program, temperature and time to the other zone (Match). Above it, a hint tells you **when to start the other zone so both finish together** (Sync), e.g. “start Zone 2 in 4 min”. Honestly: there are no known Cosori cloud commands for this, so it is **my own solution**: the card only calculates and copies values. You still start on the device. Neither exists for the whole drawer.
 
-**🟰 Send Match / 🔗 Send Sync (new, untested):** The zone dialog also has two buttons (and the services `match_senden` / `sync_senden`) that send Match or Sync to the fryer like the VeSync app – **prepare only** (zone shows “Waiting for start”), you start on the device. In Sync the shorter zone gets a wait time (state “Waiting for sync start” with remaining time). ⚠️ Honestly: I did not capture the exact app command; it is **rebuilt** from the fryer's observed state (`startMultiCook` with `syncType` 1/2) and **not yet verified on a real fryer**. Please try it first with a short time, next to the fryer.
+**🟰 Send Match / 🔗 Send Sync:** The zone dialog also has two buttons (and the services `match_senden` / `sync_senden`) that send Match or Sync to the fryer like the VeSync app – **prepare only** (zone shows “Waiting for start”), you start on the device. Match uses the values of the zone you are in. In Sync the shorter zone gets a wait time (state “Waiting for sync start” with remaining time). **If a zone is cooking, nothing is sent** – the fryer is never changed mid-cook. ⚠️ Honestly: the app command is rebuilt (`startMultiCook` with `syncType` 1/2). It was tested on a **Turbo Tower Pro**, **not yet on the TwinFry**.
 
 > 🧪 The cards are still **beta** – if something is off, please report it.
 
@@ -192,8 +192,8 @@ actions:
 | `airfryer_control.garen_beenden` | Stop. |
 | `airfryer_control.programm_senden` | **For all users** (no admin rights needed, e.g. for the shopping list): sends `zone`, `temperatur`, `minuten`, `programm` to the fryer – **prepare only**, it never starts by itself. Temperature and time are limited to the program's range. Without `geraet` the only fryer is used. Response: `ok`, `ergebnis` and on failure `fehler`/`code`. Extras for other integrations below. |
 | `airfryer_control.faehigkeiten` | **For all users, read only:** programs, temperature and time limits and zones of a fryer – each marked **confirmed** or only **estimated**. Plus `verbindung`, `letzte_meldung` and `revision`. |
-| `airfryer_control.match_senden` | **Match:** sends program, temperature and time of zone 1 to both zones. Prepares only – start on the device. ⚠️ Not yet confirmed on the real fryer. |
-| `airfryer_control.sync_senden` | **Sync:** sends both zones with their times; the shorter zone waits (state “Waiting for sync start”) so both finish together. Prepares only – start on the device. ⚠️ Not yet confirmed on the real fryer. |
+| `airfryer_control.match_senden` | **Match:** sends program, temperature and time of one zone (`quelle`, default 1) to both zones. Prepares only – start on the device. If a zone is cooking, nothing is sent. Extras see “For other integrations”. |
+| `airfryer_control.sync_senden` | **Sync:** sends both zones with their times; the shorter zone waits (state “Waiting for sync start”) so both finish together. Prepares only – start on the device. If a zone is cooking, nothing is sent. Extras see “For other integrations”. |
 | `airfryer_control.befehl_senden` | **Tinkerers, admins only:** sends an app command and returns the response (without account data). |
 
 </details>
@@ -218,6 +218,18 @@ Other integrations should **not** talk to the cloud themselves. They just use th
 | `angenommen` | The cloud accepted the command. Only `bestaetigt` tells you whether the values are on the device. |
 | `abgelehnt` | Definitely **not** executed (error code, fryer offline, login expired, outside limits). |
 | `unbekannt` | Connection lost, timeout or the fryer did not answer in time: the command **may** have arrived. No further variant is ever sent automatically – check the fryer first. |
+
+**`match_senden` / `sync_senden` extras (all optional):**
+
+| Field | What it does |
+|---|---|
+| `zone1`, `zone2` | Own values per zone, e.g. `{programm: airfry, temperatur: 200, minuten: 12}`. Without them the card's settings are used. Sync needs both or none. |
+| `quelle` | Match only: which zone (1 or 2) the values come from. Default 1. |
+| `einmal: true` | Exactly one command, no repeat after a new login. |
+| `streng: true` | Values outside the limits are rejected instead of adjusted. |
+| `zuruecksetzen: false` | Do **not** reset already prepared zones, abort instead (`fehler: zone_vorbereitet`). |
+
+**Response:** `ok`, `ergebnis` (`angenommen`/`abgelehnt`/`unbekannt`), `art` (`match`/`sync`), `gesendet` (values per zone), `revision_vorher`, on failure `fehler`. Possible `fehler`: `zone_arbeitet` (a zone is cooking – nothing sent), `zone_vorbereitet`, `zuruecksetzen_dauert`, `offline`, `beide_zonen_noetig`, `quelle_fehlt`, `programm_unbekannt`, `ausserhalb_grenzen`. Without asking for a response (normal automation) you get an error message as before.
 
 **How fresh is the data?** The fryer status sensor and every zone status have the attributes `letzte_meldung` (time of the last real answer), `verbindung` (`ok`, `offline`, `fehler`) and `revision` (goes up whenever the fryer's answer changes – handy to detect changes between preview and confirmation). Zones also have `gemeldet`: `false` means the fryer did **not** report this zone at all. The state then shows “Ready” out of habit (so existing automations don't break), but it is not confirmed.
 
@@ -254,7 +266,7 @@ In short: **unofficial**, **no remote start** (Cosori blocks it in the EU), and 
 - **Pause/resume:** command not known for sure yet – no button.
 - **Stopping a single zone and changing temperature/time** are sent as the app is believed to do (`endCook` with zone, `setTimeOrTemp`) – **not yet tried on a real TwinFry**.
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.
-- **Match/Sync and zones you already prepared:** If you prepared single zones with “Send” first, the integration resets those (and **only** those, never a running zone) before Match/Sync. Reported on a Turbo Tower Pro Smart; whether the reset works there is not confirmed yet. If any zone is running, nothing is ended.
+- **Match/Sync and zones you already prepared:** If you prepared single zones with “Send” first, the integration resets those (and **only** those) before Match/Sync. Reported on a Turbo Tower Pro Smart. **If any zone is cooking, nothing is sent and nothing is ended.**
 - **Older 3.7/5.8 qt models** (CS…): display only, no start.
 
 </details>
@@ -292,7 +304,7 @@ That lets the model be added properly. Without this data it would be guesswork.
 
 **My model is not found.** Then the cloud does not see it as an air fryer (device type does not start with CA/CS). Open an issue with the model number from the type plate.
 
-**When are new versions released?** Official releases on **Sundays**, beta versions on other days (HACS → ⋮ → Redownload → “Show beta versions”).
+**When are new versions released?** Official releases on **Sundays**, beta versions on other days (HACS – from Home Assistant 2026.11: Settings › Marketplace – → ⋮ → Redownload → “Show beta versions”).
 
 ---
 

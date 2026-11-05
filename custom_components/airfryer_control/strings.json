@@ -279,21 +279,69 @@
     },
     "match_senden": {
       "name": "Send Match",
-      "description": "Sends the values of zone 1 to both zones (Match). Prepares only – start on the device. Not yet confirmed on the real fryer.",
+      "description": "Sends the values of one zone (default zone 1) to both zones (Match). Prepare only – you start it on the device. If a zone is busy, nothing is sent. Tested on a Turbo Tower Pro, not yet on the TwinFry.",
       "fields": {
         "geraet": {
           "name": "Air fryer",
-          "description": "Which air fryer?"
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone1": {
+          "name": "Zone 1 values",
+          "description": "Optional: program, temperature and minutes for zone 1, e.g. {\"programm\": \"airfry\", \"temperatur\": 200, \"minuten\": 15}. Empty = the values set in Home Assistant."
+        },
+        "zone2": {
+          "name": "Zone 2 values",
+          "description": "Optional: like zone 1, for zone 2. Sync needs both or neither."
+        },
+        "quelle": {
+          "name": "Source (Match)",
+          "description": "Match only: which zone's values are used for both zones. Default 1."
+        },
+        "einmal": {
+          "name": "Only once",
+          "description": "On = exactly one command, no automatic repeat after a new login."
+        },
+        "streng": {
+          "name": "Strict",
+          "description": "On = reject values outside the limits instead of adjusting them silently."
+        },
+        "zuruecksetzen": {
+          "name": "Reset prepared zones",
+          "description": "On (default, as before) = zones that are prepared but not started are reset first. Off = then nothing is sent and you get an answer instead."
         }
       }
     },
     "sync_senden": {
       "name": "Send Sync",
-      "description": "Sends both zones with their times (Sync) so both finish together. Prepares only – start on the device. Not yet confirmed on the real fryer.",
+      "description": "Sends both zones with their times (Sync): both finish together. Prepare only – you start it on the device. If a zone is busy, nothing is sent. Tested on a Turbo Tower Pro, not yet on the TwinFry.",
       "fields": {
         "geraet": {
           "name": "Air fryer",
-          "description": "Which air fryer?"
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone1": {
+          "name": "Zone 1 values",
+          "description": "Optional: program, temperature and minutes for zone 1, e.g. {\"programm\": \"airfry\", \"temperatur\": 200, \"minuten\": 15}. Empty = the values set in Home Assistant."
+        },
+        "zone2": {
+          "name": "Zone 2 values",
+          "description": "Optional: like zone 1, for zone 2. Sync needs both or neither."
+        },
+        "quelle": {
+          "name": "Source (Match)",
+          "description": "Match only: which zone's values are used for both zones. Default 1."
+        },
+        "einmal": {
+          "name": "Only once",
+          "description": "On = exactly one command, no automatic repeat after a new login."
+        },
+        "streng": {
+          "name": "Strict",
+          "description": "On = reject values outside the limits instead of adjusting them silently."
+        },
+        "zuruecksetzen": {
+          "name": "Reset prepared zones",
+          "description": "On (default, as before) = zones that are prepared but not started are reset first. Off = then nothing is sent and you get an answer instead."
         }
       }
     },
