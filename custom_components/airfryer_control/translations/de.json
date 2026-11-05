@@ -287,7 +287,7 @@
         },
         "zone1": {
           "name": "Werte Zone 1",
-          "description": "Freiwillig: Programm, Temperatur und Minuten für Zone 1, z. B. {\"programm\": \"airfry\", \"temperatur\": 200, \"minuten\": 15}. Leer = die in Home Assistant eingestellten Werte."
+          "description": "Freiwillig: Programm, Temperatur und Minuten für Zone 1, z. B. programm: airfry, temperatur: 200, minuten: 15. Leer = die in Home Assistant eingestellten Werte."
         },
         "zone2": {
           "name": "Werte Zone 2",
@@ -321,7 +321,7 @@
         },
         "zone1": {
           "name": "Werte Zone 1",
-          "description": "Freiwillig: Programm, Temperatur und Minuten für Zone 1, z. B. {\"programm\": \"airfry\", \"temperatur\": 200, \"minuten\": 15}. Leer = die in Home Assistant eingestellten Werte."
+          "description": "Freiwillig: Programm, Temperatur und Minuten für Zone 1, z. B. programm: airfry, temperatur: 200, minuten: 15. Leer = die in Home Assistant eingestellten Werte."
         },
         "zone2": {
           "name": "Werte Zone 2",
