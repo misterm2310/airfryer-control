@@ -48,30 +48,73 @@ const clock = (iso, hass) => {
 const valid = (s) => s && s.state !== "unknown" && s.state !== "unavailable";
 
 /** Zonen der Integration finden (Zone 1, Zone 2, Grandzone …) */
+// 🔎 Entitäten finden – über die Integration selbst (Plattform + translation_key), damit es in jeder
+// Sprache und mit jedem Gerätenamen klappt (Issue #8). Nur wenn das nicht geht: alte Namenssuche.
+const AC = "airfryer_control";
+const ZONE_RE = /(?:^|_)(zone_\d+|grandzone)(?=_|$)/;
+const zoneToken = (id) => (ZONE_RE.exec(String(id).split(".")[1] || "") || [])[1];
 function findZones(hass) {
-  const zones = [];
   const ents = hass.entities || {};
-  const re = /^sensor\.(.+_(?:zone_\d+|grandzone))_zustand$/;
-  for (const id of Object.keys(hass.states)) {
-    const m = re.exec(id);
-    if (!m) continue;
-    const reg = ents[id];
-    if (reg && reg.platform && reg.platform !== "airfryer_control") continue;
-    const key = m[1];
-    const sw = [`switch.${key}_senden_beenden`, `switch.${key}_gart`].find((e) => hass.states[e]);
-    zones.push({
-      key,
-      state: id,
-      finish: `sensor.${key}_fertig_um`,
-      mode: `select.${key}_programm`,
-      temp: `number.${key}_temperatur_einstellen`,
-      time: `number.${key}_garzeit_einstellen`,
-      sw,
-      name: zoneName(hass, key, hass.states[id]),
-    });
+  const mine = Object.values(ents).filter((e) => e && e.platform === AC && e.translation_key && e.entity_id);
+  const zones = [];
+  if (mine.some((e) => e.translation_key === "zone_status")) {
+    const sib = (dev, domain, tk, token) => {
+      const e = mine.find((x) => x.device_id === dev && x.translation_key === tk && x.entity_id.startsWith(domain + ".") && zoneToken(x.entity_id) === token);
+      return e && hass.states[e.entity_id] ? e.entity_id : undefined;
+    };
+    for (const e of mine) {
+      if (e.translation_key !== "zone_status" || !e.entity_id.startsWith("sensor.") || !hass.states[e.entity_id]) continue;
+      const obj = e.entity_id.split(".")[1];
+      const m = ZONE_RE.exec(obj);
+      if (!m) continue;
+      const token = m[1];
+      const key = obj.slice(0, obj.indexOf(token, m.index) + token.length);
+      const dev = e.device_id;
+      zones.push({
+        key,
+        state: e.entity_id,
+        finish: sib(dev, "sensor", "zone_fertig_um", token) || `sensor.${key}_fertig_um`,
+        mode: sib(dev, "select", "zone_programm_waehlen", token) || `select.${key}_programm`,
+        temp: sib(dev, "number", "zone_temperatur", token) || `number.${key}_temperatur_einstellen`,
+        time: sib(dev, "number", "zone_garzeit", token) || `number.${key}_garzeit_einstellen`,
+        sw: sib(dev, "switch", "zone_senden", token),
+        name: zoneName(hass, key, hass.states[e.entity_id]),
+      });
+    }
+  } else {
+    // Alte Namenssuche (z. B. ohne Geräte-Zuordnung): deutsch „…_zustand“ und englisch „…_status“
+    const re = /^sensor\.(.+_(?:zone_\d+|grandzone))_(?:zustand|status)$/;
+    for (const id of Object.keys(hass.states)) {
+      const m = re.exec(id);
+      if (!m) continue;
+      const reg = ents[id];
+      if (reg && reg.platform && reg.platform !== AC) continue;
+      const key = m[1];
+      const sw = [`switch.${key}_senden_beenden`, `switch.${key}_send_stop`, `switch.${key}_gart`].find((x) => hass.states[x]);
+      const pick = (...ids) => ids.find((x) => hass.states[x]) || ids[0];
+      zones.push({
+        key,
+        state: id,
+        finish: pick(`sensor.${key}_fertig_um`, `sensor.${key}_done_at`),
+        mode: pick(`select.${key}_programm`, `select.${key}_program`),
+        temp: pick(`number.${key}_temperatur_einstellen`, `number.${key}_set_temperature`),
+        time: pick(`number.${key}_garzeit_einstellen`, `number.${key}_set_cooking_time`),
+        sw,
+        name: zoneName(hass, key, hass.states[id]),
+      });
+    }
   }
   const order = (z) => (/grandzone$/.test(z.key) ? 99 : Number((/zone_(\d+)$/.exec(z.key) || [0, 50])[1]));
   return zones.sort((a, b) => order(a) - order(b));
+}
+// 🟢 Online-Sensor der Fritteuse (gleiches Gerät wie die Zonen), sonst der alte Name
+function findOnline(hass, zones) {
+  const mine = Object.values(hass.entities || {}).filter((e) => e && e.platform === AC && e.translation_key === "online" && hass.states[e.entity_id]);
+  const dev = zones && zones[0] ? hass.entities?.[zones[0].state]?.device_id : undefined;
+  const e = mine.find((x) => dev && x.device_id === dev) || mine[0];
+  if (e) return hass.states[e.entity_id];
+  const byName = Object.keys(hass.states).find((id) => /^binary_sensor\..+_online$/.test(id) && hass.entities?.[id]?.platform === AC);
+  return hass.states[byName] || hass.states["binary_sensor.cosori_online"];
 }
 function zoneName(hass, key, st) {
   if (/grandzone$/.test(key)) return "Grandzone";
@@ -84,7 +127,7 @@ function acMood(hass, zones, now = new Date()) {
   const st = zones.map((z) => hass.states[z.state]?.state);
   if (st.includes("fertig")) return "done";                  // 🔔 Fertig!
   if (st.some((s) => RUNNING.includes(s))) return "happy";   // 😄 gart gerade
-  if (hass.states["binary_sensor.cosori_online"]?.state === "off" || st.includes("offline")) return "sleep";
+  if (findOnline(hass, zones)?.state === "off" || st.includes("offline")) return "sleep";
   const hr = now.getHours();
   if (hr >= 22 || hr < 6) return "sleep";                    // 😴 nachts
   return "calm";
@@ -289,7 +332,7 @@ class AirfryerControlCard extends HTMLElement {
     const zones = findZones(hass);
     const sig = zones.map((z) => [z.state, z.finish, z.mode, z.temp, z.time, z.sw]
       .map((e) => { const s = hass.states[e]; return s ? s.state + "|" + (s.attributes?.min ?? "") + (s.attributes?.max ?? "") : "-"; }).join(",")).join(";")
-      + "#" + (hass.states["binary_sensor.cosori_online"]?.state || "") + this._open + (hass.language || "") + new Date().getHours();
+      + "#" + (findOnline(hass, zones)?.state || "") + this._open + (hass.language || "") + new Date().getHours();
     if (sig === this._sig) return;
     this._sig = sig;
     this._zones = zones;
@@ -310,7 +353,7 @@ class AirfryerControlCard extends HTMLElement {
     if (!hass) return;
     const zones = this._zones || findZones(hass);
     const title = this._config.title ?? "Heißluftfritteuse";
-    const online = hass.states["binary_sensor.cosori_online"];
+    const online = findOnline(hass, zones);
     const rows = zones.map((z) => {
       const st = hass.states[z.state];
       const fin = hass.states[z.finish];
