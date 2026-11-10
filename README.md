@@ -105,14 +105,14 @@ Du musst **nichts extra installieren** – die Integration bringt zwei Karten se
 
 | Karte | Was sie macht |
 |---|---|
-| `custom:airfryer-control-card` | Eine Zeile pro Zone (Zone 1, Zone 2, Grandzone) mit Status, „fertig um …“ und Knopf zum **Senden / Abbrechen / Beenden**. Antippen der Zeile klappt direkt darunter Programm, Temperatur und Zeit auf (die Zeile bleibt stehen, nochmal antippen = zu) (Grenzen je Programm werden beachtet). Das (i) oben zeigt Credits, Spenden-Link und Datenschutz. |
+| `custom:airfryer-control-card` | Eine Zeile pro Zone (Zone 1, Zone 2, Grandzone) mit Status, „fertig um …“ und Knopf zum **Senden / Abbrechen / Beenden**. Antippen der Zeile klappt direkt darunter Programm, Temperatur und Zeit auf (die Zeile bleibt stehen, nochmal antippen = zu) (Grenzen je Programm werden beachtet). Das (i) oben zeigt Credits, Spenden-Link und Datenschutz, das ⚙️ daneben die Einstellungen. |
 | `custom:airfryer-control-ticker` | Das **Laufband**: „Fritteuse Zone 1: fertig um 19:42 Uhr +++ Zone 2: wartet auf Start“. Rahmen **rot und blinkend**, wenn eine Zone fertig ist, sonst türkis. Blendet sich aus, wenn nichts läuft. Optional mit weiteren Kochtimern (z. B. `sensor.einkaufsliste_kochtimer`). |
 
 ```yaml
 type: custom:airfryer-control-card
 title: Heißluftfritteuse
 maskottchen: true   # 🍟 kleiner Airfryer mit Gesicht oben links (Standard: aus)
-statuszeile: true   # 🟢 Leiste über der Karte: verbunden, Gruß, ⚙️, Version (Standard: an)
+statuszeile: true   # 🟢 Leiste über der Karte: verbunden, Gruß, Version (Standard: an)
 anleitung: true     # 📖 Knopf „Anleitung“ unter der Karte (Standard: an)
 ```
 ```yaml
@@ -124,6 +124,14 @@ speed: 60      # Pixel pro Sekunde (20–200)
 ```
 
 Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeigen“, standardmäßig aus) zeigen dieselben Karten. Das Maskottchen schaltest du für die Seitenleiste in denselben Optionen ein („🍟 Maskottchen in der Seitenleiste zeigen“).
+
+**⚙️ Einstellungen in der Karte:** Das Zahnrad oben in der Karte öffnet eine Seite mit Gruppen zum Aufklappen (wie bei der Einkaufsliste):
+- **👁️ Ansicht:** Schriftgröße (Kleiner / Standard / Größer) und Farben (Auto / Hell / Dunkel). Gilt nur auf diesem Gerät, z. B. größer auf dem Küchen-Tablet.
+- **🍟 Karte:** Maskottchen, Leiste oben und Anleitung-Knopf an/aus, nur auf diesem Gerät. „Wie im Karten-Editor“ nimmt wieder die Werte aus dem Editor.
+- **🔌 Integration** (nur Admins, nicht in der Handy-App): Abfrage-Takt, Seitenleiste und Maskottchen in der Seitenleiste. Gilt für alle. Beim Speichern lädt die Integration kurz neu.
+- **ℹ️ Über:** Anleitung, „Neu in dieser Beta“ und Credits.
+
+**📖 Anleitung:** eigene Seite mit ← zurück, Kapitel zum Aufklappen und Suchfeld. Beim ersten Start zeigt die Karte einmal einen 💡 Tipp, in einer Beta einmal den Kasten **📢 Neu in dieser Beta**.
 
 Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.
 
