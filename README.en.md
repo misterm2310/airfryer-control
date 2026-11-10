@@ -35,14 +35,14 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 |---|---|
 | 🔥 **Status** | Off, Ready, Waiting for start, Preheating, Cooking, Paused, Drawer open, Done, Keeping warm, Offline. |
 | ⏱️ **Time remaining & “done at”** | In minutes and as a time – overall and per zone. |
-| 🧩 **Zones** | On the TwinFry, separate entities for zone 1, zone 2 and the **Grandzone** (the whole drawer without divider, the fryer calls it zone 3). |
+| 🧩 **Zones** | On the TwinFry, separate entities for zone 1, zone 2 and the **Grandzone** (the whole drawer without divider, the fryer calls it zone 3). A TwinFry always keeps its zones – even if it is silent for a moment while Home Assistant starts. **Grandzone ↔ zone 1/2 switches automatically:** if the other side is only prepared (“Waiting for start”), it is reset first. If it is cooking, nothing is stopped – you get a clear message instead (“The whole basket is cooking right now – please stop it first”). |
 | 🌡️ **Limits** | Temperature follows the program: Air Fry 120–205 °C, Roast 120–205 °C, Bake 80–205 °C, Grill 205–240 °C, Reheat 40–205 °C. If a value is not accepted, the integration tells you in plain words. |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
 | 🔔 **“Done” event** | `airfryer_control_fertig` – for phone notifications, announcements or pausing the TV. |
 | 📤 **Send (like the app)** | Set program, temperature and time per zone, then turn the switch **“Zone n send / stop”** on – like “Send” in the VeSync app. The fryer wakes up and waits for you to press Start on the device. (Cosori blocks remote start in the EU.) |
 | ⏹️ **Stop cooking** | Button for the whole fryer – and the same switch per zone: off = stop that zone. |
 | 🎛️ **Change temperature & time** | Number fields per zone. If the zone is already cooking, new values go straight to the fryer. |
-| 🐢🐇 **Smart polling** | Idle: every 60 seconds (adjustable). Cooking: every 15 seconds. |
+| 🐢🐇 **Smart polling** | Idle: every 60 seconds (adjustable). Cooking: every 15 seconds. If it misses one answer, the last values stay and it asks again after 5 seconds – “Offline” only shows once it has been silent for more than 90 seconds. |
 | 🛡️ **Privacy** | Your password is not stored, identifiers are redacted everywhere. Details below. |
 
 </details>
@@ -139,9 +139,11 @@ Both cards have an editor, follow light/dark and run smoothly on a Fire TV. Zone
 
 The integration ships **its own small page**: **`/airfryer_control/app/`** behind your Home Assistant address (e.g. `https://your-name.ui.nabu.casa/airfryer_control/app/`). It shows the ticker and the zone card full screen.
 
-1. Open the address in your phone or tablet browser.
+1. Open the address in your phone or tablet browser (Chrome/Safari, **not** the HA app). The ready-made address to copy is also in the card under **📖 Guide → 📱 As an app on your phone**.
 2. **Sign in** (with your Home Assistant account, just like the Home Assistant app). The page itself contains no data.
 3. In the browser menu choose **“Add to home screen”** – done, the icon opens the air fryer directly.
+
+> ⚠️ **Don't save the dashboard as a shortcut!** That just opens the Home Assistant start page. It's right when the address ends in **`/airfryer_control/app/`**.
 
 The **🔅 Keep screen on** button keeps the display awake (handy for a kitchen tablet).
 
@@ -233,7 +235,7 @@ Other integrations should **not** talk to the cloud themselves. They just use th
 
 **How fresh is the data?** The fryer status sensor and every zone status have the attributes `letzte_meldung` (time of the last real answer), `verbindung` (`ok`, `offline`, `fehler`) and `revision` (goes up whenever the fryer's answer changes – handy to detect changes between preview and confirmation). Zones also have `gemeldet`: `false` means the fryer did **not** report this zone at all. The state then shows “Ready” out of habit (so existing automations don't break), but it is not confirmed.
 
-**Honestly:** programs and limits were read from the VeSync app on the **TwinFry**. “Send” is only confirmed there for **Air Fry**. For every other model (e.g. Turbo Tower Pro CAF-DC111S) `faehigkeiten` reports the values as `geschaetzt`/`ungeprueft`.
+**Honestly:** programs and limits were read from the VeSync app on the **TwinFry**. “Send” is only confirmed there for **Air Fry**. For every other model (e.g. Turbo Tower Pro CAF-DC111S) `faehigkeiten` reports the values as `geschaetzt`/`ungeprueft`, for the Dual Blaze CAF-P583S as `pyvesync`.
 
 </details>
 
@@ -262,11 +264,12 @@ In short: **unofficial**, **no remote start** (Cosori blocks it in the EU), and 
 
 - **Unofficial.** If Cosori/VeSync change their server, it may break until updated.
 - **Remote start** is blocked by Cosori in the EU – so there is no start button. “Send” only wakes the fryer; you start on the device.
-- **“Send” is new.** The command (`startMultiCook` with `readyStart: true`) comes from a sister fryer (Cosori Turbo Tower Pro, pyvesync). On the TwinFry it prepares the program; the zone then shows “Waiting for start” and waits for the Start button on the device. Only **Air Fry** is confirmed so far; for Bake, Roast, Grill, Reheat and Dry the recipe number is a guess. ⚠️ With `readyStart: false` the TwinFry **starts right away** – the integration never sends that on its own (only via “Test sending” with `variante: multi_app_startet`).
+- **“Send” is new.** The command (`startMultiCook` with `readyStart: true`) comes from a sister fryer (Cosori Turbo Tower Pro, pyvesync). On the TwinFry it prepares the program; the zone then shows “Waiting for start” and waits for the Start button on the device. Only **Air Fry** is confirmed so far. The recipe numbers of the other programs now come from pyvesync (read from the VeSync app there); before they were guessed. ⚠️ With `readyStart: false` the TwinFry **starts right away** – the integration never sends that on its own (only via “Test sending” with `variante: multi_app_startet`).
 - **Pause/resume:** command not known for sure yet – no button.
 - **Stopping a single zone and changing temperature/time** are sent as the app is believed to do (`endCook` with zone, `setTimeOrTemp`) – **not yet tried on a real TwinFry**.
 - **Field names** on the TwinFry are partly guessed. If a sensor shows nonsense, check `sensor.…_raw_data`.
 - **Match/Sync and zones you already prepared:** If you prepared single zones with “Send” first, the integration resets those (and **only** those) before Match/Sync. Reported on a Turbo Tower Pro Smart. **If any zone is cooking, nothing is sent and nothing is ended.**
+- **Dual Blaze CAF-P583S (one basket):** has its own profile with its programs (Air Fry, Broil, Roast, Bake, Chicken, Steak, Seafood, Veggies, French Fries, Frozen, Reheat) and the matching `startCook` command. Its controls show up as **zone 1**. Programs, limits and command come from pyvesync and are **not tested yet** on a real P583S (testers welcome, see issue #10). Cooking time is estimated up to 60 minutes.
 - **Older 3.7/5.8 qt models** (CS…): display only, no start.
 
 </details>
@@ -305,6 +308,8 @@ That lets the model be added properly. Without this data it would be guesswork.
 **My model is not found.** Then the cloud does not see it as an air fryer (device type does not start with CA/CS). Open an issue with the model number from the type plate.
 
 **When are new versions released?** Official releases on **Sundays**, beta versions on other days (HACS – from Home Assistant 2026.11: Settings › Marketplace – → ⋮ → Redownload → “Show beta versions”).
+
+**⏳ When will the next beta come?** To be honest: I build these integrations with the help of Claude (AI). How fast new betas come depends on how much Claude quota (tokens) is available. Once it is used up, I have to wait until it is refilled – no tokens, no betas. 😅 Thank you for your patience and understanding! 🙏
 
 ---
 

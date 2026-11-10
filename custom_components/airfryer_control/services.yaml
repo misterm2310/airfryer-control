@@ -42,6 +42,13 @@ senden_testen:
             - reheat
             - dry
             - proof
+            - broil
+            - chicken
+            - steak
+            - seafood
+            - veggies
+            - fries
+            - frozen
     variante:
       example: multi_c
       selector:
@@ -190,6 +197,13 @@ programm_senden:
             - reheat
             - dry
             - proof
+            - broil
+            - chicken
+            - steak
+            - seafood
+            - veggies
+            - fries
+            - frozen
     variante:
       required: false
       selector:

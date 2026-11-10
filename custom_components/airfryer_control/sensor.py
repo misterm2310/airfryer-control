@@ -20,9 +20,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ALL_STATES, DOMAIN, STATE_OFFLINE, zone_label
-from .coordinator import AirfryerCoordinator, FryerData
+from .coordinator import AirfryerCoordinator, FryerData, fryer_zones
 from .entity import AirfryerEntity, async_setup_dynamic
-from .core.parser import ZoneState, reports_current_temp, zone_view, zones_for_device
+from .core.parser import ZoneState, reports_current_temp, zone_view
 from .core.util import redact
 
 
@@ -153,7 +153,7 @@ def _build(coordinator: AirfryerCoordinator) -> list[SensorEntity]:
     entities: list[SensorEntity] = []
     for cid, fryer in coordinator.fryers.items():
         entities += [FryerSensor(coordinator, cid, d) for d in FRYER_SENSORS]
-        zones = zones_for_device(fryer.state, fryer.multizone)
+        zones = fryer_zones(fryer)
         # Gemessene Temperatur nur, wenn die Fritteuse sie überhaupt schickt
         with_temp = reports_current_temp(fryer.state)
         if zones:

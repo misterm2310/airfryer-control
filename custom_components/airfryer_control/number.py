@@ -24,9 +24,9 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .core.api import AirfryerError
 from .const import DOMAIN, zone_label
-from .coordinator import AirfryerCoordinator
+from .coordinator import AirfryerCoordinator, fryer_zones
 from .entity import AirfryerEntity, async_setup_dynamic
-from .core.parser import ZoneState, zone_view, zones_for_device
+from .core.parser import ZoneState, zone_view
 from .modelle import temp_step
 from .senden import clamp_minutes, clamp_temp, get_plan, temp_limits, time_limits
 
@@ -75,7 +75,7 @@ def _build(coordinator: AirfryerCoordinator) -> list[NumberEntity]:
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
             continue
-        for zone in zones_for_device(fryer.state, fryer.multizone):
+        for zone in fryer_zones(fryer):
             entities += [ZoneNumber(coordinator, cid, d, zone) for d in NUMBERS]
     return entities
 

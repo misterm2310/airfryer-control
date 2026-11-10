@@ -25,12 +25,13 @@ from .const import (
     STATE_WAITING,
     zone_label,
 )
-from .coordinator import AirfryerCoordinator
+from .coordinator import AirfryerCoordinator, fryer_zones
 from .entity import AirfryerEntity, async_setup_dynamic
-from .core.parser import zone_view, zones_for_device
+from .core.parser import zone_view
 from .senden import (
     RESULT_UNKNOWN,
     async_end,
+    SyncBlocked,
     async_send,
     clamp_minutes,
     clamp_temp,
@@ -49,7 +50,7 @@ def _build(coordinator: AirfryerCoordinator) -> list[SwitchEntity]:
     for cid, fryer in coordinator.fryers.items():
         if fryer.model.startswith("CS"):
             continue  # alte Modelle sprechen eine andere Befehls-Sprache
-        for zone in zones_for_device(fryer.state, fryer.multizone):
+        for zone in fryer_zones(fryer):
             entities.append(ZoneSwitch(coordinator, cid, zone))
     return entities
 
@@ -101,6 +102,9 @@ class ZoneSwitch(AirfryerEntity, SwitchEntity):
                 plan["minuten"],
                 plan["mode"],
             )
+        except SyncBlocked as err:
+            # 🔀 Grandzone/Zone 1/2: die andere Seite gart gerade – nichts gesendet
+            raise HomeAssistantError(str(err)) from err
         except AirfryerDeviceOffline as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

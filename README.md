@@ -35,14 +35,14 @@ Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https:
 |---|---|
 | 🔥 **Zustand** | Aus, Bereit, Wartet auf Start, Heizt vor, Gart, Pausiert, Schublade offen, Fertig, Hält warm, Offline. |
 | ⏱️ **Restzeit & „Fertig um“** | In Minuten und als Uhrzeit – gesamt und für jede Zone. |
-| 🧩 **Zonen** | Bei der TwinFry eigene Entitäten für Zone 1, Zone 2 und die **Grandzone** (die ganze Schublade ohne Trennwand, die Fritteuse nennt sie Zone 3). |
+| 🧩 **Zonen** | Bei der TwinFry eigene Entitäten für Zone 1, Zone 2 und die **Grandzone** (die ganze Schublade ohne Trennwand, die Fritteuse nennt sie Zone 3). Eine TwinFry behält ihre Zonen immer – auch wenn sie beim Start von Home Assistant kurz schweigt. **Grandzone ↔ Zone 1/2 schaltet automatisch um:** Ist die andere Seite nur vorbereitet („Wartet auf Start“), wird sie vorher zurückgesetzt. Gart sie gerade, wird nichts beendet, sondern du bekommst eine klare Meldung („Die Grandzone gart gerade – bitte erst beenden“). |
 | 🌡️ **Grenzen** | Die Temperatur passt sich dem Programm an: Heißluft 120–205 °C, Braten 120–205 °C, Backen 80–205 °C, Grillen 205–240 °C, Aufwärmen 40–205 °C. Passt ein Wert nicht, sagt die Integration es dir im Klartext. |
 | 🌡️ **Temperatur & Programm** | Eingestellte Temperatur und Programm (AirFry, Roast …). Eine gemessene Temperatur gibt's nur, wenn die Fritteuse sie meldet (die TwinFry tut das nicht). |
 | 🔔 **Ereignis „fertig“** | `airfryer_control_fertig` – für Handy-Nachricht, Alexa-/Google-Durchsage oder „Fernseher pausieren“. |
 | 📤 **Senden (wie in der App)** | Pro Zone Programm, Temperatur und Garzeit einstellen und den Schalter **„Zone n senden / beenden“** auf An legen – wie „Senden“ in der VeSync-App. Die Fritteuse wacht auf und wartet, bis du am Gerät auf Start drückst. (Starten aus der Ferne sperrt Cosori in der EU.) |
 | ⏹️ **Garen beenden** | Als Knopf für die ganze Fritteuse – und derselbe Schalter pro Zone: Aus = Zone beenden. |
 | 🎛️ **Temperatur & Zeit ändern** | Eingabefelder pro Zone. Gart die Zone schon, gehen neue Werte direkt an die Fritteuse. |
-| 🐢🐇 **Schlauer Takt** | Tut sie nichts: alle 60 Sekunden nachfragen (einstellbar). Arbeitet sie: alle 15 Sekunden. |
+| 🐢🐇 **Schlauer Takt** | Tut sie nichts: alle 60 Sekunden nachfragen (einstellbar). Arbeitet sie: alle 15 Sekunden. Verpasst sie mal eine Antwort, bleiben die letzten Werte stehen und es wird nach 5 Sekunden nochmal gefragt – „Offline“ steht erst da, wenn sie länger als 90 Sekunden schweigt. |
 | 🛡️ **Datenschutz** | Dein Passwort wird nicht gespeichert, Kennungen werden überall geschwärzt. Details unten. |
 
 </details>
@@ -188,9 +188,11 @@ cards:
 
 Die Integration bringt eine **eigene kleine Seite** mit: **`/airfryer_control/app/`** hinter deiner Home-Assistant-Adresse (z. B. `https://dein-name.ui.nabu.casa/airfryer_control/app/`). Sie zeigt das Laufband und die Zonenkarte im Vollbild.
 
-1. Adresse auf dem Handy oder Tablet im Browser öffnen.
+1. Adresse auf dem Handy oder Tablet im Browser öffnen (Chrome/Safari, **nicht** in der HA-App). Die fertige Adresse zum Kopieren steht auch in der Karte unter **📖 Anleitung → 📱 Als App aufs Handy**.
 2. **Anmelden** (mit deinem Home-Assistant-Konto, genau wie bei der Home-Assistant-App). Die Seite selbst enthält keine Daten.
 3. Im Browser-Menü **„Zum Startbildschirm hinzufügen“** – fertig, das Symbol öffnet direkt die Fritteuse.
+
+> ⚠️ **Nicht das Dashboard als Verknüpfung speichern!** Sonst landest du auf der Home-Assistant-Startseite. Richtig ist es, wenn die Adresse auf **`/airfryer_control/app/`** endet.
 
 Der Knopf **🔅 Bildschirm anlassen** hält das Display an (praktisch für ein Küchen-Tablet).
 
@@ -299,7 +301,7 @@ Andere Integrationen sollen **nicht** an der Cloud vorbei bauen. Sie benutzen ei
 
 **Wie frisch sind die Daten?** Der Status-Sensor der Fritteuse und jeder Zonen-Status haben die Attribute `letzte_meldung` (Zeitpunkt der letzten echten Antwort), `verbindung` (`ok`, `offline`, `fehler`) und `revision` (zählt hoch, sobald sich die Antwort der Fritteuse ändert – praktisch, um Änderungen zwischen Vorschau und Bestätigung zu erkennen). Zonen haben zusätzlich `gemeldet`: `false` heißt, die Fritteuse hat diese Zone gerade **gar nicht** gemeldet. Der Zustand zeigt dann aus Gewohnheit „Bereit“ (damit bestehende Automationen nicht brechen), ist aber nicht bestätigt.
 
-**Ehrlich:** Programme und Grenzen hat Marco an der **TwinFry** in der VeSync-App abgelesen. „Senden“ ist dort nur für **Heißluft** bestätigt. Für alle anderen Modelle (z. B. Turbo Tower Pro CAF-DC111S) meldet `faehigkeiten` die Werte als `geschaetzt`/`ungeprueft`.
+**Ehrlich:** Programme und Grenzen hat Marco an der **TwinFry** in der VeSync-App abgelesen. „Senden“ ist dort nur für **Heißluft** bestätigt. Für alle anderen Modelle (z. B. Turbo Tower Pro CAF-DC111S) meldet `faehigkeiten` die Werte als `geschaetzt`/`ungeprueft`, bei der Dual Blaze CAF-P583S als `pyvesync`.
 
 </details>
 
@@ -338,11 +340,12 @@ Kurz: **inoffiziell**, **kein Start aus der Ferne** (sperrt Cosori in der EU), u
 
 - **Inoffiziell.** Cosori/VeSync bieten keine offene Schnittstelle. Ändern sie etwas am Server, kann die Integration ausfallen, bis sie angepasst ist.
 - **Starten aus der Ferne:** In der EU erlaubt Cosori das **nicht** – darum gibt es keinen Start-Knopf. „Senden“ weckt die Fritteuse nur auf; gestartet wird am Gerät.
-- **„Senden“ ist neu.** Der Befehl (`startMultiCook` mit `readyStart: true`) stammt von einer Schwester-Fritteuse (Cosori Turbo Tower Pro, pyvesync). An der TwinFry stellt er das Programm bereit; die Zone steht dann auf „Wartet auf Start“ und wartet auf den Start-Knopf am Gerät. Bestätigt ist bisher nur das Programm **Heißluft (AirFry)**; bei Backen, Braten, Grillen, Aufwärmen und Dörren ist die Rezept-Nummer geraten. ⚠️ Mit `readyStart: false` **startet** die TwinFry sofort – das schickt die Integration nie von selbst (nur im Dienst „Senden testen“ mit `variante: multi_app_startet`).
+- **„Senden“ ist neu.** Der Befehl (`startMultiCook` mit `readyStart: true`) stammt von einer Schwester-Fritteuse (Cosori Turbo Tower Pro, pyvesync). An der TwinFry stellt er das Programm bereit; die Zone steht dann auf „Wartet auf Start“ und wartet auf den Start-Knopf am Gerät. Bestätigt ist bisher nur das Programm **Heißluft (AirFry)**. Die Rezept-Nummern der anderen Programme kommen jetzt aus pyvesync (dort aus der VeSync-App gelesen), vorher waren sie geraten. ⚠️ Mit `readyStart: false` **startet** die TwinFry sofort – das schickt die Integration nie von selbst (nur im Dienst „Senden testen“ mit `variante: multi_app_startet`).
 - **Match/Sync und schon vorbereitete Zonen:** Hast du vorher einzelne Zonen mit „Senden“ vorbereitet, setzt die Integration diese (und **nur** diese) vor Match/Sync zurück. Gemeldet an einer Turbo Tower Pro Smart. **Arbeitet irgendeine Zone, wird gar nichts gesendet und nichts beendet.**
 - **Pausieren/Fortsetzen:** Den Befehl dafür kennen wir noch nicht sicher – darum gibt es (noch) keinen Knopf.
 - **Zone einzeln beenden und Temperatur/Zeit ändern** schicken die Befehle so, wie die App es nach heutigem Wissen tut (`endCook` mit Zone, `setTimeOrTemp`). An der echten TwinFry ist das noch **nicht ausprobiert**. Lehnt sie ab, bekommst du eine Meldung mit dem Grund.
 - **Feldnamen:** Den Stillstand der TwinFry kennen wir aus einer echten Antwort, die Werte **während des Garens** noch nicht. Zeigt ein Sensor Quatsch, schau in `sensor.…_rohdaten` – dort steht, was die Fritteuse wirklich geschickt hat.
+- **Dual Blaze CAF-P583S (ein Korb):** Hat ein eigenes Profil mit ihren Programmen (Heißluft, Überbacken, Braten, Backen, Hähnchen, Steak, Fisch, Gemüse, Pommes, Tiefkühl, Aufwärmen) und dem passenden Befehl `startCook`. Ihre Steuerung erscheint als **Zone 1**. Programme, Grenzen und Befehl stammen aus pyvesync, an einer echten P583S ist es **noch nicht getestet** (Tester gesucht, siehe Issue #10). Die Garzeit ist bis 60 Minuten geschätzt.
 - **Ältere 3,7/5,8-Quart-Modelle** (CS…): nur Anzeige, kein Start. Für die gibt es auch die offizielle VeSync-Integration.
 
 </details>
@@ -381,6 +384,8 @@ Daraus kann das Modell sauber eingebaut werden. Ohne diese Daten wäre es gerate
 **Mein Modell wird nicht gefunden.** Dann ist es keine Fritteuse laut Cloud (Gerätetyp beginnt nicht mit CA/CS). Mach ein Issue auf, mit Modellnummer vom Typenschild.
 
 **Wann kommen neue Versionen?** Offizielle Versionen immer **sonntags**. An den anderen Tagen gibt es nur **Test-Versionen (Beta)**. Die siehst du in HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace), wenn du ⋮ → „Neu herunterladen“ wählst und **„Beta-Versionen anzeigen“** einschaltest.
+
+**⏳ Wann kommt die nächste Beta?** Ehrlich gesagt: Ich baue die Integrationen mit Hilfe von Claude (KI). Wie schnell neue Betas kommen, hängt davon ab, wie viel Claude-Kontingent (Tokens) gerade frei ist. Ist es aufgebraucht, muss ich warten, bis es wieder aufgefüllt ist – keine Tokens, keine Betas. 😅 Danke für eure Geduld und euer Verständnis! 🙏
 
 ---
 

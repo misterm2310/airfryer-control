@@ -296,8 +296,12 @@ class AirfryerApi:
         data: dict[str, Any] | None = None,
         *,
         retry: bool = True,
+        payload_extra: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Einen Befehl an ein Gerät schicken (so macht es die App).
+
+        ``payload_extra`` landet zusätzlich im „payload“ (Dual Blaze CAF-P583S:
+        ``subDeviceNo``/``subDeviceType`` wie in der App).
 
         Gibt das innere Ergebnis zurück. Wirft AirfryerDeviceOffline, wenn die
         Fritteuse nicht erreichbar ist, sonst AirfryerError mit Code.
@@ -317,7 +321,7 @@ class AirfryerApi:
                 "debugMode": False,
                 "deviceRegion": device.get("deviceRegion") or self._current_region,
                 "method": "bypassV2",
-                "payload": {"data": data or {}, "method": method, "source": "APP"},
+                "payload": {"data": data or {}, "method": method, "source": "APP", **(payload_extra or {})},
                 "phoneBrand": PHONE_BRAND,
                 "phoneOS": PHONE_OS,
                 "timeZone": self._time_zone,

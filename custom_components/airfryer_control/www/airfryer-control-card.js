@@ -37,6 +37,11 @@ const MODE_TEXT = {
   bake: ["Backen", "Bake", "mdi:muffin"], grill: ["Grillen", "Grill", "mdi:grill"],
   reheat: ["Aufwärmen", "Reheat", "mdi:microwave"], dry: ["Trocknen", "Dry", "mdi:water-off"],
   proof: ["Gären", "Proof", "mdi:baguette"], // 🗼 nur Turbo Tower Pro (CAF-DC111S)
+  // 🍗 Dual Blaze CAF-P583S (ein Korb)
+  broil: ["Überbacken", "Broil", "mdi:fire"], chicken: ["Hähnchen", "Chicken", "mdi:food-drumstick"],
+  steak: ["Steak", "Steak", "mdi:food-steak"], seafood: ["Fisch", "Seafood", "mdi:fish"],
+  veggies: ["Gemüse", "Veggies", "mdi:carrot"], fries: ["Pommes", "Fries", "mdi:french-fries"],
+  frozen: ["Tiefkühl", "Frozen", "mdi:snowflake"],
 };
 const stateText = (hass, s) => { const t = STATE_TEXT[s]; return t ? tr(hass, t[0], t[1]) : s; };
 const modeText = (hass, m) => { const t = MODE_TEXT[m]; return t ? tr(hass, t[0], t[1]) : m; };
@@ -255,6 +260,9 @@ const BASE_CSS = `
   .ac-step button.finfo { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--primary-color, #03a9f4); font:700 11px/1 serif; font-style:italic; color:var(--primary-color, #03a9f4); } /* nicht so groß wie die −/+ Knöpfe */
   .ac-step button.finfo[aria-expanded="true"] { background:var(--primary-color, #03a9f4); color:#fff; }
   .ac-withinfo { display:flex; align-items:center; gap:8px; }
+  .ac-ol { margin:4px 0 8px; padding-left:22px; } .ac-ol li { margin:2px 0; }
+  .ac-url { display:flex; gap:8px; margin:6px 0; } .ac-url input { flex:1; min-width:0; padding:8px 10px; border-radius:10px; border:1px solid var(--divider-color, #ccc); background:var(--card-background-color, #fff); color:var(--primary-text-color); font:inherit; }
+  .ac-url button { border:0; border-radius:10px; padding:8px 12px; background:var(--primary-color, #03a9f4); color:#fff; font:inherit; font-weight:600; cursor:pointer; }
   .ac-withinfo > :first-child { flex:1; }
   .elcredits { text-align:center; } .elcredits p { margin:8px 0; }
   .ellogo { background:#fff; border-radius:16px; padding:10px; display:inline-block; max-width:100%; box-shadow:0 1px 4px rgba(0,0,0,.12); }
@@ -295,6 +303,23 @@ function acGreeting(hass, now = new Date()) {
   const base = tr(hass, de, en);
   return first ? `${base}, ${first}` : base;
 }
+// 📱 So kommt die Handy-App auf den Startbildschirm (wie bei der Einkaufsliste)
+function acAppUrl() {
+  try { return `${location.origin}/airfryer_control/app/`; } catch (_) { return "/airfryer_control/app/"; }
+}
+function acAppGuideHtml(hass) {
+  const t = (d, e) => tr(hass, d, e);
+  if (location.pathname.startsWith("/airfryer_control/app/")) return ""; // wir sind schon in der App 😉
+  const url = acAppUrl();
+  return `<h4>📱 ${t("Als App aufs Handy", "As an app on your phone")}</h4>
+    <p>${t("Laufband und Zonen gibt es auch als <b>eigene kleine App</b> auf dem Startbildschirm – ohne App-Store.", "Ticker and zones also come as a <b>small app of their own</b> on your home screen – no app store needed.")}</p>
+    <ol class="ac-ol"><li>${t("Adresse kopieren", "Copy the address")}</li>
+      <li>${t("Im Handy-<b>Browser</b> öffnen (Chrome/Safari, nicht in der HA-App)", "Open it in your phone's <b>browser</b> (Chrome/Safari, not the HA app)")}</li>
+      <li>${t("Mit deinem Home-Assistant-Benutzer anmelden", "Log in with your Home Assistant user")}</li>
+      <li>${t("Browser-Menü → <b>„Zum Startbildschirm hinzufügen“</b>", "Browser menu → <b>“Add to Home screen”</b>")}</li></ol>
+    <div class="ac-url"><input readonly value="${esc(url)}" translate="no" aria-label="${esc(t("Adresse der App", "App address"))}"><button type="button" data-copyapp>📋 ${t("Kopieren", "Copy")}</button></div>
+    <p class="elcsmall">⚠️ ${t("Nicht das Dashboard als Verknüpfung speichern! Richtig ist es, wenn die Adresse auf <b>/airfryer_control/app/</b> endet. Von unterwegs: deine externe Adresse (z. B. Nabu Casa) + <b>/airfryer_control/app/</b>. Für „Zum Startbildschirm“ braucht der Browser meist eine https-Adresse.", "Don't save the dashboard as a shortcut! It's right when the address ends in <b>/airfryer_control/app/</b>. From outside: your external address (e.g. Nabu Casa) + <b>/airfryer_control/app/</b>. For “Add to Home screen” the browser usually needs an https address.")}</p>`;
+}
 // 📖 Kurze Anleitung (öffnet sich über den Knopf unter der Karte)
 function acGuideHtml(hass) {
   const t = (d, e) => tr(hass, d, e);
@@ -304,6 +329,7 @@ function acGuideHtml(hass) {
     <h4>⏹️ ${t("Knopf rechts", "Button on the right")}</h4><p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>
     <h4>🔗 ${t("Match & Sync", "Match & Sync")}</h4><p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. Sync sagt dir, wann du die zweite Zone startest, damit beide gleichzeitig fertig sind.", "With two zones: “Use settings” copies the other zone. Sync tells you when to start the second zone so both finish together.")}</p>
     <h4>🔢 ${t("Oben", "At the top")}</h4><p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. ⚙️ (nur Admins) öffnet die Einstellungen der Integration, z. B. Seitenleiste und Maskottchen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. ⚙️ (admins only) opens the integration settings, e.g. sidebar and mascot.")}</p>
+    ${acAppGuideHtml(hass)}
     <h4>📦 ${t("Installieren & Updates", "Install & updates")}</h4><p>${t("Installation über HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace). Dort kommen auch die Updates an.", "Install via HACS (from Home Assistant 2026.11: Settings › Marketplace). Updates arrive there too.")}</p>
     <h4>🎃 ${t("Maskottchen", "Mascot")}</h4><p>${t("Im Karten-Editor (oder für die Seitenleiste in den Optionen der Integration) einschalten. Es zieht sich je nach Jahreszeit um.", "Switch it on in the card editor (or, for the sidebar, in the integration options). It changes costumes with the seasons.")}</p>`;
 }
@@ -322,7 +348,7 @@ class AirfryerControlCard extends HTMLElement {
     this._sig = "";
     if (this._hass) this._render();
   }
-  static getStubConfig() { return { title: "Heißluftfritteuse" }; }
+  static getStubConfig() { return {}; } // 🌐 ohne festen Titel: die Karte nimmt den Titel in der Sprache von Home Assistant
   static getConfigElement() { return document.createElement("airfryer-control-card-editor"); }
   getCardSize() { return 4; }
   getGridOptions() { return { columns: 12, rows: "auto", min_columns: 6 }; }
@@ -352,7 +378,8 @@ class AirfryerControlCard extends HTMLElement {
     const hass = this._hass;
     if (!hass) return;
     const zones = this._zones || findZones(hass);
-    const title = this._config.title ?? "Heißluftfritteuse";
+    // 🌐 Standard-Titel in der Sprache von Home Assistant (alter deutscher Standard zählt auch als „kein Titel“)
+    const title = !this._config.title || (this._config.title === "Heißluftfritteuse" && !isDe(hass)) ? tr(hass, "Heißluftfritteuse", "Air fryer") : this._config.title;
     const online = findOnline(hass, zones);
     const rows = zones.map((z) => {
       const st = hass.states[z.state];
@@ -544,6 +571,12 @@ class AirfryerControlCard extends HTMLElement {
     const info = root.querySelector("[data-info]");
     if (info) info.addEventListener("click", () => { this._open = "__credits"; this._sig = ""; this.hass = this._hass; });
     root.querySelector("[data-guide]")?.addEventListener("click", () => { this._open = "__guide"; this._sig = ""; this.hass = this._hass; });
+    root.querySelector("[data-copyapp]")?.addEventListener("click", async (e) => { // 📋 App-Adresse kopieren
+      e.stopPropagation();
+      const btn = e.currentTarget, inp = btn.previousElementSibling;
+      try { await navigator.clipboard.writeText(inp.value); } catch (_) { inp.select(); try { document.execCommand("copy"); } catch (__) { /* egal */ } }
+      btn.textContent = "✅ " + tr(this._hass, "Kopiert", "Copied");
+    });
     root.querySelector("[data-settings]")?.addEventListener("click", () => { // ⚙️ direkt zu den Optionen der Integration
       history.pushState(null, "", "/config/integrations/integration/airfryer_control");
       window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));

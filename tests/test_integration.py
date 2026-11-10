@@ -105,6 +105,7 @@ class FakeApi:
         self.region = region
         self.calls: list[tuple[str, dict[str, Any] | None]] = []
         self.retries: list[bool] = []
+        self.extras: list[dict[str, Any] | None] = []
         FakeApi.instances.append(self)
 
     @property
@@ -118,9 +119,10 @@ class FakeApi:
     async def get_devices(self):
         return list(FakeApi.devices)
 
-    async def bypass_v2(self, device, method, data=None, *, retry=True):
+    async def bypass_v2(self, device, method, data=None, *, retry=True, payload_extra=None):
         self.calls.append((method, data))
         self.retries.append(retry)
+        self.extras.append(payload_extra)
         if method in FakeApi.timeout:
             raise AirfryerConnectionError("VeSync-Server nicht erreichbar: Zeitüberschreitung")
         if FakeApi.offline:
@@ -286,11 +288,48 @@ async def test_finished_event(hass: HomeAssistant, fake_api) -> None:
     assert events[0].data["geraet"] == "Fritteuse"
 
 
+async def _offline_for_long(hass: HomeAssistant, coordinator) -> None:
+    """Erst ein kurzer Aussetzer, dann (laut Uhr) über 90 Sekunden Funkstille."""
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    later = dt_util.utcnow() + timedelta(seconds=120)
+    with patch("custom_components.airfryer_control.coordinator.dt_util.utcnow", return_value=later):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+
+async def test_short_hiccup_is_not_offline(hass: HomeAssistant, fake_api) -> None:
+    """Issue #8: eine verpasste Antwort beim Garen = letzte Werte bleiben, nach 5 s nochmal fragen."""
+    await setup(hass)
+    coordinator = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    before = hass.states.get(eid(hass, "sensor", "status")).state
+    fake_api.offline = True
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(eid(hass, "sensor", "status")).state == before != "offline"
+    assert hass.states.get(eid(hass, "binary_sensor", "online")).state == "on"
+    assert coordinator.update_interval == timedelta(seconds=5)
+    fake_api.offline = False  # Fritteuse antwortet wieder → alles normal
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert coordinator.update_interval != timedelta(seconds=5)
+
+
+async def test_short_timeout_keeps_entities_available(hass: HomeAssistant, fake_api) -> None:
+    """Zeitüberschreitung beim Server: Entitäten bleiben verfügbar (nicht „unavailable“)."""
+    await setup(hass)
+    coordinator = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    FakeApi.timeout = {"getAirfryerStatus", "getAirfryerMultiStatus"}
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(eid(hass, "sensor", "status")).state not in ("unavailable", "offline")
+
+
 async def test_offline(hass: HomeAssistant, fake_api) -> None:
     await setup(hass)
+    coordinator = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
     fake_api.offline = True
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=20))
-    await hass.async_block_till_done()
+    await _offline_for_long(hass, coordinator)
     assert hass.states.get(eid(hass, "sensor", "status")).state == "offline"
     assert hass.states.get(eid(hass, "binary_sensor", "online")).state == "off"
     assert hass.states.get(eid(hass, "sensor", "restzeit")).state == "unknown"
@@ -464,7 +503,7 @@ async def test_switch_on_sends_plan_and_off_ends(hass: HomeAssistant, fake_api) 
     assert data["readyStart"] is True
     assert data["cookConfigs"] == [
         {"cookSetTime": 300, "cookTemp": 220, "mode": "Grill", "chamber": 2,
-         "recipeId": 14, "recipeName": "Grill", "recipeType": 3, "shakeTime": 0}
+         "recipeId": 20, "recipeName": "Grill", "recipeType": 3, "shakeTime": 0}
     ]
     assert hass.states.get(eid(hass, "switch", "zone2_gart")).state == "on"
     await hass.services.async_call(
@@ -708,7 +747,18 @@ async def test_match_and_sync_services_only_prepare(hass: HomeAssistant, fake_ap
         assert len(sent[1]["cookConfigs"]) == 2
 
 
+async def test_twinfry_keeps_zones_when_silent_at_start(hass: HomeAssistant) -> None:
+    """Issue #8: Schweigt die TwinFry beim Start, hat sie trotzdem sofort alle Zonen-Entitäten."""
+    FakeApi.offline = True
+    await setup(hass)
+    reg = er.async_get(hass)
+    assert reg.async_get_entity_id("sensor", DOMAIN, f"{CID}_zone1_restzeit")
+    assert reg.async_get_entity_id("sensor", DOMAIN, f"{CID}_zone3_restzeit")
+    assert reg.async_get_entity_id("switch", DOMAIN, f"{CID}_zone1_gart")
+
+
 async def test_zone_entities_appear_when_fryer_comes_online_later(hass: HomeAssistant) -> None:
+    FakeApi.devices = [{**DEVICE, "deviceType": "CAF-XY999S"}, LAMP]  # unbekanntes Modell: Zonen erst nach Meldung
     FakeApi.offline = True
     await setup(hass)
     assert not er.async_get(hass).async_get_entity_id("switch", DOMAIN, f"{CID}_zone1_gart")
@@ -959,8 +1009,7 @@ async def test_zone_not_reported_is_marked_and_freshness_attributes(hass: HomeAs
     await hass.async_block_till_done()
     assert hass.states.get(main.entity_id).attributes["revision"] == rev + 1
     fake_api.offline = True
-    await coordinator.async_refresh()
-    await hass.async_block_till_done()
+    await _offline_for_long(hass, coordinator)
     assert hass.states.get(main.entity_id).attributes["verbindung"] == "offline"
     assert hass.states.get(z1.entity_id).attributes["gemeldet"] is False
 
@@ -1148,3 +1197,87 @@ async def test_sync_connection_lost_is_unknown(hass: HomeAssistant, fake_api) ->
     res = await _sync_call(hass, einmal=True)
     assert res["ok"] is False and res["ergebnis"] == "unbekannt"
     assert len(_sends()) == 1
+
+
+
+# ---------------------------------------------------------- 🔀 Grandzone ↔ Zone 1/2 (Issue #9)
+def _twinfry_with(**zones: str) -> dict[str, Any]:
+    """TwinFry-Antwort mit eigenem Zustand je Zone, z. B. _twinfry_with(z3="ready")."""
+    base = {"startTime": 0, "recipeType": 3, "recipeId": 14, "recipeName": "", "upc": "", "holdTime": 0,
+            "cookSetTime": 600, "cookTemp": 180, "mode": "AirFry", "currentRemainingTime": 600, "totalTimeRemaining": 600}
+    lst = [{**base, "chamber": int(k[1:]), "cookStatus": v} for k, v in zones.items()]
+    return {"statusList": lst, "tempUnit": "c", "syncType": 0, "workChamber": 0}
+
+
+async def test_zone1_resets_prepared_grandzone_first(hass: HomeAssistant, fake_api, monkeypatch) -> None:
+    from custom_components.airfryer_control import senden
+
+    monkeypatch.setattr(senden, "RESET_WAIT_SECONDS", 0)
+    fake_api.status_rejected = True
+    fake_api.multi = _twinfry_with(z3="ready")
+    await setup(hass)
+    api = FakeApi.instances[-1]
+    original = api.bypass_v2
+
+    async def clearing(dev, method, data=None, **kw):
+        answer = await original(dev, method, data, **kw)
+        if method == "endCook":
+            FakeApi.multi = real_twinfry("standby")  # Grandzone verworfen
+        return answer
+
+    api.bypass_v2 = clearing
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+    )
+    names = [c[0] for c in api.calls]
+    assert ("endCook", {"chamber": 3}) in api.calls
+    assert names.index("endCook") < names.index("startMultiCook")
+
+
+async def test_zone1_never_stops_cooking_grandzone(hass: HomeAssistant, fake_api) -> None:
+    from homeassistant.exceptions import HomeAssistantError
+
+    fake_api.status_rejected = True
+    fake_api.multi = _twinfry_with(z3="cooking")
+    await setup(hass)
+    with pytest.raises(HomeAssistantError, match="Whole basket is cooking"):
+        await hass.services.async_call(
+            "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+        )
+    api = FakeApi.instances[-1]
+    assert not [c for c in api.calls if c[0] in ("endCook", "startMultiCook")]
+
+
+# ---------------------------------------------------------- 🍗 Dual Blaze CAF-P583S (Issue #10)
+P583S = {**DEVICE, "deviceType": "CAF-P583S-KEU", "configModule": "VS_WFON_AFR_CAF-P583S-KEU_ONL_EU"}
+
+
+async def test_p583s_sends_start_cook(hass: HomeAssistant, fake_api) -> None:
+    FakeApi.devices = [P583S, LAMP]
+    fake_api.status = {"cookStatus": "standby", "stepArray": []}
+    fake_api.multi = {}
+    fake_api.reject = {"getAirfryerMultiStatus"}
+    await setup(hass)
+    sel = eid(hass, "select", "zone1_programm_waehlen")
+    assert "chicken" in hass.states.get(sel).attributes["options"]
+    await hass.services.async_call("select", "select_option", {"entity_id": sel, "option": "fries"}, blocking=True)
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+    )
+    api = FakeApi.instances[-1]
+    i, (method, data) = next((n, c) for n, c in enumerate(api.calls) if c[0] == "startCook")
+    assert data["readyStart"] is True and data["mode"] == "French fries"
+    assert data["recipeId"] == 6 and data["accountID"] == "konto-42" and data["hasLinkage"] is False
+    assert data["startAct"]["cookTemp"] == 195 and data["startAct"]["cookSetTime"] == 20 * 60
+    assert api.extras[i] == {"subDeviceNo": 0, "subDeviceType": ""}
+    assert not [c for c in api.calls if c[0] == "startMultiCook"]
+
+
+def test_recipe_numbers_from_pyvesync() -> None:
+    from custom_components.airfryer_control import senden
+
+    v = senden.build_variants("a", 1, 180, 10, "bake")[0]
+    assert v.payload["cookConfigs"][0]["recipeId"] == 9
+    assert v.payload["cookConfigs"][0]["recipeName"] == "Bake"
+    p = senden.build_sync_payload("a", 2, ("grill", 240, 5), ("dry", 55, 60))
+    assert [c["recipeId"] for c in p["cookConfigs"]] == [20, 21]

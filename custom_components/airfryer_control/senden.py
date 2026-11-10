@@ -106,10 +106,11 @@ def build_variants(
             "mode": app_mode,
             "chamber": zone,
         }
-        # Wie die Schwester-Fritteuse (Turbo Tower Pro) in pyvesync: mit Rezept-Angaben
+        # Rezept-Angaben wie die App (Nummern aus pyvesync, siehe modelle.RECIPES)
+        rid, rname = modelle.recipe(mode)
         config.update(
-            recipeId=14,
-            recipeName="Air Fry" if mode == "airfry" else app_mode,
+            recipeId=rid,
+            recipeName=rname,
             recipeType=3,
             shakeTime=0,
         )
@@ -137,6 +138,56 @@ def build_variants(
     return safe
 
 
+# 🍗 Dual Blaze CAF-P583S: Diese Felder schickt die App bei JEDEM Befehl mit (pyvesync)
+SUB_DEVICE = {"subDeviceNo": 0, "subDeviceType": ""}
+
+
+def build_single_variants(
+    account_id: str | None,
+    temp: int,
+    minutes: int,
+    mode: str,
+    *,
+    include_start: bool = False,
+) -> list[SendVariant]:
+    """„Senden“ für die Dual Blaze CAF-P583S (ein Korb): Befehl ``startCook``.
+
+    Für Doofe: Die TwinFry versteht „startMultiCook“ (mehrere Körbe). Die
+    P583S hat nur einen Korb und will „startCook“ mit ``startAct`` – so steht es in
+    pyvesync (mitgeschnitten an einer CAF-P583S-KUS). ``readyStart: true`` = nur
+    bereitstellen, gestartet wird am Gerät.
+    """
+    rid, rname = modelle.recipe(mode)
+
+    def single(unit: str, *, ready: bool = True) -> dict[str, Any]:
+        return {
+            "accountID": account_id or "",
+            "hasLinkage": False,
+            "hasPreheat": 0,
+            "hasWarm": False,
+            "mode": modelle.ALL_MODES.get(mode, mode),
+            "readyStart": ready,
+            "recipeId": rid,
+            "recipeName": rname,
+            "recipeType": 3,
+            "tempUnit": unit,
+            "startAct": {
+                "cookSetTime": int(minutes) * 60,
+                "cookTemp": int(temp),
+                "preheatTemp": 0,
+                "shakeTime": 0,
+            },
+        }
+
+    variants = [
+        SendVariant("single_app", "startCook", single("c")),
+        SendVariant("single_app_celsius", "startCook", single("celsius")),
+    ]
+    if include_start:
+        variants.append(SendVariant("single_app_startet", "startCook", single("c", ready=False)))
+    return variants
+
+
 def build_sync_payload(
     account_id: str | None,
     sync_type: int,
@@ -158,13 +209,14 @@ def build_sync_payload(
     longest = max(times)
     for chamber, (mode, temp, minutes) in enumerate((zone1, zone2), start=1):
         app_mode = modelle.ALL_MODES.get(mode, mode)
+        rid, rname = modelle.recipe(mode)
         config: dict[str, Any] = {
             "cookSetTime": minutes * 60,
             "cookTemp": int(temp),
             "mode": app_mode,
             "chamber": chamber,
-            "recipeId": 14,
-            "recipeName": "Air Fry" if mode == "airfry" else app_mode,
+            "recipeId": rid,
+            "recipeName": rname,
             "recipeType": 3,
             "shakeTime": 0,
         }
@@ -318,7 +370,67 @@ async def async_send_sync(
 RESULT_ACCEPTED = "angenommen"  # die Cloud hat den Befehl angenommen
 RESULT_REJECTED = "abgelehnt"  # sicher nicht ausgeführt (Fehlercode, Anmeldung abgelaufen)
 RESULT_UNKNOWN = "unbekannt"  # Verbindung weg/Zeitüberschreitung: vielleicht angekommen
-SAFE_VARIANTS = ("multi_app", "multi_app_celsius", "multi_app_zone0")
+SAFE_VARIANTS = ("multi_app", "multi_app_celsius", "multi_app_zone0", "single_app", "single_app_celsius")
+
+
+def _other_side(zone: int) -> tuple[int, ...]:
+    """Was schließt sich aus? Grandzone (3) ↔ Zone 1 und 2."""
+    return (1, 2) if zone == 3 else (3,) if zone in (1, 2) else ()
+
+
+def _side_name(zone: int, de: bool) -> str:
+    if zone == 3:
+        return "Grandzone" if de else "Whole basket"
+    return f"Zone {zone}"
+
+
+async def _free_other_side(coordinator: AirfryerCoordinator, fryer: FryerData, zone: int) -> None:
+    """Grandzone und Zone 1/2 automatisch umschalten (Issue #9).
+
+    Für Doofe: Die TwinFry kann entweder EINE große Schublade (Grandzone) oder zwei
+    Körbe (Zone 1/2). Ist die andere Seite nur vorbereitet („Wartet auf Start“), wird
+    sie vorher automatisch zurückgesetzt. Gart sie gerade, wird NICHTS beendet –
+    dann kommt eine klare Meldung (SyncBlocked), und nichts wird gesendet.
+    """
+    others = _other_side(zone)
+    if not others:
+        return
+    de = str(coordinator.hass.config.language or "de").startswith("de")
+    if any(_zone_status(fryer, z) in PREPARED | BUSY for z in others):
+        await coordinator.async_refresh()  # frischen Stand holen, nicht den von vor einer Minute
+    states = {z: _zone_status(fryer, z) for z in others}
+    busy = [z for z in others if states[z] in BUSY]
+    if busy:
+        name = " und ".join(_side_name(z, de) for z in busy) if de else " and ".join(_side_name(z, de) for z in busy)
+        verb = ("garen" if len(busy) > 1 else "gart") if de else ("are" if len(busy) > 1 else "is")
+        raise SyncBlocked(
+            f"{name} {verb} gerade – bitte erst beenden. Nichts gesendet."
+            if de
+            else f"{name} {verb} cooking right now – please stop it first. Nothing was sent.",
+            "andere_seite_gart",
+        )
+    todo = [z for z in others if states[z] in PREPARED]
+    if not todo:
+        return
+    for z in todo:
+        try:
+            await coordinator.api.bypass_v2(fryer.info, "endCook", {"chamber": z})
+        except AirfryerDeviceOffline:
+            raise
+        except AirfryerError as err:
+            if err.code != NO_PROGRAM_CODE:
+                raise
+    for _ in range(RESET_TRIES):  # warten, bis die Fritteuse das übernommen hat
+        await asyncio.sleep(RESET_WAIT_SECONDS)
+        await coordinator.async_refresh()
+        if not any(_zone_status(fryer, z) in PREPARED for z in others):
+            return
+    raise SyncBlocked(
+        f"{' und '.join(_side_name(z, de) for z in todo)} ließ sich nicht rechtzeitig zurücksetzen – nichts gesendet."
+        if de
+        else f"{' and '.join(_side_name(z, de) for z in todo)} could not be reset in time – nothing was sent.",
+        "zuruecksetzen_dauert",
+    )
 
 
 async def async_send(
@@ -345,21 +457,32 @@ async def async_send(
     Für Doofe: Ist das Ergebnis „unbekannt“ (Verbindung weg), wird NIE eine
     weitere Variante geschickt – der erste Befehl könnte ja angekommen sein.
     """
-    variants = build_variants(
-        coordinator.api.account_id,
-        zone,
-        temp,
-        minutes,
-        mode,
-        include_start=bool(only) and allow_start,
-    )
+    single = modelle.single_basket(fryer.model)
+    if single:
+        variants = build_single_variants(
+            coordinator.api.account_id, temp, minutes, mode, include_start=bool(only) and allow_start
+        )
+        extra_payload: dict[str, Any] = {"payload_extra": dict(SUB_DEVICE)}
+    else:
+        variants = build_variants(
+            coordinator.api.account_id,
+            zone,
+            temp,
+            minutes,
+            mode,
+            include_start=bool(only) and allow_start,
+        )
+        extra_payload = {}
+        if fryer.multizone:
+            await _free_other_side(coordinator, fryer, zone)
     if only:
         variants = [v for v in variants if v.name == only]
     elif coordinator.send_variant:
         variants.sort(key=lambda v: v.name != coordinator.send_variant)
     if once:
         variants = variants[:1]
-    extra = {"retry": False} if once else {}
+    extra: dict[str, Any] = {"retry": False} if once else {}
+    extra.update(extra_payload)
     results: list[dict[str, Any]] = []
     for i, variant in enumerate(variants):
         if i:
@@ -406,6 +529,15 @@ async def async_end(
     """
     if fryer.model.startswith("CS"):
         await coordinator.api.bypass_v2(fryer.info, "endCook", {})
+        await coordinator.async_request_fast_refresh()
+        return
+    if modelle.single_basket(fryer.model):
+        # 🍗 Dual Blaze P583S: „endCook“ ohne Zone, mit den App-Zusatzfeldern (pyvesync)
+        try:
+            await coordinator.api.bypass_v2(fryer.info, "endCook", {}, payload_extra=dict(SUB_DEVICE))
+        except AirfryerError as err:
+            if isinstance(err, AirfryerDeviceOffline) or err.code != NO_PROGRAM_CODE:
+                raise
         await coordinator.async_request_fast_refresh()
         return
     zones = [zone] if zone else zones_for_device(fryer.state, fryer.multizone)

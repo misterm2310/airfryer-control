@@ -73,7 +73,14 @@
         "grill": "Grillen (Grill)",
         "reheat": "Aufwärmen (Reheat)",
         "dry": "Dörren (Dry)",
-        "proof": "Gären (Proof)"
+        "proof": "Gären (Proof)",
+        "broil": "Überbacken (Broil)",
+        "chicken": "Hähnchen (Chicken)",
+        "steak": "Steak",
+        "seafood": "Fisch (Seafood)",
+        "veggies": "Gemüse (Veggies)",
+        "fries": "Pommes (French Fries)",
+        "frozen": "Tiefkühl (Frozen)"
       }
     }
   },

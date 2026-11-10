@@ -113,7 +113,7 @@ def test_send_variants_never_start_by_default():
     assert first.payload["workChamber"] == 2 and first.payload["tempUnit"] == "c"
     assert first.payload["cookConfigs"] == [
         {"cookSetTime": 600, "cookTemp": 180, "mode": "Bake", "chamber": 2,
-         "recipeId": 14, "recipeName": "Bake", "recipeType": 3, "shakeTime": 0}
+         "recipeId": 9, "recipeName": "Bake", "recipeType": 3, "shakeTime": 0}
     ]
     airfry = build_variants("acc", 1, 200, 15, "airfry")[0].payload["cookConfigs"][0]
     assert airfry["recipeName"] == "Air Fry" and airfry["cookSetTime"] == 900

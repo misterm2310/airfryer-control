@@ -73,7 +73,14 @@
         "grill": "Grill",
         "reheat": "Reheat",
         "dry": "Dry",
-        "proof": "Proof"
+        "proof": "Proof",
+        "broil": "Broil",
+        "chicken": "Chicken",
+        "steak": "Steak",
+        "seafood": "Seafood",
+        "veggies": "Veggies",
+        "fries": "French Fries",
+        "frozen": "Frozen"
       }
     }
   },

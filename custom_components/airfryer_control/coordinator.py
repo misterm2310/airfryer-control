@@ -45,7 +45,8 @@ from .const import (
     STATE_STANDBY,
     TIME_UNIT_AUTO,
 )
-from .core.parser import FryerState, guess_unit, parse
+from .core.parser import FryerState, guess_unit, parse, zones_for_device
+from . import modelle
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +54,10 @@ RUNNING = {STATE_COOKING, STATE_PREHEAT}
 METHOD_STATUS = "getAirfryerStatus"
 METHOD_MULTI = "getAirfryerMultiStatus"
 DONE_STATES = {STATE_FINISHED, STATE_STANDBY, STATE_KEEP_WARM, STATE_OFF, STATE_PREHEATED}
+# 🤫 Kurzer Aussetzer: So lange behalten wir die letzten Werte, bevor wir „offline“ zeigen
+OFFLINE_GRACE_SECONDS = 90
+# … und so schnell fragen wir in der Zeit nochmal nach
+RETRY_SECONDS = 5
 
 
 @dataclass
@@ -73,6 +78,8 @@ class FryerData:
     last_report: datetime | None = None
     # Zählt hoch, sobald sich etwas an der gemeldeten Antwort ändert
     revision: int = 0
+    # Seit wann schweigt die Fritteuse? (None = alles gut) – für kurze Aussetzer
+    silent_since: datetime | None = None
 
     @property
     def connection(self) -> str:
@@ -135,6 +142,9 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                 self.fryers[cid].info = dev
             else:
                 self.fryers[cid] = FryerData(info=dev)
+            # 🍟 Eine TwinFry hat IMMER Zonen – auch wenn sie sie beim Start kurz nicht meldet
+            if modelle.has_zones(str(dev.get("deviceType") or "")):
+                self.fryers[cid].multizone = True
         _LOGGER.debug("%s Fritteuse(n) gefunden", len(self.fryers))
 
     async def _async_update_data(self) -> dict[str, FryerData]:
@@ -149,6 +159,10 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             except AirfryerAuthError as err:
                 raise ConfigEntryAuthFailed(str(err)) from err
             except AirfryerConnectionError as err:
+                if self._tolerate(fryer, err):
+                    any_ok = True  # kurzer Aussetzer: letzte Werte bleiben stehen
+                    continue
+                fryer.silent_since = None
                 last_conn_error = err
                 fryer.last_error = str(err)
         if not any_ok and last_conn_error is not None:
@@ -161,7 +175,11 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             f.online and any(z.status == STATE_WAITING for z in f.state.zones.values())
             for f in self.fryers.values()
         )
-        if waiting:
+        # 🤫 Hat eine Fritteuse gerade kurz geschwiegen? Dann gleich nochmal fragen
+        hiccup = any(f.online and f.silent_since is not None for f in self.fryers.values())
+        if hiccup:
+            seconds = RETRY_SECONDS
+        elif waiting:
             seconds = WAITING_INTERVAL
         else:
             seconds = FAST_INTERVAL if busy else self._interval
@@ -203,7 +221,11 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             fryer.last_report = dt_util.utcnow()
             fryer.online = True
             fryer.last_error = None
+            fryer.silent_since = None
         except AirfryerDeviceOffline as err:
+            if self._tolerate(fryer, err):
+                return  # kurzer Aussetzer: letzte Werte bleiben, gleich nochmal fragen
+            fryer.silent_since = None
             fryer.online = False
             fryer.last_error = str(err)
             fryer.state = FryerState(status=STATE_OFFLINE)
@@ -234,6 +256,25 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             for zone, zs in new.zones.items()
         }
         self._fire_events(fryer, previous, new)
+
+    def _tolerate(self, fryer: FryerData, err: Exception) -> bool:
+        """Kurzer Aussetzer? Dann NICHT gleich „offline“ melden.
+
+        Für Doofe: Beim Garen verpasst die Fritteuse manchmal eine einzelne Antwort
+        an die Cloud. Bisher hieß das sofort „offline“ – und erst nach einer Minute
+        wurde wieder gefragt. Jetzt bleiben die letzten Werte stehen, es wird nach
+        wenigen Sekunden nochmal gefragt, und erst wenn sie länger als 90 Sekunden
+        schweigt, steht „offline“ da (Issue #8).
+        """
+        if not fryer.online or fryer.last_report is None:
+            return False  # war schon offline oder hat noch nie geantwortet
+        now = dt_util.utcnow()
+        if fryer.silent_since is None:
+            fryer.silent_since = now
+        if (now - fryer.silent_since).total_seconds() < OFFLINE_GRACE_SECONDS:
+            _LOGGER.debug("%s: kurzer Aussetzer, frage gleich nochmal: %s", fryer.name, err)
+            return True
+        return False
 
     async def _ask(self, fryer: FryerData, method: str) -> dict[str, Any] | None:
         """Eine Statusfrage stellen. None = Gerät kennt die Frage nicht.
@@ -287,3 +328,15 @@ def _stable_finish(
     if old is not None and abs((new - old).total_seconds()) < 45:
         return old
     return new
+
+
+def fryer_zones(fryer: FryerData) -> list[int]:
+    """Zonen-Entitäten einer Fritteuse.
+
+    Wie ``zones_for_device`` – nur bekommt die Dual Blaze CAF-P583S (ein Korb)
+    ihre Steuerung als „Zone 1“, damit Senden, Programm, Temperatur und Zeit gehen.
+    """
+    zones = zones_for_device(fryer.state, fryer.multizone)
+    if not zones and modelle.single_basket(fryer.model):
+        return [1]
+    return zones
