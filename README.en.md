@@ -119,7 +119,7 @@ extra_entities:
 
 The phone page and the sidebar (option “📌 Show in sidebar”, off by default) show the same cards. For the sidebar you switch the mascot on in the same options (“🍟 Show mascot in the sidebar”).
 
-**⚙️ Settings in the card:** the cog at the top of the card opens a page with groups to unfold (like the shopping list):
+**⚙️ Settings in the card:** the cog at the top of the card opens a page 1:1 like the shopping list settings: search field at the top, groups to unfold, switches right in the row, and tapping a row opens its own page with an explanation:
 - **👁️ View:** font size (smaller / standard / larger) and colours (auto / light / dark). Only on this device, e.g. larger on the kitchen tablet.
 - **🍟 Card:** mascot, top bar and guide button on/off, only on this device. “Like in the card editor” goes back to the editor values.
 - **🔌 Integration** (admins only, not in the phone app): polling interval, sidebar and mascot in the sidebar. Applies to everyone. Saving reloads the integration briefly.

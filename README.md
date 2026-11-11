@@ -125,7 +125,7 @@ speed: 60      # Pixel pro Sekunde (20–200)
 
 Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeigen“, standardmäßig aus) zeigen dieselben Karten. Das Maskottchen schaltest du für die Seitenleiste in denselben Optionen ein („🍟 Maskottchen in der Seitenleiste zeigen“).
 
-**⚙️ Einstellungen in der Karte:** Das Zahnrad oben in der Karte öffnet eine Seite mit Gruppen zum Aufklappen (wie bei der Einkaufsliste):
+**⚙️ Einstellungen in der Karte:** Das Zahnrad oben in der Karte öffnet eine Seite 1:1 wie die Einstellungen der Einkaufsliste: Suchfeld oben, Gruppen zum Aufklappen, Schalter direkt in der Zeile, und Antippen einer Zeile öffnet eine eigene Seite mit Erklärung:
 - **👁️ Ansicht:** Schriftgröße (Kleiner / Standard / Größer) und Farben (Auto / Hell / Dunkel). Gilt nur auf diesem Gerät, z. B. größer auf dem Küchen-Tablet.
 - **🍟 Karte:** Maskottchen, Leiste oben und Anleitung-Knopf an/aus, nur auf diesem Gerät. „Wie im Karten-Editor“ nimmt wieder die Werte aus dem Editor.
 - **🔌 Integration** (nur Admins, nicht in der Handy-App): Abfrage-Takt, Seitenleiste und Maskottchen in der Seitenleiste. Gilt für alle. Beim Speichern lädt die Integration kurz neu.

@@ -617,6 +617,8 @@ async def test_whole_drawer_has_own_entities(hass: HomeAssistant, fake_api) -> N
     assert hass.states.get(eid(hass, "sensor", "zone3_programm")).state == "AirFry"
     assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "bereit"
     assert hass.states.get(eid(hass, "sensor", "zone2_status")).state == "bereit"
+    # Nicht gemeldete Zone = dort gart nichts: Restzeit 0 statt „unbekannt“ (Issue #8, Grandzone im Leerlauf)
+    assert hass.states.get(eid(hass, "sensor", "zone1_restzeit")).state == "0"
     assert hass.states.get(eid(hass, "switch", "zone3_gart")).state == "on"
     assert hass.states.get(eid(hass, "switch", "zone1_gart")).state == "off"
     state = hass.states.get(eid(hass, "switch", "zone3_gart"))

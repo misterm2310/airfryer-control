@@ -120,7 +120,8 @@ ZONE_SENSORS: tuple[ZoneSensorDescription, ...] = (
         translation_key="zone_restzeit",
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.MINUTES,
-        value_fn=lambda f, z, _n: _minutes(z.remaining_s) if (z and f.online) else None,
+        # Meldet die Fritteuse die Zone gerade nicht (Grandzone im Leerlauf), gart dort nichts: 0 Min statt „unbekannt“ (Issue #8)
+        value_fn=lambda f, z, _n: None if not f.online else (_minutes(z.remaining_s) if z else 0),
     ),
     ZoneSensorDescription(
         key="fertig_um",

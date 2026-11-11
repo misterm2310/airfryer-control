@@ -13,6 +13,9 @@ const AC_REPO = "https://github.com/misterm2310/airfryer-control";
 
 // 📢 Neu in dieser Beta – Neueste oben (wie bei der Einkaufsliste). [Version, deutsch, englisch]
 const AC_NEWS = [
+  ["1.0.4-beta.4", "⚙️ Einstellungen sehen jetzt 1:1 aus wie bei der Einkaufsliste: Suchfeld, Gruppen, Schalter in der Zeile, eigene Seite pro Einstellung", "⚙️ Settings now look 1:1 like the shopping list: search field, groups, switches in the row, its own page per setting"],
+  ["1.0.4-beta.4", "📢 Neuigkeiten immer nach Version sortiert – die neueste steht oben", "📢 News always sorted by version – the newest is on top"],
+  ["1.0.4-beta.4", "⏱️ Grandzone-Restzeit zeigt „0 Min“ statt „nicht verfügbar“, wenn nichts gart (#8)", "⏱️ Grandzone time remaining shows “0 min” instead of “unavailable” when idle (#8)"],
   ["1.0.4-beta.3", "⚙️ Einstellungen direkt in der Karte (Zahnrad oben): Ansicht, Karte und – für Admins – die Integration", "⚙️ Settings right in the card (cog at the top): view, card and – for admins – the integration"],
   ["1.0.4-beta.3", "📖 Anleitung neu: eigene Seite mit ←, Kapitel zum Aufklappen und Suchfeld", "📖 New guide: its own page with ←, chapters to unfold and a search field"],
   ["1.0.4-beta.3", "👁️ Schriftgröße und Hell/Dunkel – pro Gerät einstellbar", "👁️ Font size and light/dark – per device"],
@@ -25,6 +28,15 @@ const AC_NEWS = [
   ["1.0.4-beta.2", "🌍 Kartentitel in der Sprache von Home Assistant", "🌍 Card title in the language of Home Assistant"],
   ["1.0.4-beta.1", "🔎 Karte findet Zonen und Online-Status in jeder Sprache", "🔎 Card finds zones and online status in every language"],
 ];
+// 🔢 Versionen vergleichen: 1.0.4-beta.10 > 1.0.4-beta.9 > 1.0.3 – und eine fertige Version zählt mehr als ihre Betas
+function acVerCmp(a, b) {
+  const p = (v) => { const m = /^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?/.exec(String(v)) || []; return [+m[1] || 0, +m[2] || 0, +m[3] || 0, m[4] == null ? Infinity : +m[4]]; };
+  const x = p(a), y = p(b);
+  for (let i = 0; i < 4; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+  return 0;
+}
+// 📢 Neueste Version immer oben – egal, in welcher Reihenfolge die Einträge oben stehen (Einträge einer Version bleiben in ihrer Reihenfolge)
+const acNewsSorted = () => AC_NEWS.map((n, i) => [n, i]).sort((a, b) => acVerCmp(b[0][0], a[0][0]) || a[1] - b[1]).map((x) => x[0]);
 // 💾 Merkzettel pro Gerät (Ansicht, Tipp gesehen …). Geht der Speicher nicht (privates Fenster), klappt alles trotzdem.
 const AC_LS = "airfryer_control.";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(AC_LS + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } };
@@ -331,6 +343,36 @@ const BASE_CSS = `
   .ac-seg button + button { border-left:1px solid var(--divider-color, rgba(127,127,127,.35)); }
   .ac-seg button.on { background:var(--primary-color, #03a9f4); color:#fff; font-weight:600; }
   .ac-sw { width:22px; height:22px; accent-color:var(--primary-color, #03a9f4); cursor:pointer; }
+  /* ⚙️ Einstellungen 1:1 wie bei der Einkaufsliste (lgbox / lgroup / lrow / ic / tgl) */
+  .ac-srch { display:flex; align-items:center; gap:6px; margin:0 0 4px; }
+  .ac-srch ha-icon { color:var(--secondary-text-color); flex:none; }
+  .ac-srch input { flex:1; min-width:0; font:inherit; padding:9px 14px; border-radius:21px; border:1px solid var(--divider-color, rgba(127,127,127,.4)); background:var(--card-background-color, #fff); color:var(--primary-text-color); }
+  .ac-lgbox { margin:10px 0 0; border:1px solid var(--divider-color, rgba(127,127,127,.25)); border-radius:12px; overflow:hidden; }
+  .ac-lgroup { display:flex; align-items:center; gap:12px; width:100%; margin:0; padding:10px 12px; box-sizing:border-box; font:inherit; font-size:1em; color:var(--primary-text-color); background:color-mix(in srgb, var(--primary-text-color, #000) 3%, transparent); border:0; cursor:pointer; text-align:left; }
+  .ac-lgroup[aria-expanded="true"] { border-bottom:1px solid var(--divider-color, rgba(127,127,127,.25)); }
+  .ac-lgroup b { display:block; font-weight:600; }
+  .ac-lgroup small, .ac-lrow small { display:block; color:var(--secondary-text-color); font-size:.8em; font-weight:400; }
+  .ac-gem { width:36px; height:36px; flex:none; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; background:color-mix(in srgb, var(--primary-text-color, #000) 7%, transparent); }
+  .ac-grow { flex:1 1 auto; min-width:0; }
+  .ac-chev { flex:none; color:var(--secondary-text-color); }
+  .ac-lrow { display:flex; align-items:center; gap:12px; width:100%; box-sizing:border-box; text-align:left; padding:10px 12px; margin:3px 0; border-radius:12px; cursor:pointer; border:1px solid var(--divider-color, rgba(127,127,127,.25)); background:var(--secondary-background-color, rgba(127,127,127,.06)); color:var(--primary-text-color); font:inherit; }
+  .ac-lrow:hover { border-color:var(--primary-color, #03a9f4); }
+  .ac-lrow b { display:block; font-weight:500; }
+  .ac-lrow .ac-chev { opacity:.5; }
+  .ac-lgbox .ac-lrow { margin:0 0 0 4px; width:calc(100% - 4px); border:0; border-radius:0; border-top:1px solid var(--divider-color, rgba(127,127,127,.25)); background:none; }
+  .ac-lgbox .ac-lgroup + .ac-lrow { border-top:0; }
+  .ac-lgbox .ac-lrow:hover { background:color-mix(in srgb, var(--primary-color, #03a9f4) 6%, transparent); }
+  .ac-lgbox div.ac-lrow, div.ac-lrow { padding:0 12px 0 0; cursor:default; }
+  .ac-lmain { display:flex; align-items:center; gap:12px; flex:1 1 auto; min-width:0; padding:10px 0 10px 12px; border:0; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+  .ac-ic { --ic:#607d8b; width:36px; height:36px; flex:none; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--ic); color:#fff; }
+  .ac-ic ha-icon { --mdc-icon-size:20px; color:#fff; }
+  .ac-tgl { flex:none; width:40px; height:22px; padding:0; border:0; border-radius:12px; background:#bdbdbd; position:relative; cursor:pointer; transition:background .15s; }
+  .ac-tgl > span { position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); transition:left .15s; }
+  .ac-tgl[aria-pressed="true"] { background:var(--primary-color, #03a9f4); }
+  .ac-tgl[aria-pressed="true"] > span { left:20px; }
+  .ac-tgl:disabled { opacity:.5; cursor:default; }
+  .ac-swline { margin:10px 0; }
+  .ac-pghead .ac-ic { width:36px; height:36px; }
   .ac-num { width:90px; font:inherit; padding:7px 10px; border-radius:10px; border:1px solid var(--divider-color, rgba(127,127,127,.4)); background:var(--card-background-color, #fff); color:var(--primary-text-color); }
   .ac-lbtn { display:flex; align-items:center; gap:10px; width:100%; margin:8px 0 0; font:inherit; text-align:left; color:var(--primary-text-color); background:var(--secondary-background-color, rgba(127,127,127,.12)); border:0; border-radius:12px; padding:10px 12px; cursor:pointer; }
   .ac-msg { margin:8px 0 0; font-size:.9em; }
@@ -465,7 +507,9 @@ class AirfryerControlCard extends HTMLElement {
   }
   _go(page) { // 📄 Seite öffnen (null = zurück zu den Zonen)
     this._from = page && page !== "settings" && this._page === "settings" ? "settings" : null;
-    this._page = page || null; this._pageDrawn = false; this._secOpen = null; this._sig = "";
+    this._page = page || null; this._pageDrawn = false; this._secOpen = null; this._sub = null; this._sig = "";
+    const h = this._hass;
+    if (page === "settings" && !this._integ && h?.user?.is_admin && typeof h.callApi === "function" && typeof h.callWS === "function" && !inApp()) this._integLoad();
     if (!page) { this.hass = this._hass; } else this._render();
     try { this.scrollIntoView?.({ block: "nearest" }); } catch (_) { /* egal */ }
   }
@@ -526,7 +570,7 @@ class AirfryerControlCard extends HTMLElement {
     const news = this._news();
     if (news.length && lsGet("news", "") !== AC_VERSION) {
       return `<div class="ac-box" style="--bc:#fb8c00" data-box="news"><b>📢 ${t("Neu in dieser Beta", "New in this beta")}</b> <span class="elcsmall" translate="no">v${esc(AC_VERSION)}</span>
-        <ul>${news.slice(0, 4).map((n) => `<li>${esc(tr(hass, n[1], n[2]))}</li>`).join("")}</ul>
+        <ul>${(news.filter((n) => n[0] === AC_VERSION).length ? news.filter((n) => n[0] === AC_VERSION) : news.slice(0, 4)).map((n) => `<li>${esc(tr(hass, n[1], n[2]))}</li>`).join("")}</ul>
         <div class="ac-bbtns"><button type="button" class="pri" data-page="news">${t("Alle Neuerungen", "All news")}</button><button type="button" data-newsok>${t("Gelesen", "Got it")}</button></div></div>`;
     }
     return "";
@@ -535,8 +579,7 @@ class AirfryerControlCard extends HTMLElement {
   _news() {
     if (!/beta/i.test(AC_VERSION)) return [];
     const base = AC_VERSION.replace(/-beta.*$/i, "");
-    const num = (x) => Number((/-beta\.(\d+)/i.exec(x) || [])[1] || 0);
-    return AC_NEWS.filter((n) => n[0].startsWith(base + "-beta") && num(n[0]) <= num(AC_VERSION));
+    return acNewsSorted().filter((n) => n[0].startsWith(base + "-beta") && acVerCmp(n[0], AC_VERSION) <= 0);
   }
 
   // 📄 Seite: Kopf mit ← + Inhalt
@@ -548,6 +591,9 @@ class AirfryerControlCard extends HTMLElement {
       credits: ["ℹ️", t("Über Airfryer Control", "About Airfryer Control"), "#0288d1"],
       news: ["📢", t("Neu in dieser Beta", "New in this beta"), "#fb8c00"],
     }[this._page] || ["📄", "", "#607d8b"];
+    const sub = this._page === "settings" && this._sub ? this._subRow(this._sub) : null;
+    if (sub) return `<div class="ac-pghead" style="--pc:${sub.color}"><button class="ac-back" data-back title="${esc(t("Zurück", "Back"))}" aria-label="${esc(t("Zurück", "Back"))}"><ha-icon icon="mdi:arrow-left"></ha-icon></button><span class="ac-ic" style="--ic:${sub.color}"><ha-icon icon="${sub.icon}"></ha-icon></span><h2>${esc(sub.title)}</h2></div>
+      <div class="ac-pgbody">${this._subHtml(this._sub)}</div>`;
     const body = this._page === "guide" ? acGuideHtml(hass)
       : this._page === "settings" ? this._settingsHtml()
       : this._page === "news" ? this._newsHtml()
@@ -558,44 +604,114 @@ class AirfryerControlCard extends HTMLElement {
 
   _newsHtml() {
     const hass = this._hass;
-    const list = /beta/i.test(AC_VERSION) ? this._news() : AC_NEWS;
+    const list = /beta/i.test(AC_VERSION) ? this._news() : acNewsSorted();
     const vers = [...new Set(list.map((n) => n[0]))];
     return `<p class="ac-pgsub">${esc(tr(hass, `Du nutzt v${AC_VERSION || "?"}. Neueste oben.`, `You are on v${AC_VERSION || "?"}. Newest first.`))}</p>
       <div class="ac-news">${vers.map((ver) => `<h4 translate="no">${esc(ver)}</h4><ul>${list.filter((n) => n[0] === ver).map((n) => `<li>${esc(tr(hass, n[1], n[2]))}</li>`).join("")}</ul>`).join("")}</div>
       <p class="elcsmall"><a href="${AC_REPO}/releases" target="_blank" rel="noopener">${esc(tr(hass, "Alle Versionen auf GitHub", "All versions on GitHub"))}</a></p>`;
   }
 
-  // ⚙️ Einstellungen in Gruppen (wie bei der Einkaufsliste)
-  _settingsHtml() {
+  // ⚙️ Einstellungen – 1:1 wie bei der Einkaufsliste: Suchfeld, Gruppen zum Aufklappen, Zeilen mit buntem Symbol,
+  // Schalter direkt in der Zeile, Antippen der Zeile = eigene Seite mit Erklärung
+  _setGroups() {
     const hass = this._hass, t = (d, e) => tr(hass, d, e), v = this._view(), eff = this._eff();
-    const seg = (key, cur, opts) => `<div class="ac-seg" role="group">${opts.map(([val, label]) => `<button type="button" data-view="${key}" data-val="${val}" class="${cur === val ? "on" : ""}" aria-pressed="${cur === val}">${esc(label)}</button>`).join("")}</div>`;
-    const sw = (key, on, label, sub) => `<label class="ac-set"><span>${esc(label)}<small>${esc(sub)}</small></span><input type="checkbox" class="ac-sw" data-vsw="${key}" ${on ? "checked" : ""}></label>`;
-    const view = `<div class="ac-set"><span>${esc(t("Schriftgröße", "Font size"))}</span>${seg("size", v.size || "m", [["s", t("Kleiner", "Smaller")], ["m", "Standard"], ["l", t("Größer", "Larger")]])}</div>
-      <div class="ac-set"><span>${esc(t("Farben", "Colours"))}<small>${esc(t("Auto = wie Home Assistant", "Auto = like Home Assistant"))}</small></span>${seg("theme", v.theme || "auto", [["auto", "Auto"], ["light", t("Hell", "Light")], ["dark", t("Dunkel", "Dark")]])}</div>`;
-    const card = sw("masc", eff.masc, t("Maskottchen", "Mascot"), t("Statt Logo – zieht sich je nach Jahreszeit um", "Instead of the logo – dresses up for the seasons"))
-      + sw("top", eff.top, t("Leiste oben", "Top bar"), t("Verbunden/offline, Gruß und Version", "Connected/offline, greeting and version"))
-      + sw("guide", eff.guide, t("Anleitung-Knopf", "Guide button"), t("Der 📖-Knopf unter der Karte", "The 📖 button below the card"))
-      + `<button type="button" class="ac-lbtn" data-vreset>↩️ ${esc(t("Wie im Karten-Editor", "Like in the card editor"))}</button>`;
     const admin = hass.user?.is_admin && typeof hass.callApi === "function" && typeof hass.callWS === "function" && !inApp();
-    const about = `<button type="button" class="ac-lbtn" data-page="guide">📖 ${esc(t("Anleitung", "Guide"))}</button>
-      ${this._news().length ? `<button type="button" class="ac-lbtn" data-page="news">📢 ${esc(t("Neu in dieser Beta", "New in this beta"))}</button>` : ""}
-      <button type="button" class="ac-lbtn" data-page="credits">ℹ️ ${esc(t("Credits, Spenden, Datenschutz", "Credits, donations, privacy"))}</button>
-      <button type="button" class="ac-lbtn" data-tipagain>💡 ${esc(t("Tipp und Beta-Kasten wieder zeigen", "Show tip and beta box again"))}</button>`;
-    return `<p class="ac-pgsub">${esc(t("Ansicht und Karte gelten nur auf diesem Gerät. Tippe eine Gruppe an.", "View and card only apply to this device. Tap a group."))}</p>
-      ${acSec("👁️", t("Ansicht", "View"), view, "#3949ab", t("Schriftgröße, Hell/Dunkel", "Font size, light/dark"), "view")}
-      ${acSec("🍟", t("Karte", "Card"), card, "#fb8c00", t("Maskottchen, Leiste, Anleitung", "Mascot, bar, guide"), "card")}
-      ${admin ? acSec("🔌", "Integration", `<div data-integ>⏳ ${esc(t("Lädt …", "Loading …"))}</div>`, "#43a047", t("Abfrage-Takt, Seitenleiste – gilt für alle", "Polling, sidebar – for everyone"), "integ") : ""}
-      ${acSec("ℹ️", t("Über", "About"), about, "#0288d1", t("Anleitung, Neuigkeiten, Credits", "Guide, news, credits"), "about")}`;
+    const io = this._integ?.data;
+    const sizeTxt = { s: t("Kleiner", "Smaller"), l: t("Größer", "Larger") }[v.size] || "Standard";
+    const themeTxt = { light: t("Hell", "Light"), dark: t("Dunkel", "Dark") }[v.theme] || t("Auto (wie Home Assistant)", "Auto (like Home Assistant)");
+    const groups = [
+      { key: "view", title: t("👁️ Ansicht", "👁️ View"), rows: [
+        { key: "size", icon: "mdi:format-size", color: "#3949ab", title: t("Schriftgröße", "Font size"), info: `${sizeTxt} · ${t("nur dieses Gerät", "this device only")}`, kw: "schrift text gross klein zoom font size bigger smaller" },
+        { key: "theme", icon: "mdi:theme-light-dark", color: "#455a64", title: t("Hell / Dunkel", "Light / dark"), info: `${themeTxt} · ${t("nur dieses Gerät", "this device only")}`, kw: "farben hell dunkel design theme dark light colours" },
+      ] },
+      { key: "card", title: t("🍟 Karte", "🍟 Card"), rows: [
+        { key: "masc", icon: "mdi:emoticon-happy-outline", color: "#fb8c00", title: t("Maskottchen", "Mascot"), info: t("Statt Logo, zieht sich je nach Jahreszeit um", "Instead of the logo, dresses up for the seasons"), kw: "maskottchen gesicht logo mascot face", on: eff.masc },
+        { key: "top", icon: "mdi:dock-top", color: "#43a047", title: t("Leiste oben", "Top bar"), info: t("Verbunden/offline, Gruß und Version", "Connected/offline, greeting and version"), kw: "leiste status gruss version online bar greeting", on: eff.top },
+        { key: "guide", icon: "mdi:book-open-page-variant-outline", color: "#3949ab", title: t("Anleitung-Knopf", "Guide button"), info: t("Der 📖-Knopf unter der Karte", "The 📖 button below the card"), kw: "anleitung knopf hilfe guide help button", on: eff.guide },
+      ] },
+    ];
+    if (admin) {
+      const wait = !io ? (this._integErr ? t("Konnte nicht geladen werden", "Could not be loaded") : t("Lädt …", "Loading …")) : "";
+      const rows = [
+        { key: "interval", icon: "mdi:update", color: "#26a69a", title: t("Abfrage-Takt", "Polling interval"), info: wait || t(`Alle ${io.intervall ?? 60} s, wenn nichts gart`, `Every ${io.intervall ?? 60} s while idle`), kw: "abfrage takt intervall sekunden cloud polling interval seconds" },
+        { key: "sidebar", icon: "mdi:dock-left", color: "#1e88e5", title: t("In der Seitenleiste", "In the sidebar"), info: wait || t("Eintrag „Fritteuse“ links im Menü · gilt für alle", "“Fritteuse” entry in the left menu · for everyone"), kw: "seitenleiste menu sidebar panel", on: io ? !!io.sidebar : null },
+        { key: "smasc", icon: "mdi:emoticon-happy-outline", color: "#fb8c00", title: t("Maskottchen in der Seitenleiste", "Mascot in the sidebar"), info: wait || t("Nur die Seite in der Seitenleiste · gilt für alle", "Only the sidebar page · for everyone"), kw: "maskottchen seitenleiste mascot sidebar", on: io ? !!io.maskottchen : null },
+        { key: "haopts", icon: "mdi:cog-outline", color: "#607d8b", title: t("Alle Optionen in Home Assistant", "All options in Home Assistant"), info: t("Öffnet die Integration (auch Zeiteinheit)", "Opens the integration (also time unit)"), kw: "optionen integration zeiteinheit options time unit", act: "haopts" },
+      ];
+      if ((this._integ?.entries || []).length > 1) rows.unshift({ key: "entry", icon: "mdi:toaster-oven", color: "#6d4c41", title: t("Fritteuse", "Air fryer"), info: (this._integ.entries.find((e) => e.entry_id === this._integ.entry) || {}).title || "", kw: "fritteuse geraet auswahl fryer device" });
+      groups.push({ key: "integ", title: t("🔌 Integration (nur Admins)", "🔌 Integration (admins only)"), rows });
+    }
+    const about = [
+      { key: "aguide", icon: "mdi:book-open-page-variant-outline", color: "#3949ab", title: t("Anleitung", "Guide"), info: t("Alles Schritt für Schritt, mit Suche", "Everything step by step, with search"), kw: "anleitung hilfe guide help", page: "guide" },
+    ];
+    if (this._news().length) about.push({ key: "anews", icon: "mdi:bullhorn-outline", color: "#fb8c00", title: t("Neu in dieser Beta", "New in this beta"), info: `v${AC_VERSION}`, kw: "neu beta neuigkeiten version news", page: "news" });
+    about.push(
+      { key: "acredits", icon: "mdi:information-outline", color: "#0288d1", title: t("Credits, Spenden, Datenschutz", "Credits, donations, privacy"), info: "Mister-M · MIT", kw: "credits spenden paypal datenschutz github fehler idee donate privacy bug", page: "credits" },
+      { key: "atip", icon: "mdi:lightbulb-on-outline", color: "#f9a825", title: t("Tipp und Beta-Kasten wieder zeigen", "Show tip and beta box again"), info: t("Zeigt 💡 und 📢 über den Zonen noch einmal", "Shows 💡 and 📢 above the zones once more"), kw: "tipp kasten wieder zeigen tip box again", act: "tipagain" },
+    );
+    groups.push({ key: "about", title: t("ℹ️ Über", "ℹ️ About"), rows: about });
+    return groups;
+  }
+  _settingsHtml() {
+    const hass = this._hass, t = (d, e) => tr(hass, d, e);
+    if (this._sub) return this._subHtml(this._sub);
+    return `<div class="ac-srch"><ha-icon icon="mdi:magnify"></ha-icon><input type="search" data-setq placeholder="${esc(t("In den Einstellungen suchen, z. B. Schrift", "Search the settings, e.g. font"))}" value="${esc(this._setQ || "")}" aria-label="${esc(t("In den Einstellungen suchen", "Search the settings"))}" autocomplete="off" enterkeyhint="search"></div>
+      <div data-setlist>${this._setListHtml()}</div>
+      <p class="ac-pgsub" style="margin-top:12px">${esc(t("👁️ Ansicht und 🍟 Karte gelten nur auf diesem Gerät, 🔌 Integration für alle.", "👁️ View and 🍟 Card apply to this device only, 🔌 Integration to everyone."))}</p>`;
+  }
+  _setListHtml() {
+    const hass = this._hass, t = (d, e) => tr(hass, d, e);
+    const q = (this._setQ || "").trim().toLowerCase();
+    const out = this._setGroups().map((g) => {
+      const rows = g.rows.filter((r) => !q || `${r.title} ${r.info} ${r.kw}`.toLowerCase().includes(q)).map((r) => {
+        const main = `<span class="ac-ic" style="--ic:${r.color}"><ha-icon icon="${r.icon}"></ha-icon></span><span class="ac-grow"><b>${esc(r.title)}</b><small>${esc(r.info)}</small></span>`;
+        if (r.on !== undefined) {
+          return `<div class="ac-lrow"><button type="button" class="ac-lmain" data-sub="${r.key}">${main}</button><button type="button" class="ac-tgl" data-tgl="${r.key}" aria-pressed="${!!r.on}" ${r.on === null ? "disabled" : ""} title="${esc(t("An / aus", "On / off"))}" aria-label="${esc(r.title)} ${esc(t("an / aus", "on / off"))}"><span></span></button></div>`;
+        }
+        const attr = r.page ? `data-page="${r.page}"` : r.act ? `data-sact="${r.act}"` : `data-sub="${r.key}"`;
+        return `<button type="button" class="ac-lrow" ${attr}>${main}${r.act === "tipagain" ? "" : `<ha-icon class="ac-chev" icon="mdi:chevron-right"></ha-icon>`}</button>`;
+      }).join("");
+      if (!rows) return "";
+      const open = !!q || this._setOpen === g.key; // 🗂️ zugeklappt; bei der Suche klappen passende Gruppen von selbst auf
+      const [emo, ...name] = g.title.split(" ");
+      const tg = g.rows.filter((r) => typeof r.on === "boolean");
+      const sum = tg.length ? t(`${g.rows.length} Einstellungen · ${tg.filter((r) => r.on).length} an`, `${g.rows.length} settings · ${tg.filter((r) => r.on).length} on`) : g.rows.map((r) => r.title).join(", ");
+      return `<div class="ac-lgbox"><button type="button" class="ac-lgroup" data-grp="${g.key}" aria-expanded="${open}"><span class="ac-gem">${emo}</span><span class="ac-grow"><b>${esc(name.join(" "))}</b><small>${esc(sum)}</small></span><ha-icon class="ac-chev" icon="${open ? "mdi:chevron-up" : "mdi:chevron-down"}"></ha-icon></button>${open ? rows : ""}</div>`;
+    }).join("");
+    return out || `<p class="ac-pgsub">${esc(t(`Nichts gefunden zu „${this._setQ}“ 🤷`, `Nothing found for “${this._setQ}” 🤷`))}</p>`;
+  }
+  _subRow(key) { for (const g of this._setGroups()) { const r = g.rows.find((x) => x.key === key); if (r) return r; } return null; }
+  // 📄 Eigene Seite einer Einstellung: Erklärung + Bedienung (wie die Unterseiten der Einkaufsliste)
+  _subHtml(key) {
+    const hass = this._hass, t = (d, e) => tr(hass, d, e), v = this._view(), eff = this._eff(), io = this._integ?.data || {};
+    const seg = (k, cur, opts) => `<div class="ac-seg" role="group">${opts.map(([val, label]) => `<button type="button" data-view="${k}" data-val="${val}" class="${cur === val ? "on" : ""}" aria-pressed="${cur === val}">${esc(label)}</button>`).join("")}</div>`;
+    const sw = (k, on, label, sub) => `<div class="ac-lrow ac-swline"><span class="ac-grow" style="padding:10px 0 10px 12px"><b>${esc(label)}</b><small>${esc(sub)}</small></span><button type="button" class="ac-tgl" data-tgl="${k}" aria-pressed="${!!on}" aria-label="${esc(label)}"><span></span></button></div>`;
+    const local = t("Gilt nur auf diesem Gerät (gespeichert im Browser).", "Only applies to this device (saved in the browser).");
+    const reset = `<button type="button" class="ac-lbtn" data-vreset="${key}">↩️ ${esc(t("Wie im Karten-Editor", "Like in the card editor"))}</button>`;
+    const reload = `<p class="ac-msg" data-iomsg>ℹ️ ${esc(t("Gilt für alle. Beim Speichern lädt die Integration kurz neu (ein paar Sekunden).", "Applies to everyone. Saving reloads the integration briefly (a few seconds)."))}</p>`;
+    switch (key) {
+      case "size": return `<p>${esc(t("Macht alles in der Karte größer oder kleiner – praktisch fürs Küchen-Tablet oder den Fire TV.", "Makes everything in the card larger or smaller – handy for a kitchen tablet or Fire TV."))}</p>${seg("size", v.size || "m", [["s", t("Kleiner", "Smaller")], ["m", "Standard"], ["l", t("Größer", "Larger")]])}<p class="ac-pgsub">${esc(local)}</p>`;
+      case "theme": return `<p>${esc(t("Auto nimmt die Farben von Home Assistant. Hell oder Dunkel stellt die Karte fest ein, egal was Home Assistant macht.", "Auto uses the colours of Home Assistant. Light or dark fixes the card, whatever Home Assistant does."))}</p>${seg("theme", v.theme || "auto", [["auto", "Auto"], ["light", t("Hell", "Light")], ["dark", t("Dunkel", "Dark")]])}<p class="ac-pgsub">${esc(local)}</p>`;
+      case "masc": return `<p>${esc(t("Die kleine Fritteuse mit Gesicht oben links statt dem Logo. Sie freut sich beim Garen, hüpft bei „Fertig“ und zieht sich je nach Jahreszeit um (Weihnachtsmütze, Hasenohren, Kürbis …).", "The little air fryer with a face at the top left instead of the logo. It smiles while cooking, hops when done and dresses up for the seasons (Santa hat, bunny ears, pumpkin …)."))}</p>${sw("masc", eff.masc, t("Maskottchen zeigen", "Show mascot"), local)}${reset}`;
+      case "top": return `<p>${esc(t("Die Leiste über der Karte: 🟢 verbunden / 🔴 offline, ein Gruß mit deinem Namen und die Version.", "The bar above the card: 🟢 connected / 🔴 offline, a greeting with your name and the version."))}</p>${sw("top", eff.top, t("Leiste oben zeigen", "Show top bar"), local)}${reset}`;
+      case "guide": return `<p>${esc(t("Der Knopf „📖 Anleitung“ unter der Karte. Die Anleitung findest du auch ohne ihn: ⚙️ › Über › Anleitung.", "The “📖 Guide” button below the card. You also find the guide without it: ⚙️ › About › Guide."))}</p>${sw("guide", eff.guide, t("Anleitung-Knopf zeigen", "Show guide button"), local)}${reset}`;
+      case "sidebar": return `<p>${esc(t("Fügt links im Menü den Eintrag „Fritteuse“ hinzu: eine ganze Seite mit Laufband und Zonen.", "Adds a “Fritteuse” entry to the left menu: a full page with the ticker and the zones."))}</p>${sw("sidebar", !!io.sidebar, t("In der Seitenleiste zeigen", "Show in the sidebar"), t("gilt für alle", "for everyone"))}${reload}`;
+      case "smasc": return `<p>${esc(t("Das Maskottchen auf der Seite in der Seitenleiste. Auf Dashboard-Karten schaltest du es unter 🍟 Karte.", "The mascot on the sidebar page. On dashboard cards you switch it under 🍟 Card."))}</p>${sw("smasc", !!io.maskottchen, t("Maskottchen in der Seitenleiste", "Mascot in the sidebar"), t("gilt für alle", "for everyone"))}${reload}`;
+      case "interval": return `<p>${esc(t("So oft fragt Home Assistant die Cosori-Cloud, wenn nichts gart (30–600 Sekunden). Beim Garen wird immer alle 15 Sekunden gefragt.", "How often Home Assistant asks the Cosori cloud while nothing is cooking (30–600 seconds). While cooking it always asks every 15 seconds."))}</p>
+        <div class="ac-lrow ac-swline"><span class="ac-grow" style="padding:10px 0 10px 12px"><b>${esc(t("Sekunden", "Seconds"))}</b><small>30–600</small></span><input type="number" class="ac-num" data-io="intervall" min="30" max="600" step="10" value="${esc(io.intervall ?? 60)}" style="margin-right:12px"></div>
+        <button type="button" class="ac-big" data-iosave style="--b:#43a047">💾 ${esc(t("Speichern", "Save"))}</button>${reload}`;
+      case "entry": return `<p>${esc(t("Du hast mehrere Fritteusen. Wähle, für welche die Integrations-Einstellungen gelten sollen.", "You have several air fryers. Choose which one the integration settings are for."))}</p><select class="ac-num" style="width:100%" data-integentry>${(this._integ?.entries || []).map((e) => `<option value="${esc(e.entry_id)}" ${e.entry_id === this._integ.entry ? "selected" : ""}>${esc(e.title)}</option>`).join("")}</select>`;
+      default: return "";
+    }
   }
 
-  // 🔌 Optionen der Integration lesen (Optionen-Dialog von HA im Hintergrund öffnen und gleich wieder schließen)
+  // 🔌 Optionen der Integration (Optionen-Dialog von Home Assistant im Hintergrund – lesen, wieder zu, speichern)
   async _optFlow(entryId) {
-    const flow = await this._hass.callApi("POST", "config/config_entries/options/flow", { handler: entryId, show_advanced_options: false });
-    return flow;
+    return this._hass.callApi("POST", "config/config_entries/options/flow", { handler: entryId, show_advanced_options: false });
   }
-  async _loadInteg(box, entryId) {
-    const hass = this._hass, t = (d, e) => tr(hass, d, e);
-    const openHa = `<button type="button" class="ac-lbtn" data-haopts>🛠️ ${esc(t("Alle Optionen in Home Assistant öffnen", "Open all options in Home Assistant"))}</button>`;
+  async _integLoad(entryId) {
+    const hass = this._hass;
+    this._integErr = false;
     try {
       const entries = (await hass.callWS({ type: "config_entries/get", domain: AC })) || [];
       if (!entries.length) throw new Error("none");
@@ -604,44 +720,69 @@ class AirfryerControlCard extends HTMLElement {
       const d = {};
       for (const f of flow.data_schema || []) d[f.name] = f.default ?? f.description?.suggested_value;
       hass.callApi("DELETE", `config/config_entries/options/flow/${flow.flow_id}`).catch(() => {}); // nur gelesen – wieder zu
-      this._integ = { entry: entry.entry_id, data: d };
-      if (!box.isConnected) return;
-      const pick = entries.length > 1 ? `<div class="ac-set"><span>${esc(t("Fritteuse", "Air fryer"))}</span><select class="ac-num" style="width:auto" data-integentry>${entries.map((e) => `<option value="${esc(e.entry_id)}" ${e.entry_id === entry.entry_id ? "selected" : ""}>${esc(e.title)}</option>`).join("")}</select></div>` : "";
-      box.innerHTML = `${pick}
-        <label class="ac-set"><span>${esc(t("Abfrage-Takt", "Polling interval"))}<small>${esc(t("Sekunden, wenn nichts gart (30–600). Beim Garen immer alle 15 s.", "Seconds while idle (30–600). While cooking always every 15 s."))}</small></span><input type="number" class="ac-num" data-io="intervall" min="30" max="600" step="10" value="${esc(d.intervall ?? 60)}"></label>
-        <label class="ac-set"><span>${esc(t("In der Seitenleiste", "In the sidebar"))}<small>${esc(t("Eintrag „Fritteuse“ links im Menü", "“Fritteuse” entry in the left menu"))}</small></span><input type="checkbox" class="ac-sw" data-io="sidebar" ${d.sidebar ? "checked" : ""}></label>
-        <label class="ac-set"><span>${esc(t("Maskottchen in der Seitenleiste", "Mascot in the sidebar"))}<small>${esc(t("Nur für die Seite in der Seitenleiste", "Only for the sidebar page"))}</small></span><input type="checkbox" class="ac-sw" data-io="maskottchen" ${d.maskottchen ? "checked" : ""}></label>
-        <button type="button" class="ac-big" data-iosave style="--b:#43a047">💾 ${esc(t("Speichern", "Save"))}</button>
-        <p class="ac-msg" data-iomsg>ℹ️ ${esc(t("Beim Speichern lädt die Integration kurz neu (ein paar Sekunden).", "Saving reloads the integration briefly (a few seconds)."))}</p>${openHa}`;
-      this._wireInteg(box);
-    } catch (_) {
-      if (box.isConnected) { box.innerHTML = `<p class="ac-msg">😕 ${esc(t("Die Optionen konnten nicht geladen werden.", "The options could not be loaded."))}</p>${openHa}`; this._wireInteg(box); }
-    }
+      this._integ = { entry: entry.entry_id, entries: entries.map((e) => ({ entry_id: e.entry_id, title: e.title })), data: d };
+    } catch (_) { this._integErr = true; }
+    if (this._page === "settings") this._render();
   }
-  _wireInteg(box) {
+  async _integSave(patch) {
+    const hass = this._hass;
+    if (!this._integ) return false;
+    const data = { ...this._integ.data, ...patch };
+    for (const k of Object.keys(data)) if (data[k] === undefined) delete data[k];
+    try {
+      const flow = await this._optFlow(this._integ.entry);
+      const res = await hass.callApi("POST", `config/config_entries/options/flow/${flow.flow_id}`, data);
+      if (res?.type !== "create_entry") { hass.callApi("DELETE", `config/config_entries/options/flow/${flow.flow_id}`).catch(() => {}); return false; }
+      this._integ.data = data;
+      return true;
+    } catch (_) { return false; }
+  }
+  // Handgriffe der Einstellungen (nach jedem Neuzeichnen der Liste wieder anklemmen)
+  _wireSet(scope, isRoot = false) {
     const hass = this._hass, t = (d, e) => tr(hass, d, e);
-    box.querySelector("[data-haopts]")?.addEventListener("click", () => {
-      history.pushState(null, "", "/config/integrations/integration/airfryer_control");
-      window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
-    });
-    box.querySelector("[data-integentry]")?.addEventListener("change", (e) => { box.innerHTML = "⏳"; this._loadInteg(box, e.target.value); });
-    box.querySelector("[data-iosave]")?.addEventListener("click", async (e) => {
-      const btn = e.currentTarget, msg = box.querySelector("[data-iomsg]");
-      if (!this._integ) return;
-      const n = Math.round(Number(box.querySelector('[data-io="intervall"]').value) / 10) * 10;
-      const data = { ...this._integ.data, intervall: Math.min(600, Math.max(30, Number.isFinite(n) ? n : 60)),
-        sidebar: box.querySelector('[data-io="sidebar"]').checked, maskottchen: box.querySelector('[data-io="maskottchen"]').checked };
-      for (const k of Object.keys(data)) if (data[k] === undefined) delete data[k];
+    const relist = () => { const box = this.shadowRoot.querySelector("[data-setlist]"); if (box) { box.innerHTML = this._setListHtml(); this._wireSet(box); } };
+    scope.querySelectorAll("[data-grp]").forEach((el) => el.addEventListener("click", () => {
+      this._setOpen = this._setOpen === el.dataset.grp ? null : el.dataset.grp; relist(); // 🗂️ eine Gruppe auf = die vorherige zu
+    }));
+    scope.querySelectorAll("[data-sub]").forEach((el) => el.addEventListener("click", () => { this._sub = el.dataset.sub; this._render(); }));
+    if (!isRoot) scope.querySelectorAll("[data-page]").forEach((el) => el.addEventListener("click", () => this._go(el.dataset.page)));
+    scope.querySelectorAll("[data-sact]").forEach((el) => el.addEventListener("click", () => {
+      if (el.dataset.sact === "haopts") {
+        history.pushState(null, "", "/config/integrations/integration/airfryer_control");
+        window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+      } else if (el.dataset.sact === "tipagain") {
+        lsSet("tip", null); lsSet("news", null);
+        const s = el.querySelector("small"); if (s) s.textContent = "✅ " + t("Wird wieder gezeigt", "Will show again");
+      }
+    }));
+    scope.querySelectorAll("[data-tgl]").forEach((el) => el.addEventListener("click", async () => {
+      const k = el.dataset.tgl, on = el.getAttribute("aria-pressed") !== "true";
+      if (k === "sidebar" || k === "smasc") { // 🔌 gilt für alle → Integration speichern
+        el.disabled = true; el.setAttribute("aria-pressed", String(on));
+        const ok = await this._integSave(k === "sidebar" ? { sidebar: on } : { maskottchen: on });
+        el.disabled = false;
+        if (!ok) el.setAttribute("aria-pressed", String(!on));
+        const msg = this.shadowRoot.querySelector("[data-iomsg]");
+        if (msg) msg.textContent = ok ? "✅ " + t("Gespeichert! Die Integration lädt kurz neu.", "Saved! The integration reloads briefly.") : "😕 " + t("Speichern ging nicht. Versuch es über „Alle Optionen in Home Assistant“.", "Saving failed. Try “All options in Home Assistant”.");
+        if (!this._sub) relist();
+        return;
+      }
+      const v = this._view(); v[k] = on; lsSet("view", v); this._render(); // 🍟 nur dieses Gerät
+    }));
+    scope.querySelectorAll("[data-view]").forEach((el) => el.addEventListener("click", () => {
+      const v = this._view(), val = el.dataset.val;
+      if (val === "m" || val === "auto") delete v[el.dataset.view]; else v[el.dataset.view] = val;
+      lsSet("view", v); this._render();
+    }));
+    scope.querySelectorAll("[data-vreset]").forEach((el) => el.addEventListener("click", () => { const v = this._view(); delete v[el.dataset.vreset]; lsSet("view", v); this._render(); }));
+    scope.querySelector("[data-integentry]")?.addEventListener("change", (e) => { this._integ = null; this._integLoad(e.target.value); });
+    scope.querySelector("[data-iosave]")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget, msg = this.shadowRoot.querySelector("[data-iomsg]");
+      const n = Math.round(Number(this.shadowRoot.querySelector('[data-io="intervall"]').value) / 10) * 10;
       btn.disabled = true;
-      try {
-        const flow = await this._optFlow(this._integ.entry);
-        const res = await hass.callApi("POST", `config/config_entries/options/flow/${flow.flow_id}`, data);
-        if (res?.type !== "create_entry") { hass.callApi("DELETE", `config/config_entries/options/flow/${flow.flow_id}`).catch(() => {}); throw new Error(JSON.stringify(res?.errors || {})); }
-        this._integ.data = data;
-        msg.textContent = "✅ " + t("Gespeichert! Die Integration lädt kurz neu.", "Saved! The integration reloads briefly.");
-      } catch (err) {
-        msg.textContent = "😕 " + t("Speichern ging nicht. Versuch es über „Alle Optionen in Home Assistant“.", "Saving failed. Try “Open all options in Home Assistant”.");
-      } finally { btn.disabled = false; }
+      const ok = await this._integSave({ intervall: Math.min(600, Math.max(30, Number.isFinite(n) ? n : 60)) });
+      btn.disabled = false;
+      if (msg) msg.textContent = ok ? "✅ " + t("Gespeichert! Die Integration lädt kurz neu.", "Saved! The integration reloads briefly.") : "😕 " + t("Speichern ging nicht. Versuch es über „Alle Optionen in Home Assistant“.", "Saving failed. Try “All options in Home Assistant”.");
     });
   }
 
@@ -791,7 +932,9 @@ class AirfryerControlCard extends HTMLElement {
     // 📄 Seiten öffnen / zurück
     root.querySelectorAll("[data-page]").forEach((el) => el.addEventListener("click", () => this._go(el.dataset.page)));
     root.querySelector("[data-guide]")?.addEventListener("click", () => this._go("guide"));
-    root.querySelector("[data-back]")?.addEventListener("click", () => this._go(this._from || null)); // aus ⚙️ geöffnet = zurück zu ⚙️
+    root.querySelector("[data-back]")?.addEventListener("click", () => { // aus ⚙️ geöffnet = zurück zu ⚙️
+      if (this._sub) { this._sub = null; this._render(); } else this._go(this._from || null);
+    });
     root.querySelector("[data-copyapp]")?.addEventListener("click", async (e) => { // 📋 App-Adresse kopieren
       e.stopPropagation();
       const btn = e.currentTarget, inp = btn.previousElementSibling;
@@ -804,12 +947,14 @@ class AirfryerControlCard extends HTMLElement {
       if (el.dataset.tip === "guide") this._go("guide"); else { this._sig = ""; this._render(); }
     }));
     root.querySelector("[data-newsok]")?.addEventListener("click", () => { lsSet("news", AC_VERSION); this._render(); });
-    root.querySelector("[data-tipagain]")?.addEventListener("click", (e) => { lsSet("tip", null); lsSet("news", null); e.currentTarget.textContent = "✅ " + tr(this._hass, "Wird wieder gezeigt", "Will show again"); });
-    // ⚙️ Ansicht + Karte (nur dieses Gerät)
-    const saveView = (k, val) => { const v = this._view(); if (val == null) delete v[k]; else v[k] = val; lsSet("view", v); this._render(); };
-    root.querySelectorAll("[data-view]").forEach((el) => el.addEventListener("click", () => saveView(el.dataset.view, el.dataset.val === "m" || el.dataset.val === "auto" ? null : el.dataset.val)));
-    root.querySelectorAll("[data-vsw]").forEach((el) => el.addEventListener("change", () => saveView(el.dataset.vsw, el.checked)));
-    root.querySelector("[data-vreset]")?.addEventListener("click", () => { const v = this._view(); delete v.masc; delete v.top; delete v.guide; lsSet("view", v); this._render(); });
+    // ⚙️ Einstellungen (Liste, Schalter, Unterseiten) + 🔎 Suche in den Einstellungen
+    this._wireSet(root, true);
+    const sq = root.querySelector("[data-setq]");
+    sq?.addEventListener("input", () => {
+      this._setQ = sq.value;
+      const box = root.querySelector("[data-setlist]");
+      if (box) { box.innerHTML = this._setListHtml(); this._wireSet(box); }
+    });
     // 🗂️ Gruppen/Kapitel: eins auf = die anderen zu (bei der Suche bleiben alle Treffer offen)
     let searching = false;
     const secs = [...root.querySelectorAll("details.ac-sec")];
@@ -818,12 +963,8 @@ class AirfryerControlCard extends HTMLElement {
       d.addEventListener("toggle", () => {
         if (d.open && !searching) secs.forEach((o) => { if (o !== d) o.open = false; });
         if (d.dataset.sec) { if (d.open) this._secOpen = d.dataset.sec; else if (this._secOpen === d.dataset.sec) this._secOpen = null; }
-        const box = d.querySelector("[data-integ]");
-        if (d.open && box && !box.dataset.loaded) { box.dataset.loaded = "1"; this._loadInteg(box); }
       });
     });
-    const integ = root.querySelector("details[open] [data-integ]");
-    if (integ) { integ.dataset.loaded = "1"; this._loadInteg(integ, this._integ?.entry); }
     // 🔎 Suche in der Anleitung: nur Kapitel mit allen Wörtern zeigen und aufklappen
     const q = root.querySelector("[data-q]");
     if (q) {
