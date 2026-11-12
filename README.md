@@ -33,7 +33,7 @@ Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https:
 
 | Funktion | So klappt's |
 |---|---|
-| 🔥 **Zustand** | Aus, Bereit, Wartet auf Start, Heizt vor, Gart, Pausiert, Schublade offen, Fertig, Hält warm, Offline. |
+| 🔥 **Zustand** | Aus, Bereit, Wartet auf Start, Heizt vor, Gart, Pausiert, Schublade offen, Fertig, Hält warm, Offline. Die TwinFry hat nur eine Schublade: Ist sie offen, zeigen alle Zonen „Schublade offen“ (auch die, die gerade nichts macht). |
 | ⏱️ **Restzeit & „Fertig um“** | In Minuten und als Uhrzeit – gesamt und für jede Zone. |
 | 🧩 **Zonen** | Bei der TwinFry eigene Entitäten für Zone 1, Zone 2 und die **Grandzone** (die ganze Schublade ohne Trennwand, die Fritteuse nennt sie Zone 3). Eine TwinFry behält ihre Zonen immer – auch wenn sie beim Start von Home Assistant kurz schweigt. **Grandzone ↔ Zone 1/2 schaltet automatisch um:** Ist die andere Seite nur vorbereitet („Wartet auf Start“), wird sie vorher zurückgesetzt. Gart sie gerade, wird nichts beendet, sondern du bekommst eine klare Meldung („Die Grandzone gart gerade – bitte erst beenden“). |
 | 🌡️ **Grenzen** | Die Temperatur passt sich dem Programm an: Heißluft 120–205 °C, Braten 120–205 °C, Backen 80–205 °C, Grillen 205–240 °C, Aufwärmen 40–205 °C. Passt ein Wert nicht, sagt die Integration es dir im Klartext. |

@@ -19,7 +19,18 @@ from homeassistant.const import EntityCategory, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ALL_STATES, DOMAIN, STATE_OFFLINE, zone_label
+from .const import (
+    ALL_STATES,
+    DOMAIN,
+    STATE_DRAWER_OPEN,
+    STATE_OFF,
+    STATE_OFFLINE,
+    STATE_STANDBY,
+    STATE_UNKNOWN,
+    ZONE_WHOLE,
+    zone_label,
+)
+from . import modelle
 from .coordinator import AirfryerCoordinator, FryerData, fryer_zones
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, reports_current_temp, zone_view
@@ -31,6 +42,29 @@ def _minutes(seconds: int | None) -> int | None:
     if seconds is None:
         return None
     return int(math.ceil(seconds / 60))
+
+
+# Diese Zustände heißen „hier ist gerade nichts los“ – nur die überschreibt „Schublade offen“
+_IDLE_STATES = {None, STATE_STANDBY, STATE_OFF, STATE_UNKNOWN}
+
+
+def _zone_status(fryer: FryerData, zs: ZoneState | None, zone: int) -> str:
+    """Zustand einer Zone für den Sensor.
+
+    Für Doofe: Die TwinFry hat nur EINE Schublade. Zieht man sie raus, ist sie für
+    alle Zonen offen – die Fritteuse meldet „Schublade offen“ aber nur für die Zone,
+    die gerade arbeitet. Damit Grandzone und Zone 1/2 trotzdem dasselbe zeigen,
+    übernimmt eine Zone im Leerlauf „Schublade offen“ von der anderen Seite (Issue #8).
+    Nur die Anzeige – Senden und Abbrechen schauen weiter auf die echte Meldung.
+    """
+    if not fryer.online:
+        return STATE_OFFLINE
+    status = zs.status if zs else None
+    if status in _IDLE_STATES and modelle.one_drawer(fryer.model) and ZONE_WHOLE in fryer_zones(fryer):
+        others = [z for z in fryer.state.zones if z != zone]
+        if any(fryer.state.zones[z].status == STATE_DRAWER_OPEN for z in others):
+            return STATE_DRAWER_OPEN
+    return status or STATE_STANDBY
 
 
 def _freshness(fryer: FryerData) -> dict[str, Any]:
@@ -111,9 +145,7 @@ ZONE_SENSORS: tuple[ZoneSensorDescription, ...] = (
         translation_key="zone_status",
         device_class=SensorDeviceClass.ENUM,
         options=ALL_STATES,
-        value_fn=lambda f, z, _n: (
-            STATE_OFFLINE if not f.online else (z.status if z else "bereit")
-        ),
+        value_fn=_zone_status,
     ),
     ZoneSensorDescription(
         key="restzeit",

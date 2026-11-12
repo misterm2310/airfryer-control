@@ -33,7 +33,7 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 
 | Feature | How |
 |---|---|
-| 🔥 **Status** | Off, Ready, Waiting for start, Preheating, Cooking, Paused, Drawer open, Done, Keeping warm, Offline. |
+| 🔥 **Status** | Off, Ready, Waiting for start, Preheating, Cooking, Paused, Drawer open, Done, Keeping warm, Offline. The TwinFry has only one drawer: when it is open, every zone shows “Drawer open” (also the one that is idle). |
 | ⏱️ **Time remaining & “done at”** | In minutes and as a time – overall and per zone. |
 | 🧩 **Zones** | On the TwinFry, separate entities for zone 1, zone 2 and the **Grandzone** (the whole drawer without divider, the fryer calls it zone 3). A TwinFry always keeps its zones – even if it is silent for a moment while Home Assistant starts. **Grandzone ↔ zone 1/2 switches automatically:** if the other side is only prepared (“Waiting for start”), it is reset first. If it is cooking, nothing is stopped – you get a clear message instead (“The whole basket is cooking right now – please stop it first”). |
 | 🌡️ **Limits** | Temperature follows the program: Air Fry 120–205 °C, Roast 120–205 °C, Bake 80–205 °C, Grill 205–240 °C, Reheat 40–205 °C. If a value is not accepted, the integration tells you in plain words. |

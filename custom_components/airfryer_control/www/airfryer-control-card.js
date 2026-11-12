@@ -13,6 +13,7 @@ const AC_REPO = "https://github.com/misterm2310/airfryer-control";
 
 // 📢 Neu in dieser Beta – Neueste oben (wie bei der Einkaufsliste). [Version, deutsch, englisch]
 const AC_NEWS = [
+  ["1.0.4-beta.5", "🚪 TwinFry: Schublade auf = alle Zonen zeigen „Schublade offen“, auch die Grandzone (#8)", "🚪 TwinFry: drawer open = every zone shows “Drawer open”, the Grandzone too (#8)"],
   ["1.0.4-beta.4", "⚙️ Einstellungen sehen jetzt 1:1 aus wie bei der Einkaufsliste: Suchfeld, Gruppen, Schalter in der Zeile, eigene Seite pro Einstellung", "⚙️ Settings now look 1:1 like the shopping list: search field, groups, switches in the row, its own page per setting"],
   ["1.0.4-beta.4", "📢 Neuigkeiten immer nach Version sortiert – die neueste steht oben", "📢 News always sorted by version – the newest is on top"],
   ["1.0.4-beta.4", "⏱️ Grandzone-Restzeit zeigt „0 Min“ statt „nicht verfügbar“, wenn nichts gart (#8)", "⏱️ Grandzone time remaining shows “0 min” instead of “unavailable” when idle (#8)"],

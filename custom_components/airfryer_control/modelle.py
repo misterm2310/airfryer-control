@@ -170,6 +170,14 @@ def has_zones(model: str | None) -> bool:
     return model_family(model) == "twinfry"
 
 
+def one_drawer(model: str | None) -> bool:
+    """Eine Schublade für alle Zonen (TwinFry: Trennwand rein = Zone 1/2, raus = Grandzone).
+
+    Beim Turbo Tower Pro sind es zwei echte Schubladen übereinander – dort nie.
+    """
+    return model_family(model) == "twinfry"
+
+
 def single_basket(model: str | None) -> bool:
     """Ein-Korb-Modell mit eigenem Befehl „startCook“ (Dual Blaze CAF-P583S)."""
     return model_family(model) == "dualblaze"

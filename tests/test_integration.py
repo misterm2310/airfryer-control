@@ -625,6 +625,34 @@ async def test_whole_drawer_has_own_entities(hass: HomeAssistant, fake_api) -> N
     assert "Grandzone" in state.attributes["friendly_name"]
 
 
+async def test_twinfry_drawer_open_shows_on_all_zones(hass: HomeAssistant, fake_api) -> None:
+    """Eine Schublade für alle: Zone 1 meldet „Schublade offen“ → Grandzone zeigt es auch (Issue #8)."""
+    fake_api.multi = {
+        "statusList": [
+            {"chamber": 1, "cookStatus": "pullOut", "cookLastTime": 300, "cookTemp": 200, "mode": "AirFry"},
+            {"chamber": 2, "cookStatus": "standby", "cookLastTime": 0},
+        ],
+        "totalTimeRemaining": 300,
+    }
+    await setup(hass)
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "schublade_offen"
+    assert hass.states.get(eid(hass, "sensor", "zone2_status")).state == "schublade_offen"
+    assert hass.states.get(eid(hass, "sensor", "zone3_status")).state == "schublade_offen"
+    # umgekehrt: Grandzone gart, Schublade auf → Zone 1 und 2 zeigen es auch
+    fake_api.multi = whole_drawer("pullOut")
+    coordinator = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(eid(hass, "sensor", "zone3_status")).state == "schublade_offen"
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "schublade_offen"
+    # Schublade zu → alles wieder normal
+    fake_api.multi = whole_drawer("cooking")
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(eid(hass, "sensor", "zone3_status")).state == "gart"
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "bereit"
+
+
 async def test_whole_drawer_send_and_end(hass: HomeAssistant, fake_api) -> None:
     fake_api.status_rejected = True
     fake_api.multi = real_twinfry()
