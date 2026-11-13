@@ -40,13 +40,15 @@
           "intervall": "Abfrage-Takt, wenn die Fritteuse nichts tut",
           "zeiteinheit": "Zeitangaben der Fritteuse",
           "sidebar": "📌 In der Seitenleiste anzeigen",
-          "maskottchen": "🍟 Maskottchen in der Seitenleiste zeigen"
+          "maskottchen": "🍟 Maskottchen in der Seitenleiste zeigen",
+          "schuettel_erinnerung": "🥄 Schüttel-Erinnerung"
         },
         "data_description": {
           "intervall": "Solange sie arbeitet, wird immer alle 15 Sekunden nachgefragt.",
           "zeiteinheit": "Nur ändern, wenn die Restzeit 60-mal zu groß oder zu klein angezeigt wird.",
           "sidebar": "Legt einen Eintrag „Fritteuse“ in der Seitenleiste an (Vollbild mit Laufband und Zonenkarte). Standardmäßig aus.",
-          "maskottchen": "Zeigt den kleinen Airfryer mit Gesicht in der Seitenleisten-Ansicht (auf Dashboard-Karten schaltest du ihn im Karten-Editor). Standardmäßig aus."
+          "maskottchen": "Zeigt den kleinen Airfryer mit Gesicht in der Seitenleisten-Ansicht (auf Dashboard-Karten schaltest du ihn im Karten-Editor). Standardmäßig aus.",
+          "schuettel_erinnerung": "Schickt zur Halbzeit das Ereignis airfryer_control_schuetteln (für Handy-Nachricht oder Durchsage). Standard: aus."
         }
       }
     }
@@ -162,6 +164,17 @@
         "state_attributes": {
           "abgelehnte_abfragen": {
             "name": "Abgelehnte Abfragen"
+          }
+        }
+      },
+      "programme": {
+        "name": "Lieblings-Programme",
+        "state_attributes": {
+          "lieblinge": {
+            "name": "Lieblinge"
+          },
+          "zuletzt": {
+            "name": "Zuletzt gesendet"
           }
         }
       }
@@ -401,6 +414,64 @@
         "geraet": {
           "name": "Fritteuse",
           "description": "Welche Fritteuse? (leer = die einzige)"
+        }
+      }
+    },
+    "liebling_speichern": {
+      "name": "Liebling speichern",
+      "description": "Für alle Nutzer: merkt sich Programm, Temperatur und Zeit unter einem Namen (z. B. „Pommes“). Gleicher Name = überschreiben. Höchstens 12 pro Fritteuse.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "name": {
+          "name": "Name",
+          "description": "z. B. Pommes"
+        },
+        "programm": {
+          "name": "Programm",
+          "description": "Welches Programm?"
+        },
+        "temperatur": {
+          "name": "Temperatur",
+          "description": "In °C."
+        },
+        "minuten": {
+          "name": "Minuten",
+          "description": "Garzeit."
+        }
+      }
+    },
+    "liebling_loeschen": {
+      "name": "Liebling löschen",
+      "description": "Für alle Nutzer: löscht einen Liebling über seinen Namen.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "name": {
+          "name": "Name",
+          "description": "Name des Lieblings."
+        }
+      }
+    },
+    "garzeit_plus": {
+      "name": "Garzeit verlängern",
+      "description": "Für alle Nutzer: 1–30 Minuten dazu. Gart die Zone = die laufende Zeit wird länger. Fertig = dasselbe Programm wird für diese Minuten nochmal bereitgestellt (Start am Gerät). Sonst ändert sich nur das Zeit-Feld.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 oder 3 (Grandzone)."
+        },
+        "minuten": {
+          "name": "Minuten",
+          "description": "Wie viele Minuten mehr (1–30)."
         }
       }
     }

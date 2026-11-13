@@ -20,6 +20,7 @@ from .const import CONF_EMAIL, CONF_PASSWORD_HASH, CONF_REGION, CONF_TERMINAL_ID
 from .coordinator import AirfryerCoordinator
 from .const import OPT_MASCOT, OPT_SIDEBAR
 from .frontend import async_set_sidebar, async_setup_frontend, sidebar_wanted
+from .programme import async_setup_store
 from .services import async_register_services
 
 PLATFORMS = [
@@ -39,6 +40,7 @@ type AirfryerConfigEntry = ConfigEntry[AirfryerCoordinator]
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Dienste anmelden und die Karten bereitstellen (einmal für alle Konten)."""
     async_register_services(hass)
+    await async_setup_store(hass)  # ⭐ Lieblinge + 🕘 zuletzt gesendet
     await async_setup_frontend(hass)
     return True
 

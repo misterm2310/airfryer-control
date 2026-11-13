@@ -26,7 +26,7 @@ from custom_components.airfryer_control.core.api import (
     AirfryerError,
     hash_password,
 )
-from custom_components.airfryer_control.const import DOMAIN, EVENT_FINISHED
+from custom_components.airfryer_control.const import DOMAIN, EVENT_FINISHED, EVENT_SHAKE
 from custom_components.airfryer_control.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -240,7 +240,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
         result["flow_id"], {"intervall": 120, "zeiteinheit": "minuten"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False}
+    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False, "schuettel_erinnerung": False}
 
 
 async def test_reauth_when_login_fails(hass: HomeAssistant, fake_api) -> None:
@@ -1311,3 +1311,101 @@ def test_recipe_numbers_from_pyvesync() -> None:
     assert v.payload["cookConfigs"][0]["recipeName"] == "Bake"
     p = senden.build_sync_payload("a", 2, ("grill", 240, 5), ("dry", 55, 60))
     assert [c["recipeId"] for c in p["cookConfigs"]] == [20, 21]
+
+
+# --------------------------------------------- ⭐ Lieblinge, 🕘 zuletzt, 🥄 schütteln, ⏱️ +1/+3
+async def test_favorites_and_recent(hass: HomeAssistant, fake_api) -> None:
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    await setup(hass)
+    sid = eid(hass, "sensor", "programme")
+    assert hass.states.get(sid).state == "0"
+    await hass.services.async_call(
+        DOMAIN, "liebling_speichern",
+        {"name": "Pommes", "programm": "airfry", "temperatur": 200, "minuten": 18}, blocking=True,
+    )
+    await hass.services.async_call(  # gleicher Name = überschreiben, Werte auf die Grenzen gesetzt
+        DOMAIN, "liebling_speichern",
+        {"name": "pommes", "programm": "airfry", "temperatur": 300, "minuten": 19}, blocking=True,
+    )
+    await hass.async_block_till_done()
+    st = hass.states.get(sid)
+    assert st.state == "1"
+    assert st.attributes["lieblinge"] == [{"name": "pommes", "programm": "airfry", "temperatur": 205, "minuten": 19}]
+    # Senden (für alle) → landet in „zuletzt gesendet“, doppelt rutscht nach vorn, höchstens 5
+    for minutes in (10, 11, 12, 13, 14, 15, 10):
+        await hass.services.async_call(
+            DOMAIN, "programm_senden",
+            {"zone": 1, "programm": "airfry", "temperatur": 180, "minuten": minutes},
+            blocking=True, return_response=True,
+        )
+    await hass.async_block_till_done()
+    recent = hass.states.get(sid).attributes["zuletzt"]
+    assert [r["minuten"] for r in recent] == [10, 15, 14, 13, 12]
+    assert recent[0]["zone"] == 1
+    await hass.services.async_call(DOMAIN, "liebling_loeschen", {"name": "Pommes"}, blocking=True)
+    await hass.async_block_till_done()
+    assert hass.states.get(sid).state == "0"
+
+
+async def test_shake_event_only_when_switched_on(hass: HomeAssistant, fake_api) -> None:
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry("cooking", remaining=800, set_time=900, temp=200)
+    entry = await setup(hass)
+    events = async_capture_events(hass, EVENT_SHAKE)
+    coordinator = entry.runtime_data
+    fake_api.multi = real_twinfry("cooking", remaining=400, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert events == []  # Standard: aus
+    # Einschalten (lädt die Integration neu) – der nächste Garvorgang wird erinnert
+    fake_api.multi = real_twinfry()
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {"intervall": 60, "zeiteinheit": "auto", "schuettel_erinnerung": True}
+    )
+    await hass.async_block_till_done()
+    coordinator = entry.runtime_data
+    fake_api.multi = real_twinfry("cooking", remaining=800, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    fake_api.multi = real_twinfry("cooking", remaining=440, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    fake_api.multi = real_twinfry("cooking", remaining=300, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert len(events) == 1  # genau einmal pro Garvorgang
+    assert events[0].data["zone"] == 1
+    assert events[0].data["rest_minuten"] == 7
+    assert events[0].data["garzeit_minuten"] == 15
+
+
+async def test_add_time(hass: HomeAssistant, fake_api) -> None:
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry("cooking", remaining=600, set_time=900, temp=200)
+    await setup(hass)
+    api = FakeApi.instances[-1]
+    # gart → laufende Zeit wird länger (15 → 18 min)
+    res = await hass.services.async_call(
+        DOMAIN, "garzeit_plus", {"zone": 1, "minuten": 3}, blocking=True, return_response=True
+    )
+    assert res["ergebnis"] == "verlaengert"
+    assert ("setTimeOrTemp", {"cookSetTime": 1080, "cookSetTemp": 200, "chamber": 1}) in api.calls
+    # Zone 2 steht still → nur das Zeit-Feld
+    before = int(float(hass.states.get(eid(hass, "number", "zone2_garzeit")).state))
+    res = await hass.services.async_call(
+        DOMAIN, "garzeit_plus", {"zone": 2, "minuten": 1}, blocking=True, return_response=True
+    )
+    await hass.async_block_till_done()
+    assert res["ergebnis"] == "gemerkt"
+    assert hass.states.get(eid(hass, "number", "zone2_garzeit")).state == str(before + 1)
+    # fertig → Nachgaren: dasselbe Programm für 3 min bereitstellen (nie starten)
+    fake_api.multi = real_twinfry("cookEnd", remaining=0, set_time=900, temp=200)
+    await hass.config_entries.async_entries(DOMAIN)[0].runtime_data.async_refresh()
+    api.calls.clear()
+    res = await hass.services.async_call(
+        DOMAIN, "garzeit_plus", {"zone": 1, "minuten": 3}, blocking=True, return_response=True
+    )
+    assert res["ergebnis"] == "bereitgestellt"
+    sent = [c for c in api.calls if c[0] == "startMultiCook"]
+    assert sent and all(c[1].get("readyStart") is True for c in sent)
+    assert sent[-1][1]["cookConfigs"][0]["cookSetTime"] == 180

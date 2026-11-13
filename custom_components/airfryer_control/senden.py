@@ -36,6 +36,7 @@ from .coordinator import AirfryerCoordinator, FryerData
 from . import modelle
 from .core.parser import zones_for_device
 from .core.util import redact
+from .programme import get_store
 
 PAUSE_SECONDS = 1.0
 RESET_WAIT_SECONDS = 1.5  # so lange warten, bis die Fritteuse das Zurücksetzen übernommen hat
@@ -508,6 +509,9 @@ async def async_send(
             continue
         entry.update(ok=True, ergebnis=RESULT_ACCEPTED, antwort=redact(answer))
         results.append(entry)
+        store = get_store(coordinator.hass)
+        if store is not None and sum(r["ok"] for r in results) == 1:
+            store.add_recent(fryer.cid, zone, mode, temp, minutes)  # 🕘 für „Zuletzt gesendet“ (einmal)
         if coordinator.send_variant != variant.name:
             coordinator.send_variant = variant.name
         if not try_all:

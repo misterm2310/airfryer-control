@@ -40,13 +40,15 @@
           "intervall": "Polling interval while idle",
           "zeiteinheit": "Time values of the air fryer",
           "sidebar": "📌 Show in sidebar",
-          "maskottchen": "🍟 Show mascot in the sidebar"
+          "maskottchen": "🍟 Show mascot in the sidebar",
+          "schuettel_erinnerung": "🥄 Shake reminder"
         },
         "data_description": {
           "intervall": "While cooking, it is always polled every 15 seconds.",
           "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small.",
           "sidebar": "Adds a \"Fritteuse\" entry to the sidebar (full-page view with the ticker and the zone card). Off by default.",
-          "maskottchen": "Shows the little air fryer with a face in the sidebar view (on dashboard cards you switch it in the card editor). Off by default."
+          "maskottchen": "Shows the little air fryer with a face in the sidebar view (on dashboard cards you switch it in the card editor). Off by default.",
+          "schuettel_erinnerung": "Fires the event airfryer_control_schuetteln at half time (for a phone message or announcement). Off by default."
         }
       }
     }
@@ -162,6 +164,17 @@
         "state_attributes": {
           "abgelehnte_abfragen": {
             "name": "Rejected requests"
+          }
+        }
+      },
+      "programme": {
+        "name": "Favourite programs",
+        "state_attributes": {
+          "lieblinge": {
+            "name": "Favourites"
+          },
+          "zuletzt": {
+            "name": "Recently sent"
           }
         }
       }
@@ -401,6 +414,64 @@
         "geraet": {
           "name": "Air fryer",
           "description": "Which air fryer? (empty = the only one)"
+        }
+      }
+    },
+    "liebling_speichern": {
+      "name": "Save favourite",
+      "description": "For all users: saves program, temperature and time under a name (e.g. “Fries”). Same name = overwrite. Max. 12 per air fryer.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "name": {
+          "name": "Name",
+          "description": "e.g. Fries"
+        },
+        "programm": {
+          "name": "Program",
+          "description": "Which program?"
+        },
+        "temperatur": {
+          "name": "Temperature",
+          "description": "In °C."
+        },
+        "minuten": {
+          "name": "Minutes",
+          "description": "Cooking time."
+        }
+      }
+    },
+    "liebling_loeschen": {
+      "name": "Delete favourite",
+      "description": "For all users: deletes a favourite by its name.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "name": {
+          "name": "Name",
+          "description": "Name of the favourite."
+        }
+      }
+    },
+    "garzeit_plus": {
+      "name": "Add cooking time",
+      "description": "For all users: adds 1–30 minutes. Cooking = the running time gets longer. Done = the same program is prepared again for these minutes (start on the device). Otherwise only the time field changes.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 or 3 (whole drawer)."
+        },
+        "minuten": {
+          "name": "Minutes",
+          "description": "How many minutes more (1–30)."
         }
       }
     }

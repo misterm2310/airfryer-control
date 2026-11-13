@@ -232,3 +232,88 @@ faehigkeiten:
       selector:
         device:
           integration: airfryer_control
+
+liebling_speichern:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    name:
+      required: true
+      example: "Pommes"
+      selector:
+        text:
+    programm:
+      required: true
+      selector:
+        select:
+          translation_key: programm
+          options:
+            - airfry
+            - roast
+            - bake
+            - grill
+            - reheat
+            - dry
+            - proof
+            - broil
+            - chicken
+            - steak
+            - seafood
+            - veggies
+            - fries
+            - frozen
+    temperatur:
+      required: true
+      selector:
+        number:
+          min: 35
+          max: 240
+          step: 5
+          unit_of_measurement: "°C"
+    minuten:
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 2880
+          mode: box
+          unit_of_measurement: "min"
+
+liebling_loeschen:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    name:
+      required: true
+      example: "Pommes"
+      selector:
+        text:
+
+garzeit_plus:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    zone:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "3"
+    minuten:
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 30
+          unit_of_measurement: "min"

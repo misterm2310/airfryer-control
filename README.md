@@ -27,6 +27,8 @@ Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https:
 - 🔔 **Ereignis „fertig“** für Handy-Nachricht, Durchsage oder „Fernseher pausieren“.
 - 🃏 **Zwei fertige Karten** (Zonen-Karte + Laufband) und eine 📱 **Handy-App** – nichts extra installieren.
 - 🟰 **Match & Sync**, damit beide Zonen gleichzeitig fertig werden.
+- ⭐ **Lieblings-Programme** und 🕘 **Zuletzt gesendet** – ein Tipp statt drei Felder.
+- ⏱️ **+1 / +3 min** zum Verlängern oder Nachgaren, 🥄 **Schüttel-Erinnerung** zur Halbzeit (abschaltbar, Standard aus).
 - 🛡️ **Datenschutz:** Passwort wird nicht gespeichert, es redet nur Home Assistant mit VeSync.
 
 <details><summary>📋 Alle Funktionen im Detail</summary>
@@ -39,6 +41,10 @@ Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https:
 | 🌡️ **Grenzen** | Die Temperatur passt sich dem Programm an: Heißluft 120–205 °C, Braten 120–205 °C, Backen 80–205 °C, Grillen 205–240 °C, Aufwärmen 40–205 °C. Passt ein Wert nicht, sagt die Integration es dir im Klartext. |
 | 🌡️ **Temperatur & Programm** | Eingestellte Temperatur und Programm (AirFry, Roast …). Eine gemessene Temperatur gibt's nur, wenn die Fritteuse sie meldet (die TwinFry tut das nicht). |
 | 🔔 **Ereignis „fertig“** | `airfryer_control_fertig` – für Handy-Nachricht, Alexa-/Google-Durchsage oder „Fernseher pausieren“. |
+| 🥄 **Ereignis „schütteln“** | `airfryer_control_schuetteln` – zur Halbzeit, einmal pro Garvorgang und Zone. Nur wenn die **Schüttel-Erinnerung** eingeschaltet ist (Optionen der Integration oder ⚙️ › Integration in der Karte, Standard: aus). |
+| ⭐ **Lieblings-Programme** | Programm, Temperatur und Zeit unter einem Namen speichern (z. B. „Pommes 200 °C, 18 min“), höchstens 12 pro Fritteuse. In der Karte ein Tipp = an die Zone senden (nur bereitstellen). Liegen in Home Assistant, nicht im Browser – Handy und Küchen-Tablet sehen dieselben. Sensor **„Lieblings-Programme“** (Wert = Anzahl, Attribute `lieblinge` und `zuletzt`). |
+| 🕘 **Zuletzt gesendet** | Die letzten 5 Programme, die an die Fritteuse gingen – egal ob aus der Karte, per Schalter oder per Dienst. In der Karte zum nochmal Antippen. |
+| ⏱️ **+1 / +3 min** | Gart die Zone: die laufende Zeit wird länger. Fertig oder warmhalten: dasselbe Programm wird für 1 oder 3 Minuten nochmal bereitgestellt („Nachgaren“, Start am Gerät). Sonst: nur das Zeit-Feld wird größer. Dienst `garzeit_plus`. |
 | 📤 **Senden (wie in der App)** | Pro Zone Programm, Temperatur und Garzeit einstellen und den Schalter **„Zone n senden / beenden“** auf An legen – wie „Senden“ in der VeSync-App. Die Fritteuse wacht auf und wartet, bis du am Gerät auf Start drückst. (Starten aus der Ferne sperrt Cosori in der EU.) |
 | ⏹️ **Garen beenden** | Als Knopf für die ganze Fritteuse – und derselbe Schalter pro Zone: Aus = Zone beenden. |
 | 🎛️ **Temperatur & Zeit ändern** | Eingabefelder pro Zone. Gart die Zone schon, gehen neue Werte direkt an die Fritteuse. |
@@ -105,7 +111,7 @@ Du musst **nichts extra installieren** – die Integration bringt zwei Karten se
 
 | Karte | Was sie macht |
 |---|---|
-| `custom:airfryer-control-card` | Eine Zeile pro Zone (Zone 1, Zone 2, Grandzone) mit Status, „fertig um …“ und Knopf zum **Senden / Abbrechen / Beenden**. Antippen der Zeile klappt direkt darunter Programm, Temperatur und Zeit auf (die Zeile bleibt stehen, nochmal antippen = zu) (Grenzen je Programm werden beachtet). Das (i) oben zeigt Credits, Spenden-Link und Datenschutz, das ⚙️ daneben die Einstellungen. |
+| `custom:airfryer-control-card` | Eine Zeile pro Zone (Zone 1, Zone 2, Grandzone) mit Status, „fertig um …“ und Knopf zum **Senden / Abbrechen / Beenden**. Beim Garen und bei „Fertig“ stehen **+1 min / +3 min** direkt in der Zeile. Antippen der Zeile klappt direkt darunter **⭐ Lieblinge**, **🕘 Zuletzt gesendet**, Programm, Temperatur und Zeit auf (die Zeile bleibt stehen, nochmal antippen = zu) (Grenzen je Programm werden beachtet). Das (i) oben zeigt Credits, Spenden-Link und Datenschutz, das ⚙️ daneben die Einstellungen. |
 | `custom:airfryer-control-ticker` | Das **Laufband**: „Fritteuse Zone 1: fertig um 19:42 Uhr +++ Zone 2: wartet auf Start“. Rahmen **rot und blinkend**, wenn eine Zone fertig ist, sonst türkis. Blendet sich aus, wenn nichts läuft. Optional mit weiteren Kochtimern (z. B. `sensor.einkaufsliste_kochtimer`). |
 
 ```yaml
@@ -128,10 +134,14 @@ Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeige
 **⚙️ Einstellungen in der Karte:** Das Zahnrad oben in der Karte öffnet eine Seite 1:1 wie die Einstellungen der Einkaufsliste: Suchfeld oben, Gruppen zum Aufklappen, Schalter direkt in der Zeile, und Antippen einer Zeile öffnet eine eigene Seite mit Erklärung:
 - **👁️ Ansicht:** Schriftgröße (Kleiner / Standard / Größer) und Farben (Auto / Hell / Dunkel). Gilt nur auf diesem Gerät, z. B. größer auf dem Küchen-Tablet.
 - **🍟 Karte:** Maskottchen, Leiste oben und Anleitung-Knopf an/aus, nur auf diesem Gerät. „Wie im Karten-Editor“ nimmt wieder die Werte aus dem Editor.
-- **🔌 Integration** (nur Admins, nicht in der Handy-App): Abfrage-Takt, Seitenleiste und Maskottchen in der Seitenleiste. Gilt für alle. Beim Speichern lädt die Integration kurz neu.
-- **ℹ️ Über:** Anleitung, „Neu in dieser Beta“ und Credits.
+- **🔌 Integration** (nur Admins, nicht in der Handy-App): Abfrage-Takt, Seitenleiste, Maskottchen in der Seitenleiste und 🥄 Schüttel-Erinnerung. Gilt für alle. Beim Speichern lädt die Integration kurz neu.
+- **ℹ️ Über:** Anleitung, **📢 Was ist neu** und Credits.
 
-**📖 Anleitung:** eigene Seite mit ← zurück, Kapitel zum Aufklappen und Suchfeld. Beim ersten Start zeigt die Karte einmal einen 💡 Tipp, in einer Beta einmal den Kasten **📢 Neu in dieser Beta**.
+**📢 Was ist neu** (wie bei der Einkaufsliste): In einer Beta steht oben ein oranger Kasten **🧪 Du bist in der Beta …** mit allem, was in dieser Beta-Reihe neu ist (höchste Beta oben). Darunter **„Die letzten Neuerungen bis Version …“** – höchstens 15, das Neueste oben. Ohne Beta gibt es nur die normale Liste.
+
+**⭐ Lieblinge & 🕘 Zuletzt gesendet:** Zeile antippen → oben stehen deine Lieblinge. Antippen = sofort an diese Zone senden (nur bereitstellen, Start am Gerät). **＋** speichert, was unten gerade eingestellt ist (Name frei wählbar), **✏️ Löschen** schaltet ✕ an den Lieblingen ein. Darunter die letzten 5 gesendeten Programme. Gart die Zone gerade, sind die Knöpfe grau.
+
+**📖 Anleitung:** eigene Seite mit ← zurück, Kapitel zum Aufklappen und Suchfeld. Beim ersten Start zeigt die Karte einmal einen 💡 Tipp.
 
 Beide Karten haben einen Editor, passen sich Hell/Dunkel an und laufen auch flüssig auf dem Fire TV. Die Zonen werden automatisch gefunden. Die Karten reden nur mit deinem Home Assistant.
 
@@ -212,7 +222,7 @@ Der Knopf **🔅 Bildschirm anlassen** hält das Display an (praktisch für ein 
 
 ## 🤖 Für Automationen
 
-<details><summary>Ereignis „fertig“, fertiges Beispiel und alle Dienste – <i>aufklappen</i></summary>
+<details><summary>Ereignisse „fertig“ und „schütteln“, fertige Beispiele und alle Dienste – <i>aufklappen</i></summary>
 
 #### 🔔 Das Ereignis `airfryer_control_fertig`
 
@@ -260,6 +270,45 @@ actions:
 
 > 💡 Nur Zone 1? Dann bei `event_data` statt `zone: alle` einfach `zone: 1` schreiben.
 
+#### 🥄 Das Ereignis `airfryer_control_schuetteln`
+
+Kommt zur **Halbzeit** (z. B. nach 9 von 18 Minuten) – einmal pro Garvorgang und Zone, nur bei Garzeiten ab 2 Minuten. **Nur wenn die Schüttel-Erinnerung an ist** (Standard: aus). Startet Home Assistant mitten im Garen neu und die Hälfte ist schon um, kommt keine verspätete Erinnerung.
+
+| Feld | Beispiel | Bedeutung |
+|---|---|---|
+| `geraet` | `Fritteuse` | Name aus der App |
+| `modell` | `CAF-TF101S-AEUR` | Modell |
+| `zone` | `1`, `2` oder `3` | Welche Zone (`3` = Grandzone) |
+| `programm` | `AirFry` | Programm der Zone (falls bekannt) |
+| `rest_minuten` | `9` | So lange gart sie noch |
+| `garzeit_minuten` | `18` | Eingestellte Garzeit |
+
+```yaml
+alias: Fritteuse – Jetzt schütteln
+description: "Erinnert zur Halbzeit per Handy-Nachricht daran, den Korb der Cosori-Fritteuse zu schütteln."
+mode: queued
+triggers:
+  - trigger: event
+    event_type: airfryer_control_schuetteln
+conditions:
+  # Wartungsschalter: Steht er auf „an“, bleibt es still.
+  # Hast du keinen? Dann diese Bedingung einfach löschen.
+  - condition: state
+    entity_id: input_boolean.schalter_wartung
+    state: "off"
+actions:
+  - action: notify.mobile_app_dein_handy
+    continue_on_error: true
+    data:
+      title: "🥄 Jetzt schütteln!"
+      message: "Zone {{ trigger.event.data.zone }}: Halbzeit – noch {{ trigger.event.data.rest_minuten }} Minuten."
+      data:
+        ttl: 0
+        priority: high
+        notification_icon: mdi:french-fries
+        tag: fritteuse_schuetteln_{{ trigger.event.data.zone }}
+```
+
 #### 🛠️ Dienste
 
 | Dienst | Was er tut |
@@ -267,6 +316,9 @@ actions:
 | `airfryer_control.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
 | `airfryer_control.garen_beenden` | Stopp. |
 | `airfryer_control.programm_senden` | **Für alle Nutzer** (auch ohne Admin-Rechte, z. B. für die Einkaufsliste): schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse – **nur zum Bereitstellen**, sie startet nie von selbst. Temperatur und Zeit werden auf den Bereich des Programms gesetzt. Ohne `geraet` wird die einzige Fritteuse genommen. Antwort: `ok`, `ergebnis` und bei Fehler `fehler`/`code`. Extras für andere Integrationen siehe unten. |
+| `airfryer_control.liebling_speichern` | **Für alle Nutzer:** ⭐ speichert `name`, `programm`, `temperatur`, `minuten` als Liebling (gleicher Name = überschreiben, höchstens 12 pro Fritteuse, Werte werden auf die Grenzen des Programms gesetzt). Ohne `geraet` wird die einzige Fritteuse genommen. |
+| `airfryer_control.liebling_loeschen` | **Für alle Nutzer:** löscht einen Liebling über seinen `name`. |
+| `airfryer_control.garzeit_plus` | **Für alle Nutzer:** ⏱️ `minuten` (1–30, Standard 1) dazu für `zone`. Gart die Zone: laufende Zeit wird länger. Fertig/warmhalten: dasselbe Programm nochmal bereitstellen (Start am Gerät). Sonst: nur das Zeit-Feld. Antwort (freiwillig): `ergebnis` = `verlaengert`, `bereitgestellt` oder `gemerkt`, dazu `minuten`. |
 | `airfryer_control.faehigkeiten` | **Für alle Nutzer, nur lesen:** Programme, Temperatur- und Zeitgrenzen und Zonen einer Fritteuse – jeweils mit Angabe, ob **bestätigt** oder nur **geschätzt**. Dazu `verbindung`, `letzte_meldung` und `revision`. |
 | `airfryer_control.match_senden` | **Match:** schickt Programm, Temperatur und Zeit einer Zone (`quelle`, Standard 1) an beide Zonen. Nur bereitstellen – gestartet wird am Gerät. Arbeitet eine Zone, wird nichts gesendet. Extras siehe „Für andere Integrationen“. |
 | `airfryer_control.sync_senden` | **Sync:** schickt beide Zonen mit ihren Zeiten; die kürzere Zone wartet (Zustand „Wartet auf Sync-Start“), damit beide zusammen fertig werden. Nur bereitstellen – Start am Gerät. Arbeitet eine Zone, wird nichts gesendet. Extras siehe „Für andere Integrationen“. |

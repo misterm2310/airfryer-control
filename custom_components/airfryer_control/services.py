@@ -11,6 +11,10 @@ Für Doofe:
   Fritteuse angenommen hat.
 - faehigkeiten: Für alle (nur lesen) – welche Programme, Grenzen und Zonen ein
   Gerät hat, und ob das bestätigt oder nur geschätzt ist.
+- liebling_speichern / liebling_loeschen: Für alle – ⭐ Lieblings-Programme pro
+  Fritteuse merken oder löschen (die Karte zeigt sie als Knöpfe).
+- garzeit_plus: Für alle – ⏱️ 1–30 Minuten dazu: gart die Zone, wird die laufende
+  Zeit länger; ist sie fertig, wird dasselbe Programm nochmal bereitgestellt.
 - befehl_senden: Für Bastler (nur Admins) – einen beliebigen App-Befehl
   schicken und die Antwort sehen.
 """
@@ -29,7 +33,12 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 from .core.api import CODE_DEVICE_TIMEOUT, AirfryerConnectionError, AirfryerError
 from .const import (
     DOMAIN,
+    SERVICE_ADD_TIME,
     SERVICE_CAPABILITIES,
+    SERVICE_FAV_DELETE,
+    SERVICE_FAV_SAVE,
+    STATE_FINISHED,
+    STATE_KEEP_WARM,
     SERVICE_MATCH,
     SERVICE_PROGRAM,
     SERVICE_RAW,
@@ -54,8 +63,11 @@ from .senden import (
     async_send_sync,
     clamp_minutes,
     clamp_temp,
+    get_plan,
     sync_plans,
 )
+from .number import build_change_payload
+from .programme import get_store
 from .core.util import redact
 
 ATTR_DEVICE = "geraet"
@@ -74,6 +86,7 @@ ATTR_ZONE1 = "zone1"
 ATTR_ZONE2 = "zone2"
 ATTR_SOURCE = "quelle"
 ATTR_RESET = "zuruecksetzen"
+ATTR_NAME = "name"
 
 # „bestätigen“: so oft und so lange nachsehen, ob die Werte an der Zone angekommen sind
 CONFIRM_TRIES = 3
@@ -124,6 +137,28 @@ SYNC_SCHEMA = vol.Schema(
         vol.Optional(ATTR_STRICT, default=False): cv.boolean,
         # true (wie bisher) = vorbereitete Zonen vorher zurücksetzen; false = dann abbrechen
         vol.Optional(ATTR_RESET, default=True): cv.boolean,
+    }
+)
+FAV_SAVE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Required(ATTR_NAME): vol.All(cv.string, vol.Strip, vol.Length(min=1, max=40)),
+        vol.Required(ATTR_MODE): vol.In(list(ALL_MODES)),
+        vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
+        vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=5000)),
+    }
+)
+FAV_DELETE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Required(ATTR_NAME): vol.All(cv.string, vol.Strip, vol.Length(min=1, max=40)),
+    }
+)
+ADD_TIME_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
+        vol.Optional(ATTR_MINUTES, default=1): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
     }
 )
 CAPABILITIES_SCHEMA = vol.Schema({vol.Optional(ATTR_DEVICE): cv.string})
@@ -350,6 +385,75 @@ async def _capabilities(call: ServiceCall) -> ServiceResponse:
     }
 
 
+def _program_store(call: ServiceCall):
+    store = get_store(call.hass)
+    if store is None:
+        raise HomeAssistantError("Airfryer Control ist noch nicht fertig geladen.")
+    return store
+
+
+async def _fav_save(call: ServiceCall) -> None:
+    """⭐ Liebling speichern (Werte werden auf die Grenzen des Programms gesetzt)."""
+    _coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    mode = call.data[ATTR_MODE]
+    if mode not in modes_for(fryer.model):
+        raise ServiceValidationError(f"Das Programm „{mode}“ gibt es an diesem Modell nicht.")
+    temp = clamp_temp(mode, call.data[ATTR_TEMP], fryer.model)
+    minutes = clamp_minutes(mode, call.data[ATTR_MINUTES], fryer.model)
+    if not _program_store(call).save_favorite(fryer.cid, call.data[ATTR_NAME], mode, temp, minutes):
+        raise ServiceValidationError("Schon 12 Lieblinge – lösch erst einen, dann passt der neue rein.")
+
+
+async def _fav_delete(call: ServiceCall) -> None:
+    _coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    _program_store(call).delete_favorite(fryer.cid, call.data[ATTR_NAME])
+
+
+async def _add_time(call: ServiceCall) -> ServiceResponse:
+    """⏱️ Garzeit verlängern: +1 / +3 Minuten aus der Karte.
+
+    Für Doofe – je nachdem, was die Zone gerade macht:
+    - gart (oder Pause/Schublade offen): die eingestellte Zeit wird um X Minuten länger
+      (gleicher Befehl wie die App beim Zeit-Ändern, „setTimeOrTemp“),
+    - fertig oder hält warm: dasselbe Programm wird für X Minuten nochmal bereitgestellt
+      („Nachgaren“) – gestartet wird wie immer am Gerät,
+    - sonst: nur das Zeit-Feld der Zone wird um X Minuten größer.
+    """
+    coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    zone, extra = call.data[ATTR_ZONE], call.data[ATTR_MINUTES]
+    plan = get_plan(coordinator, fryer.cid, zone)
+    zs = zone_view(fryer.state, zone) if fryer.online else None
+    if zs is not None and zs.active:
+        if not zs.set_time_s:
+            raise HomeAssistantError("Die Fritteuse meldet keine eingestellte Garzeit – bitte am Gerät verlängern.")
+        minutes = clamp_minutes(plan["mode"], round(zs.set_time_s / 60) + extra, fryer.model)
+        try:
+            await coordinator.api.bypass_v2(fryer.info, "setTimeOrTemp", build_change_payload(zs, None, minutes))
+        except AirfryerError as err:
+            raise HomeAssistantError(f"Fritteuse hat „Garzeit verlängern“ abgelehnt: {err}") from err
+        plan["minuten"] = minutes
+        await coordinator.async_request_fast_refresh()
+        return {"ergebnis": "verlaengert", "minuten": minutes} if call.return_response else None
+    if zs is not None and zs.status in (STATE_FINISHED, STATE_KEEP_WARM):
+        minutes = clamp_minutes(plan["mode"], extra, fryer.model)
+        temp = clamp_temp(plan["mode"], plan["temp"], fryer.model)
+        try:
+            results = await async_send(
+                coordinator, fryer, zone, temp, minutes, plan["mode"], allow_start=False
+            )
+        except AirfryerError as err:
+            raise HomeAssistantError(f"Fritteuse hat „Nachgaren“ abgelehnt: {err}") from err
+        if not any(r["ok"] for r in results):
+            raise HomeAssistantError("Fritteuse hat „Nachgaren“ abgelehnt.")
+        plan["minuten"] = minutes
+        coordinator.async_update_listeners()
+        return {"ergebnis": "bereitgestellt", "minuten": minutes} if call.return_response else None
+    minutes = clamp_minutes(plan["mode"], int(plan["minuten"]) + extra, fryer.model)
+    plan["minuten"] = minutes
+    coordinator.async_update_listeners()  # Zeit-Feld der Zone zeigt den neuen Wert
+    return {"ergebnis": "gemerkt", "minuten": minutes} if call.return_response else None
+
+
 async def _require_admin(call: ServiceCall) -> None:
     if call.context.user_id:
         user = await call.hass.auth.async_get_user(call.context.user_id)
@@ -417,6 +521,11 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_SYNC, _sync, schema=SYNC_SCHEMA, supports_response=SupportsResponse.OPTIONAL
+    )
+    hass.services.async_register(DOMAIN, SERVICE_FAV_SAVE, _fav_save, schema=FAV_SAVE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_FAV_DELETE, _fav_delete, schema=FAV_DELETE_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, SERVICE_ADD_TIME, _add_time, schema=ADD_TIME_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )
     hass.services.async_register(
         DOMAIN,

@@ -27,6 +27,8 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 - 🔔 **“Done” event** for phone notifications, announcements or pausing the TV.
 - 🃏 **Two ready-made cards** (zone card + ticker) and a 📱 **phone app** – nothing extra to install.
 - 🟰 **Match & Sync** so both zones finish at the same time.
+- ⭐ **Favourite programs** and 🕘 **recently sent** – one tap instead of three fields.
+- ⏱️ **+1 / +3 min** to extend or cook a bit more, 🥄 **shake reminder** at half time (optional, off by default).
 - 🛡️ **Privacy:** your password is not stored, only Home Assistant talks to VeSync.
 
 <details><summary>📋 All features in detail</summary>
@@ -39,6 +41,10 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 | 🌡️ **Limits** | Temperature follows the program: Air Fry 120–205 °C, Roast 120–205 °C, Bake 80–205 °C, Grill 205–240 °C, Reheat 40–205 °C. If a value is not accepted, the integration tells you in plain words. |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
 | 🔔 **“Done” event** | `airfryer_control_fertig` – for phone notifications, announcements or pausing the TV. |
+| 🥄 **“Shake” event** | `airfryer_control_schuetteln` – at half time, once per cook and zone. Only if the **shake reminder** is switched on (integration options or ⚙️ › Integration in the card, default: off). |
+| ⭐ **Favourite programs** | Save program, temperature and time under a name (e.g. “Fries 200 °C, 18 min”), up to 12 per fryer. In the card one tap = send to the zone (prepare only). Stored in Home Assistant, not in the browser – phone and kitchen tablet see the same ones. Sensor **“Favourite programs”** (value = count, attributes `lieblinge` and `zuletzt`). |
+| 🕘 **Recently sent** | The last 5 programs sent to the fryer – from the card, the switch or an action. Tap again in the card. |
+| ⏱️ **+1 / +3 min** | Cooking: the running time gets longer. Done or keeping warm: the same program is prepared again for 1 or 3 minutes (start on the device). Otherwise: only the time field grows. Action `garzeit_plus`. |
 | 📤 **Send (like the app)** | Set program, temperature and time per zone, then turn the switch **“Zone n send / stop”** on – like “Send” in the VeSync app. The fryer wakes up and waits for you to press Start on the device. (Cosori blocks remote start in the EU.) |
 | ⏹️ **Stop cooking** | Button for the whole fryer – and the same switch per zone: off = stop that zone. |
 | 🎛️ **Change temperature & time** | Number fields per zone. If the zone is already cooking, new values go straight to the fryer. |
@@ -100,7 +106,7 @@ Nothing extra to install – the integration ships two cards and registers them 
 
 | Card | What it does |
 |---|---|
-| `custom:airfryer-control-card` | One row per zone (Zone 1, Zone 2, Grandzone) with status, “done at …” and a round **send / cancel / stop** button. Tapping a row unfolds program, temperature and time right below it (per-program limits respected). The (i) shows credits, donation link and privacy, the ⚙️ next to it the settings. |
+| `custom:airfryer-control-card` | One row per zone (Zone 1, Zone 2, Grandzone) with status, “done at …” and a round **send / cancel / stop** button. While cooking and when done, **+1 min / +3 min** sit right in the row. Tapping a row unfolds **⭐ favourites**, **🕘 recently sent**, program, temperature and time right below it (per-program limits respected). The (i) shows credits, donation link and privacy, the ⚙️ next to it the settings. |
 | `custom:airfryer-control-ticker` | The **ticker**: “Air fryer Zone 1: done at 19:42 +++ Zone 2: waiting for start”. Frame **red and pulsing** when a zone is done, otherwise teal. Hides itself when idle. Optionally includes extra timers (e.g. `sensor.einkaufsliste_kochtimer`). |
 
 ```yaml
@@ -122,10 +128,14 @@ The phone page and the sidebar (option “📌 Show in sidebar”, off by defaul
 **⚙️ Settings in the card:** the cog at the top of the card opens a page 1:1 like the shopping list settings: search field at the top, groups to unfold, switches right in the row, and tapping a row opens its own page with an explanation:
 - **👁️ View:** font size (smaller / standard / larger) and colours (auto / light / dark). Only on this device, e.g. larger on the kitchen tablet.
 - **🍟 Card:** mascot, top bar and guide button on/off, only on this device. “Like in the card editor” goes back to the editor values.
-- **🔌 Integration** (admins only, not in the phone app): polling interval, sidebar and mascot in the sidebar. Applies to everyone. Saving reloads the integration briefly.
-- **ℹ️ About:** guide, “New in this beta” and credits.
+- **🔌 Integration** (admins only, not in the phone app): polling interval, sidebar, mascot in the sidebar and 🥄 shake reminder. Applies to everyone. Saving reloads the integration briefly.
+- **ℹ️ About:** guide, **📢 What's new** and credits.
 
-**📖 Guide:** its own page with ← back, chapters to unfold and a search field. On first start the card shows a 💡 tip once, and in a beta the **📢 New in this beta** box once.
+**📢 What's new** (like the shopping list): in a beta an orange box **🧪 You are in the beta …** sits on top with everything new in this beta series (highest beta first). Below it **“The latest new features up to version …”** – at most 15, newest first. Without a beta there is only the normal list.
+
+**⭐ Favourites & 🕘 recently sent:** tap a row → your favourites are at the top. Tap = send to this zone right away (prepare only, start on the device). **＋** saves what is set below (any name), **✏️ Delete** shows ✕ on the favourites. Below that the last 5 programs sent. While the zone is cooking the buttons are grey.
+
+**📖 Guide:** its own page with ← back, chapters to unfold and a search field. On first start the card shows a 💡 tip once.
 
 Both cards have an editor, follow light/dark and run smoothly on a Fire TV. Zones are detected automatically. The cards only talk to your Home Assistant.
 
@@ -163,7 +173,7 @@ The **🔅 Keep screen on** button keeps the display awake (handy for a kitchen 
 
 ## 🤖 Automations
 
-<details><summary>“Done” event, ready-made example and all actions – <i>expand</i></summary>
+<details><summary>“Done” and “shake” events, ready-made examples and all actions – <i>expand</i></summary>
 
 The event `airfryer_control_fertig` carries `geraet` (name), `modell`, `zone` (`1`, `2`, `3` or `alle` = whole fryer), `zustand` and `programm`.
 
@@ -196,11 +206,41 @@ actions:
         tag: fritteuse_fertig_01
 ```
 
+The event `airfryer_control_schuetteln` (🥄 shake reminder, **only if switched on**, default off) fires at **half time** – once per cook and zone, for cooking times from 2 minutes. It carries `geraet`, `modell`, `zone` (`1`, `2`, `3`), `programm`, `rest_minuten` and `garzeit_minuten`. If Home Assistant restarts mid-cook past half time, no late reminder comes.
+
+```yaml
+alias: Air fryer – shake now
+description: "Reminds you at half time via phone notification to shake the basket of the Cosori air fryer."
+mode: queued
+triggers:
+  - trigger: event
+    event_type: airfryer_control_schuetteln
+conditions:
+  # Maintenance switch: if it is on, stay quiet. Don't have one? Delete this condition.
+  - condition: state
+    entity_id: input_boolean.schalter_wartung
+    state: "off"
+actions:
+  - action: notify.mobile_app_your_phone
+    continue_on_error: true
+    data:
+      title: "🥄 Shake now!"
+      message: "Zone {{ trigger.event.data.zone }}: half time – {{ trigger.event.data.rest_minuten }} minutes left."
+      data:
+        ttl: 0
+        priority: high
+        notification_icon: mdi:french-fries
+        tag: fritteuse_schuetteln_{{ trigger.event.data.zone }}
+```
+
 | Action | What it does |
 |---|---|
 | `airfryer_control.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). |
 | `airfryer_control.garen_beenden` | Stop. |
 | `airfryer_control.programm_senden` | **For all users** (no admin rights needed, e.g. for the shopping list): sends `zone`, `temperatur`, `minuten`, `programm` to the fryer – **prepare only**, it never starts by itself. Temperature and time are limited to the program's range. Without `geraet` the only fryer is used. Response: `ok`, `ergebnis` and on failure `fehler`/`code`. Extras for other integrations below. |
+| `airfryer_control.liebling_speichern` | **For all users:** ⭐ saves `name`, `programm`, `temperatur`, `minuten` as a favourite (same name = overwrite, up to 12 per fryer, values are limited to the program's range). Without `geraet` the only fryer is used. |
+| `airfryer_control.liebling_loeschen` | **For all users:** deletes a favourite by its `name`. |
+| `airfryer_control.garzeit_plus` | **For all users:** ⏱️ adds `minuten` (1–30, default 1) to `zone`. Cooking: the running time gets longer. Done/keeping warm: the same program is prepared again (start on the device). Otherwise: only the time field. Optional response: `ergebnis` = `verlaengert`, `bereitgestellt` or `gemerkt`, plus `minuten`. |
 | `airfryer_control.faehigkeiten` | **For all users, read only:** programs, temperature and time limits and zones of a fryer – each marked **confirmed** or only **estimated**. Plus `verbindung`, `letzte_meldung` and `revision`. |
 | `airfryer_control.match_senden` | **Match:** sends program, temperature and time of one zone (`quelle`, default 1) to both zones. Prepares only – start on the device. If a zone is cooking, nothing is sent. Extras see “For other integrations”. |
 | `airfryer_control.sync_senden` | **Sync:** sends both zones with their times; the shorter zone waits (state “Waiting for sync start”) so both finish together. Prepares only – start on the device. If a zone is cooking, nothing is sent. Extras see “For other integrations”. |

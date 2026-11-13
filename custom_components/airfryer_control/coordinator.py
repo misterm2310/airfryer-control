@@ -30,6 +30,9 @@ from .const import (
     DEFAULT_INTERVAL,
     DOMAIN,
     EVENT_FINISHED,
+    EVENT_SHAKE,
+    OPT_SHAKE,
+    SHAKE_MIN_SECONDS,
     FAST_INTERVAL,
     STATE_WAITING,
     WAITING_INTERVAL,
@@ -112,6 +115,9 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         self.api = api
         self._interval = int(entry.options.get(OPT_INTERVAL, DEFAULT_INTERVAL))
         self._unit_option = entry.options.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
+        # 🥄 Schüttel-Erinnerung (Standard aus) + welche Zonen in diesem Garvorgang schon erinnert wurden
+        self._shake = bool(entry.options.get(OPT_SHAKE, False))
+        self._shaken: set[tuple[str, int]] = set()
         self._unsupported: dict[str, set[str]] = {}
         self.fryers: dict[str, FryerData] = {}
         # Eingaben pro (Fritteuse, Zone): {"temp": °C, "minuten": min, "mode": "airfry"}
@@ -310,6 +316,42 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         if old.active and not new.active and new.status in DONE_STATES:
             self.hass.bus.async_fire(
                 EVENT_FINISHED, {**base, "zone": "alle", "zustand": new.status}
+            )
+        if self._shake:
+            self._shake_events(fryer, old, new, base)
+
+    def _shake_events(self, fryer: FryerData, old: FryerState, new: FryerState, base: dict[str, Any]) -> None:
+        """🥄 Ereignis „schütteln“ zur Halbzeit – einmal pro Garvorgang und Zone.
+
+        Für Doofe: Ist die Hälfte der Garzeit um, kommt das Ereignis
+        ``airfryer_control_schuetteln``. Damit kann eine Automation aufs Handy schreiben
+        oder eine Durchsage machen. Startet Home Assistant mitten im Garen neu (schon
+        über der Hälfte), kommt keine verspätete Erinnerung.
+        """
+        for zone, zs in new.zones.items():
+            key = (fryer.cid, zone)
+            if zs.status != STATE_COOKING:
+                if not zs.active:
+                    self._shaken.discard(key)  # Garvorgang vorbei → nächstes Mal wieder erinnern
+                continue
+            total, left = zs.set_time_s, zs.remaining_s
+            if key in self._shaken or not total or left is None or total < SHAKE_MIN_SECONDS:
+                continue
+            if left > total / 2:
+                continue
+            self._shaken.add(key)
+            before = old.zones.get(zone)
+            if before is None or not before.active:
+                continue  # gerade erst gesehen (z. B. nach Neustart) → nicht nachträglich erinnern
+            self.hass.bus.async_fire(
+                EVENT_SHAKE,
+                {
+                    **base,
+                    "zone": zone,
+                    "programm": zs.mode,
+                    "rest_minuten": int(round(left / 60)),
+                    "garzeit_minuten": int(round(total / 60)),
+                },
             )
 
     async def async_request_fast_refresh(self) -> None:

@@ -11,8 +11,14 @@ const AC_BASE = new URL(".", import.meta.url).pathname.replace(/\/$/, "");
 const AC_VERSION = new URL(import.meta.url).searchParams.get("v") || "";
 const AC_REPO = "https://github.com/misterm2310/airfryer-control";
 
-// 📢 Neu in dieser Beta – Neueste oben (wie bei der Einkaufsliste). [Version, deutsch, englisch]
+// 📢 Was ist neu – [Version, deutsch, englisch]. Reihenfolge egal: angezeigt wird immer nach Version, Neueste oben.
+// In einer Beta landen die Einträge dieser Beta-Reihe im orangen Beta-Kasten, alles Ältere darunter (wie bei der Einkaufsliste).
 const AC_NEWS = [
+  ["1.0.4-beta.6", "⭐ Lieblings-Programme: Programm, Temperatur und Zeit einmal speichern – danach ein Tipp und es geht an die Zone", "⭐ Favourite programs: save program, temperature and time once – then one tap sends it to the zone"],
+  ["1.0.4-beta.6", "🕘 „Zuletzt gesendet“: die letzten 5 Programme zum nochmal Antippen", "🕘 “Recently sent”: the last 5 programs to tap again"],
+  ["1.0.4-beta.6", "⏱️ Schnellknöpfe +1 und +3 min: Garen verlängern, nach „Fertig“ nachgaren", "⏱️ Quick buttons +1 and +3 min: extend cooking, cook a bit more after “Done”"],
+  ["1.0.4-beta.6", "🥄 Schüttel-Erinnerung zur Halbzeit als Ereignis (für Handy oder Durchsage) – Standard aus", "🥄 Shake reminder at half time as an event (for phone or announcement) – off by default"],
+  ["1.0.4-beta.6", "📢 „Was ist neu“ wie bei der Einkaufsliste: oranger Beta-Kasten oben, darunter die letzten Neuerungen", "📢 “What's new” like the shopping list: orange beta box on top, the latest news below"],
   ["1.0.4-beta.5", "🚪 TwinFry: Schublade auf = alle Zonen zeigen „Schublade offen“, auch die Grandzone (#8)", "🚪 TwinFry: drawer open = every zone shows “Drawer open”, the Grandzone too (#8)"],
   ["1.0.4-beta.4", "⚙️ Einstellungen sehen jetzt 1:1 aus wie bei der Einkaufsliste: Suchfeld, Gruppen, Schalter in der Zeile, eigene Seite pro Einstellung", "⚙️ Settings now look 1:1 like the shopping list: search field, groups, switches in the row, its own page per setting"],
   ["1.0.4-beta.4", "📢 Neuigkeiten immer nach Version sortiert – die neueste steht oben", "📢 News always sorted by version – the newest is on top"],
@@ -20,7 +26,7 @@ const AC_NEWS = [
   ["1.0.4-beta.3", "⚙️ Einstellungen direkt in der Karte (Zahnrad oben): Ansicht, Karte und – für Admins – die Integration", "⚙️ Settings right in the card (cog at the top): view, card and – for admins – the integration"],
   ["1.0.4-beta.3", "📖 Anleitung neu: eigene Seite mit ←, Kapitel zum Aufklappen und Suchfeld", "📖 New guide: its own page with ←, chapters to unfold and a search field"],
   ["1.0.4-beta.3", "👁️ Schriftgröße und Hell/Dunkel – pro Gerät einstellbar", "👁️ Font size and light/dark – per device"],
-  ["1.0.4-beta.3", "📢 Dieser Kasten + 💡 Tipp beim ersten Start", "📢 This box + 💡 tip on first start"],
+  ["1.0.4-beta.3", "💡 Tipp beim ersten Start", "💡 Tip on first start"],
   ["1.0.4-beta.3", "📱 Offline-App: alle Symbole da (Anleitung, Zahnrad, Programme)", "📱 Offline app: all icons are there (guide, cog, programs)"],
   ["1.0.4-beta.2", "📶 Kurze Funklöcher (bis 90 s) zählen nicht mehr als offline", "📶 Short signal drops (up to 90 s) no longer count as offline"],
   ["1.0.4-beta.2", "🔀 TwinFry: Grandzone wird vor Zone 1/2 automatisch zurückgesetzt", "🔀 TwinFry: the Grandzone is reset automatically before Zone 1/2"],
@@ -28,7 +34,17 @@ const AC_NEWS = [
   ["1.0.4-beta.2", "🍳 Rezept-Nummern wie in der VeSync-App · 🆕 Dual Blaze CAF-P583S zum Testen", "🍳 Recipe numbers like the VeSync app · 🆕 Dual Blaze CAF-P583S for testing"],
   ["1.0.4-beta.2", "🌍 Kartentitel in der Sprache von Home Assistant", "🌍 Card title in the language of Home Assistant"],
   ["1.0.4-beta.1", "🔎 Karte findet Zonen und Online-Status in jeder Sprache", "🔎 Card finds zones and online status in every language"],
+  ["1.0.3", "🗼 Modellprofil Turbo Tower Pro mit Gären", "🗼 Model profile Turbo Tower Pro with proofing"],
+  ["1.0.3", "🍟 Maskottchen Pommes-Tüte", "🍟 Mascot: bag of fries"],
+  ["1.0.3", "🎛️ Programm-Kacheln und Zeilen im Einkaufslisten-Stil", "🎛️ Program tiles and rows in shopping list style"],
+  ["1.0.3", "🔗 Match/Sync bricht ab, wenn ein Fach arbeitet · eigene Werte pro Fach", "🔗 Match/Sync stops if a basket is busy · own values per basket"],
+  ["1.0.3", "ⓘ Kurze Hilfe neben den Feldern statt Textwand", "ⓘ Short help next to the fields instead of a wall of text"],
+  ["1.0.2", "🔌 Schnittstelle für andere Integrationen (z. B. Airfryer Recipes)", "🔌 Interface for other integrations (e.g. Airfryer Recipes)"],
+  ["1.0.2", "💙 Credits wie bei der Einkaufsliste", "💙 Credits like the shopping list"],
+  ["1.0.1", "🛠️ Fixes aus den Betas (Issue #1 und #2)", "🛠️ Fixes from the betas (issues #1 and #2)"],
+  ["1.0.0", "🎉 Erste offizielle Version", "🎉 First official version"],
 ];
+const AC_NEWS_MAX = 15; // 🆕 höchstens 15 Neuerungen in der normalen Liste
 // 🔢 Versionen vergleichen: 1.0.4-beta.10 > 1.0.4-beta.9 > 1.0.3 – und eine fertige Version zählt mehr als ihre Betas
 function acVerCmp(a, b) {
   const p = (v) => { const m = /^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?/.exec(String(v)) || []; return [+m[1] || 0, +m[2] || 0, +m[3] || 0, m[4] == null ? Infinity : +m[4]]; };
@@ -38,6 +54,17 @@ function acVerCmp(a, b) {
 }
 // 📢 Neueste Version immer oben – egal, in welcher Reihenfolge die Einträge oben stehen (Einträge einer Version bleiben in ihrer Reihenfolge)
 const acNewsSorted = () => AC_NEWS.map((n, i) => [n, i]).sort((a, b) => acVerCmp(b[0][0], a[0][0]) || a[1] - b[1]).map((x) => x[0]);
+// 🧪 Beta-Kasten: nur Einträge dieser Beta-Reihe (z. B. alle 1.0.4-beta.*), höchste Beta oben. Ohne Beta: leer.
+function acBetaNews(ver = AC_VERSION) {
+  if (!/-beta/i.test(ver)) return [];
+  const base = ver.replace(/-beta.*$/i, "");
+  return acNewsSorted().filter((n) => n[0].startsWith(base + "-beta") && acVerCmp(n[0], ver) <= 0);
+}
+// 📋 Normale Liste: alles bis zur aktuellen Version, OHNE die Einträge im Beta-Kasten – max. 15, Neuestes oben
+function acMainNews(ver = AC_VERSION) {
+  const beta = new Set(acBetaNews(ver));
+  return acNewsSorted().filter((n) => !beta.has(n) && (!ver || acVerCmp(n[0], ver) <= 0)).slice(0, AC_NEWS_MAX);
+}
 // 💾 Merkzettel pro Gerät (Ansicht, Tipp gesehen …). Geht der Speicher nicht (privates Fenster), klappt alles trotzdem.
 const AC_LS = "airfryer_control.";
 const lsGet = (k, d) => { try { const v = localStorage.getItem(AC_LS + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } };
@@ -116,6 +143,7 @@ function findZones(hass) {
         temp: sib(dev, "number", "zone_temperatur", token) || `number.${key}_temperatur_einstellen`,
         time: sib(dev, "number", "zone_garzeit", token) || `number.${key}_garzeit_einstellen`,
         sw: sib(dev, "switch", "zone_senden", token),
+        progs: (mine.find((x) => x.device_id === dev && x.translation_key === "programme" && hass.states[x.entity_id]) || {}).entity_id, // ⭐ Lieblinge + 🕘 zuletzt
         name: zoneName(hass, key, hass.states[e.entity_id]),
       });
     }
@@ -159,6 +187,11 @@ function zoneName(hass, key, st) {
   const n = /zone_(\d+)$/.exec(key);
   return n ? tr(hass, `Zone ${n[1]}`, `Zone ${n[1]}`) : (st?.attributes?.friendly_name || key);
 }
+
+// 🔢 Nummer der Zone für die Dienste: Zone 1 = 1, Zone 2 = 2, Grandzone = 3
+const zoneNum = (z) => (/grandzone$/.test(z.key) ? 3 : Number((/zone_(\d+)$/.exec(z.key) || [0, 1])[1]));
+// „Heißluft · 200 °C · 18 Min“ – für Lieblinge und „Zuletzt gesendet“
+const progLine = (hass, p) => `${modeText(hass, p.programm)} · ${p.temperatur} °C · ${p.minuten} ${tr(hass, "Min", "min")}`;
 
 // ---------- 🍟 Maskottchen Airfryer (wie Sparschwein, Einkaufswagen und Kegelfigur) ----------
 function acMood(hass, zones, now = new Date()) {
@@ -384,7 +417,28 @@ const BASE_CSS = `
   .ac-bbtns { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
   .ac-bbtns button { font:inherit; font-size:.92em; border:1px solid var(--divider-color, rgba(127,127,127,.35)); background:var(--card-background-color, #fff); color:var(--primary-text-color); border-radius:12px; padding:6px 12px; cursor:pointer; }
   .ac-bbtns button.pri { background:var(--bc, #fb8c00); border-color:var(--bc, #fb8c00); color:#fff; font-weight:600; }
-  .ac-news h4 { margin:12px 0 2px; } .ac-news ul { margin:2px 0; padding-left:20px; }
+  .ac-news { margin:4px 0; padding-left:20px; } .ac-news li { margin:3px 0; }
+  .ac-betabox { border:1px solid #fb8c00; border-radius:12px; padding:10px 12px; margin:0 0 12px; background:rgba(251,140,0,.1); } /* 🧪 wie bei der Einkaufsliste */
+  .ac-betabox ul { margin:0; padding-left:20px; } .ac-betabox li { margin:3px 0; } .ac-betabox .ac-pgsub { margin:4px 0 2px; }
+  /* ⭐ Lieblinge / 🕘 zuletzt gesendet: Knöpfe im Stil der Programm-Kacheln */
+  .ac-chips { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 0; }
+  .ac-chip { position:relative; border:1.5px solid var(--divider-color, rgba(127,127,127,.35)); border-radius:12px; background:none; color:inherit; padding:8px 12px; cursor:pointer; font:inherit; font-size:.9em; display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; }
+  .ac-chip small { opacity:.7; font-size:.85em; }
+  .ac-chip.add { border-style:dashed; color:var(--primary-color); align-items:center; justify-content:center; }
+  .ac-chip.del { border-color:#e53935; }
+  .ac-chip.del::after { content:"✕"; position:absolute; top:-8px; right:-8px; width:20px; height:20px; border-radius:50%; background:#e53935; color:#fff; font-size:12px; line-height:20px; text-align:center; }
+  .ac-chip:disabled { opacity:.4; cursor:default; }
+  .ac-flab .ac-edbtn { margin-left:auto; border:0; background:none; color:var(--primary-color); font:inherit; font-size:.95em; cursor:pointer; padding:2px 4px; }
+  .ac-favform { display:flex; gap:8px; margin:8px 0 0; } .ac-favform input { flex:1; width:auto; }
+  .ac-favform button { border:0; border-radius:10px; padding:0 14px; font:inherit; cursor:pointer; background:var(--secondary-background-color, rgba(127,127,127,.15)); color:inherit; }
+  .ac-favform button.pri { background:#43a047; color:#fff; }
+  /* ⏱️ +1 / +3 min */
+  .ac-quick { display:flex; align-items:center; gap:8px; margin:6px 0 0; }
+  .ac-quick > span { flex:1; opacity:.8; font-size:.9em; }
+  .ac-plus { border:1.5px solid var(--primary-color); color:var(--primary-color); background:none; border-radius:999px; padding:6px 12px; font:inherit; font-weight:600; font-size:.9em; cursor:pointer; }
+  .ac-plus:disabled { opacity:.4; cursor:default; }
+  .ac-rowplus { display:flex; gap:6px; margin-top:4px; } .ac-rowplus .ac-plus { padding:3px 10px; font-size:.8em; }
+  .ac-flash { margin:-2px 0 8px; padding:8px 12px; border-radius:10px; font-size:.88em; background:var(--secondary-background-color, rgba(127,127,127,.12)); }
 `;
 
 function creditsHtml(hass) {
@@ -443,10 +497,13 @@ function acGuideHtml(hass) {
     <div class="ac-search"><input type="search" class="ac-q" data-q placeholder="${esc(t("🔎 In dieser Anleitung suchen, z. B. Sync", "🔎 Search this guide, e.g. sync"))}" aria-label="${esc(t("In dieser Anleitung suchen", "Search this guide"))}" autocomplete="off" enterkeyhint="search"><p class="ac-none" data-none hidden>${t("Nichts gefunden 🤷 – versuch ein anderes Wort.", "Nothing found 🤷 – try another word.")}</p></div>
     ${acSec("🍟", t("Zonen", "Zones"), `<p>${t("Jede Zeile ist eine Zone deiner Fritteuse. Farbe und Text zeigen, was sie gerade macht: <b>grün</b> = gart, <b>orange</b> = wartet auf Start, <b>rot</b> = fertig, <b>grau</b> = bereit oder aus.", "Each row is one zone of your air fryer. Colour and text show what it is doing: <b>green</b> = cooking, <b>orange</b> = waiting for start, <b>red</b> = done, <b>grey</b> = ready or off.")}</p>`, "#43a047", t("Was die Farben bedeuten", "What the colours mean"))}
     ${acSec("🎛️", t("Programm einstellen", "Set a program"), `<p>${t("Zeile antippen → darunter klappen Programm, Temperatur und Zeit auf (nochmal antippen = zu) → <b>Senden</b>. Das kleine <b>ⓘ</b> neben einem Feld erklärt es kurz.", "Tap a row → program, temperature and time unfold below it (tap again to close) → <b>Send</b>. The small <b>ⓘ</b> next to a field explains it briefly.")}</p><p>${t("Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>. Sicher ist sicher. 🔥", "The fryer is then prepared – <b>you always start it on the device</b>. Better safe than sorry. 🔥")}</p>`, "#fb8c00", t("Programm, Temperatur, Zeit", "Program, temperature, time"))}
+    ${acSec("⭐", t("Lieblinge & zuletzt gesendet", "Favourites & recently sent"), `<p>${t("Zeile antippen → ganz oben stehen deine <b>⭐ Lieblinge</b>. Antippen = sofort an diese Zone senden. <b>＋</b> speichert, was unten gerade eingestellt ist (Name frei wählbar, z. B. „Pommes“). <b>✏️ Löschen</b> = Lieblinge mit ✕ wegtippen.", "Tap a row → your <b>⭐ favourites</b> are at the top. Tap = send to this zone right away. <b>＋</b> saves what is set below (any name, e.g. “Fries”). <b>✏️ Delete</b> = tap favourites with ✕ away.")}</p><p>${t("Darunter <b>🕘 Zuletzt gesendet</b>: die letzten 5 Programme. Lieblinge und Verlauf liegen in Home Assistant – Handy und Küchen-Tablet sehen dasselbe.", "Below that <b>🕘 Recently sent</b>: the last 5 programs. Favourites and history live in Home Assistant – phone and kitchen tablet see the same.")}</p>`, "#fdd835", t("Ein Tipp statt drei Felder", "One tap instead of three fields"))}
+    ${acSec("⏱️", t("+1 und +3 Minuten", "+1 and +3 minutes"), `<p>${t("<b>Gart</b> die Zone: die laufende Zeit wird länger. <b>Fertig</b>, aber noch nicht knusprig? Dann wird dasselbe Programm für 1 oder 3 Minuten bereitgestellt – am Gerät auf Start. Sonst wird nur das Zeit-Feld größer.", "<b>Cooking</b>: the running time gets longer. <b>Done</b> but not crispy yet? Then the same program is prepared for 1 or 3 minutes – press Start on the device. Otherwise only the time field grows.")}</p><p>${t("Beim Garen und bei „Fertig“ stehen die Knöpfe auch direkt in der Zeile.", "While cooking and when done, the buttons are also right in the row.")}</p>`, "#00897b", t("Noch ein bisschen", "A little more"))}
+    ${acSec("🥄", t("Schüttel-Erinnerung", "Shake reminder"), `<p>${t("Unter ⚙️ › Integration einschalten (Standard: aus). Zur Halbzeit kommt dann das Ereignis <code>airfryer_control_schuetteln</code> – für eine Handy-Nachricht oder Durchsage per Automation.", "Switch it on under ⚙️ › Integration (default: off). At half time the event <code>airfryer_control_schuetteln</code> fires – for a phone message or announcement via an automation.")}</p>`, "#f4511e", t("Halbzeit = schütteln", "Half time = shake"))}
     ${acSec("⏹️", t("Knopf rechts", "Button on the right"), `<p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>`, "#e53935", t("Senden, Abbrechen, Beenden", "Send, cancel, stop"))}
     ${acSec("🔗", "Match & Sync", `<p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. <b>Match senden</b> = beide Zonen bekommen dieselben Werte. <b>Sync senden</b> = beide werden zur selben Zeit fertig.", "With two zones: “Copy settings” copies the other zone. <b>Send Match</b> = both zones get the same values. <b>Send Sync</b> = both finish at the same time.")}</p><p>${t("Der Sync-Hinweis sagt dir außerdem, wann du die zweite Zone startest.", "The sync hint also tells you when to start the second zone.")}</p>`, "#1e88e5", t("Zwei Körbe, ein Abendessen", "Two baskets, one dinner"))}
     ${acSec("🔢", t("Oben in der Karte", "At the top of the card"), `<p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. <b>ⓘ</b> = Infos & Credits. <b>⚙️</b> = Einstellungen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. <b>ⓘ</b> = info & credits. <b>⚙️</b> = settings.")}</p>`, "#8e24aa", t("Zahl, Punkt, Knöpfe", "Number, dot, buttons"))}
-    ${acSec("⚙️", t("Einstellungen", "Settings"), `<p>${t("Das Zahnrad oben in der Karte öffnet die Einstellungen:", "The cog at the top of the card opens the settings:")}</p><ul class="ac-ol"><li>${t("<b>👁️ Ansicht</b>: Schriftgröße und Hell/Dunkel – gilt nur auf diesem Gerät.", "<b>👁️ View</b>: font size and light/dark – only on this device.")}</li><li>${t("<b>🍟 Karte</b>: Maskottchen, Leiste oben, Anleitung-Knopf – nur auf diesem Gerät.", "<b>🍟 Card</b>: mascot, top bar, guide button – only on this device.")}</li><li>${t("<b>🔌 Integration</b> (nur Admins): Abfrage-Takt und Seitenleiste – gilt für alle.", "<b>🔌 Integration</b> (admins only): polling interval and sidebar – for everyone.")}</li></ul>`, "#607d8b", t("Ansicht, Karte, Integration", "View, card, integration"))}
+    ${acSec("⚙️", t("Einstellungen", "Settings"), `<p>${t("Das Zahnrad oben in der Karte öffnet die Einstellungen:", "The cog at the top of the card opens the settings:")}</p><ul class="ac-ol"><li>${t("<b>👁️ Ansicht</b>: Schriftgröße und Hell/Dunkel – gilt nur auf diesem Gerät.", "<b>👁️ View</b>: font size and light/dark – only on this device.")}</li><li>${t("<b>🍟 Karte</b>: Maskottchen, Leiste oben, Anleitung-Knopf – nur auf diesem Gerät.", "<b>🍟 Card</b>: mascot, top bar, guide button – only on this device.")}</li><li>${t("<b>🔌 Integration</b> (nur Admins): Abfrage-Takt, Seitenleiste und Schüttel-Erinnerung – gilt für alle.", "<b>🔌 Integration</b> (admins only): polling interval, sidebar and shake reminder – for everyone.")}</li></ul>`, "#607d8b", t("Ansicht, Karte, Integration", "View, card, integration"))}
     ${app ? acSec("📱", t("Als App aufs Handy", "As an app on your phone"), app, "#0288d1", t("Ohne App-Store", "No app store")) : ""}
     ${acSec("📦", t("Installieren & Updates", "Install & updates"), `<p>${t("Installation über HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace). Dort kommen auch die Updates an. Betas siehst du nur mit „Beta-Versionen anzeigen“.", "Install via HACS (from Home Assistant 2026.11: Settings › Marketplace). Updates arrive there too. You only see betas with “Show beta versions”.")}</p>`, "#6d4c41", "HACS / Marketplace")}
     ${acSec("🎃", t("Maskottchen", "Mascot"), `<p>${t("Im Karten-Editor oder unter ⚙️ › Karte einschalten (für die Seitenleiste: ⚙️ › Integration). Es zieht sich je nach Jahreszeit um. 🎅🐰🎃", "Switch it on in the card editor or under ⚙️ › Card (for the sidebar: ⚙️ › Integration). It changes costumes with the seasons. 🎅🐰🎃")}</p>`, "#f9a825", t("Zieht sich je nach Jahreszeit um", "Dresses up for the seasons"))}`;
@@ -480,8 +537,11 @@ class AirfryerControlCard extends HTMLElement {
     const zones = findZones(hass);
     const sig = zones.map((z) => [z.state, z.finish, z.mode, z.temp, z.time, z.sw]
       .map((e) => { const s = hass.states[e]; return s ? s.state + "|" + (s.attributes?.min ?? "") + (s.attributes?.max ?? "") : "-"; }).join(",")).join(";")
-      + "#" + (findOnline(hass, zones)?.state || "") + this._open + (hass.language || "") + new Date().getHours();
+      + "#" + (findOnline(hass, zones)?.state || "") + this._open + (hass.language || "") + new Date().getHours()
+      + "#" + JSON.stringify(zones.map((z) => { const a = hass.states[z.progs]?.attributes || {}; return [a.lieblinge, a.zuletzt]; }));
     if (sig === this._sig) return;
+    // ⌨️ Tippt gerade jemand den Namen eines Lieblings? Dann nicht dazwischenfunken (kommt gleich danach)
+    if (this._favForm && this.shadowRoot.activeElement?.matches?.("[data-favname]")) return;
     this._sig = sig;
     this._zones = zones;
     this._render();
@@ -540,9 +600,10 @@ class AirfryerControlCard extends HTMLElement {
           <ha-icon icon="mdi:toaster-oven"></ha-icon>
           <div class="ac-txt"><div class="ac-name">${esc(z.name)}</div>
             <div class="ac-state">${esc(stateText(hass, st?.state))}</div>
-            ${sub ? `<div class="ac-sub">${esc(sub)}</div>` : ""}</div>
+            ${sub ? `<div class="ac-sub">${esc(sub)}</div>` : ""}
+            ${this._rowPlusHtml(z)}</div>
           <button class="ac-go" data-go="${esc(z.key)}" style="--b:${b.color}" title="${esc(b.text)}" ${z.sw ? "" : "disabled"}><ha-icon icon="${b.icon}"></ha-icon></button>
-        </div>${this._open === z.key ? this._zoneHtml(z, zones) : ""}`;
+        </div>${this._msg?.key === z.key ? `<div class="ac-flash" role="status">${esc(this._msg.text)}</div>` : ""}${this._open === z.key ? this._zoneHtml(z, zones) : ""}`;
       }).join("");
       const running = zones.filter((z) => RUNNING.includes(hass.states[z.state]?.state)).length; // 🔢 Zahl-Blase = wie viele Zonen gerade garen
       body = `<div class="ac-head">${eff.masc ? `<span class="ac-masc" title="${esc(tr(hass, "Maskottchen (unter ⚙️ abschaltbar)", "Mascot (switch off under ⚙️)"))}">${acMascotSvg(acMood(hass, zones), acDeco())}</span>` : `<img class="ac-logo" src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="30" height="30">`}${running ? `<span class="ac-badge" title="${esc(tr(hass, "Zonen, die gerade garen", "Zones cooking right now"))}">${running}</span>` : ""}<h2>${esc(title)}</h2>
@@ -561,26 +622,14 @@ class AirfryerControlCard extends HTMLElement {
     this._wire();
   }
 
-  // 💡 Tipp beim ersten Start, danach 📢 „Neu in dieser Beta“ (je einmal pro Gerät, wegklickbar)
+  // 💡 Tipp beim ersten Start (einmal pro Gerät, wegklickbar). Neuerungen stehen unter ⚙️ › Über › Was ist neu.
   _boxHtml(eff) {
     const hass = this._hass, t = (d, e) => esc(tr(hass, d, e));
     if (eff.guide && !lsGet("tip", false)) {
       return `<div class="ac-box" style="--bc:#f9a825" data-box="tip"><b>💡 ${t("Neu hier?", "New here?")}</b><p>${t("Unten auf 📖 Anleitung tippen – da steht alles drin. Und oben unter ⚙️ stellst du Schriftgröße, Hell/Dunkel und mehr ein.", "Tap 📖 Guide at the bottom – it's all in there. And under ⚙️ at the top you set font size, light/dark and more.")}</p>
         <div class="ac-bbtns"><button type="button" class="pri" data-tip="guide">📖 ${t("Zeig mir", "Show me")}</button><button type="button" data-tip="ok">${t("Okay", "Okay")}</button></div></div>`;
     }
-    const news = this._news();
-    if (news.length && lsGet("news", "") !== AC_VERSION) {
-      return `<div class="ac-box" style="--bc:#fb8c00" data-box="news"><b>📢 ${t("Neu in dieser Beta", "New in this beta")}</b> <span class="elcsmall" translate="no">v${esc(AC_VERSION)}</span>
-        <ul>${(news.filter((n) => n[0] === AC_VERSION).length ? news.filter((n) => n[0] === AC_VERSION) : news.slice(0, 4)).map((n) => `<li>${esc(tr(hass, n[1], n[2]))}</li>`).join("")}</ul>
-        <div class="ac-bbtns"><button type="button" class="pri" data-page="news">${t("Alle Neuerungen", "All news")}</button><button type="button" data-newsok>${t("Gelesen", "Got it")}</button></div></div>`;
-    }
     return "";
-  }
-  // Neuerungen dieser Beta: nur in einer Beta-Version, Einträge der aktuellen Beta zuerst
-  _news() {
-    if (!/beta/i.test(AC_VERSION)) return [];
-    const base = AC_VERSION.replace(/-beta.*$/i, "");
-    return acNewsSorted().filter((n) => n[0].startsWith(base + "-beta") && acVerCmp(n[0], AC_VERSION) <= 0);
   }
 
   // 📄 Seite: Kopf mit ← + Inhalt
@@ -590,7 +639,7 @@ class AirfryerControlCard extends HTMLElement {
       guide: ["📖", t("Anleitung", "Guide"), "#3949ab"],
       settings: ["⚙️", t("Einstellungen", "Settings"), "#607d8b"],
       credits: ["ℹ️", t("Über Airfryer Control", "About Airfryer Control"), "#0288d1"],
-      news: ["📢", t("Neu in dieser Beta", "New in this beta"), "#fb8c00"],
+      news: ["📢", t("Was ist neu", "What's new"), "#fb8c00"],
     }[this._page] || ["📄", "", "#607d8b"];
     const sub = this._page === "settings" && this._sub ? this._subRow(this._sub) : null;
     if (sub) return `<div class="ac-pghead" style="--pc:${sub.color}"><button class="ac-back" data-back title="${esc(t("Zurück", "Back"))}" aria-label="${esc(t("Zurück", "Back"))}"><ha-icon icon="mdi:arrow-left"></ha-icon></button><span class="ac-ic" style="--ic:${sub.color}"><ha-icon icon="${sub.icon}"></ha-icon></span><h2>${esc(sub.title)}</h2></div>
@@ -603,13 +652,17 @@ class AirfryerControlCard extends HTMLElement {
       <div class="ac-pgbody ${this._page === "guide" ? "ac-guide" : ""}">${body}</div>`;
   }
 
+  // 📢 Was ist neu – 1:1 wie bei der Einkaufsliste: oranger Beta-Kasten oben (nur in einer Beta), darunter max. 15 Neuerungen
   _newsHtml() {
-    const hass = this._hass;
-    const list = /beta/i.test(AC_VERSION) ? this._news() : acNewsSorted();
-    const vers = [...new Set(list.map((n) => n[0]))];
-    return `<p class="ac-pgsub">${esc(tr(hass, `Du nutzt v${AC_VERSION || "?"}. Neueste oben.`, `You are on v${AC_VERSION || "?"}. Newest first.`))}</p>
-      <div class="ac-news">${vers.map((ver) => `<h4 translate="no">${esc(ver)}</h4><ul>${list.filter((n) => n[0] === ver).map((n) => `<li>${esc(tr(hass, n[1], n[2]))}</li>`).join("")}</ul>`).join("")}</div>
-      <p class="elcsmall"><a href="${AC_REPO}/releases" target="_blank" rel="noopener">${esc(tr(hass, "Alle Versionen auf GitHub", "All versions on GitHub"))}</a></p>`;
+    const hass = this._hass, t = (d, e) => esc(tr(hass, d, e));
+    const beta = acBetaNews(), main = acMainNews();
+    const upTo = main.length ? main[0][0].replace(/-beta.*$/i, "") : AC_VERSION;
+    const box = beta.length ? `<div class="ac-betabox"><b>🧪 ${t("Du bist in der Beta", "You are in the beta")} <span translate="no">${esc(AC_VERSION)}</span></b>
+        <p class="ac-pgsub">${t("Neu in dieser Beta:", "New in this beta:")}</p>
+        <ul>${beta.map((n) => `<li><b translate="no">${esc(n[0].replace(/^.*-(beta\.\d+)$/i, "$1"))}</b> · ${esc(tr(hass, n[1], n[2]))}</li>`).join("")}</ul></div>` : "";
+    return `${box}<p class="ac-pgsub">${t("Die letzten Neuerungen bis Version", "The latest new features up to version")} <b translate="no">${esc(upTo || "?")}</b> – ${t("das Neueste steht oben", "the newest is at the top")}</p>
+      <ul class="ac-news">${main.map((n) => `<li>${esc(tr(hass, n[1], n[2]))}</li>`).join("")}</ul>
+      <p class="elcsmall"><a href="${AC_REPO}/releases" target="_blank" rel="noopener">${t("Alle Versionen auf GitHub", "All versions on GitHub")}</a></p>`;
   }
 
   // ⚙️ Einstellungen – 1:1 wie bei der Einkaufsliste: Suchfeld, Gruppen zum Aufklappen, Zeilen mit buntem Symbol,
@@ -636,6 +689,7 @@ class AirfryerControlCard extends HTMLElement {
       const rows = [
         { key: "interval", icon: "mdi:update", color: "#26a69a", title: t("Abfrage-Takt", "Polling interval"), info: wait || t(`Alle ${io.intervall ?? 60} s, wenn nichts gart`, `Every ${io.intervall ?? 60} s while idle`), kw: "abfrage takt intervall sekunden cloud polling interval seconds" },
         { key: "sidebar", icon: "mdi:dock-left", color: "#1e88e5", title: t("In der Seitenleiste", "In the sidebar"), info: wait || t("Eintrag „Fritteuse“ links im Menü · gilt für alle", "“Fritteuse” entry in the left menu · for everyone"), kw: "seitenleiste menu sidebar panel", on: io ? !!io.sidebar : null },
+        { key: "shake", icon: "mdi:bell-ring-outline", color: "#f4511e", title: t("Schüttel-Erinnerung", "Shake reminder"), info: wait || t("Ereignis zur Halbzeit (Handy, Durchsage) · gilt für alle", "Event at half time (phone, announcement) · for everyone"), kw: "schuetteln schütteln erinnerung halbzeit ereignis shake reminder half event", on: io ? !!io.schuettel_erinnerung : null },
         { key: "smasc", icon: "mdi:emoticon-happy-outline", color: "#fb8c00", title: t("Maskottchen in der Seitenleiste", "Mascot in the sidebar"), info: wait || t("Nur die Seite in der Seitenleiste · gilt für alle", "Only the sidebar page · for everyone"), kw: "maskottchen seitenleiste mascot sidebar", on: io ? !!io.maskottchen : null },
         { key: "haopts", icon: "mdi:cog-outline", color: "#607d8b", title: t("Alle Optionen in Home Assistant", "All options in Home Assistant"), info: t("Öffnet die Integration (auch Zeiteinheit)", "Opens the integration (also time unit)"), kw: "optionen integration zeiteinheit options time unit", act: "haopts" },
       ];
@@ -645,10 +699,10 @@ class AirfryerControlCard extends HTMLElement {
     const about = [
       { key: "aguide", icon: "mdi:book-open-page-variant-outline", color: "#3949ab", title: t("Anleitung", "Guide"), info: t("Alles Schritt für Schritt, mit Suche", "Everything step by step, with search"), kw: "anleitung hilfe guide help", page: "guide" },
     ];
-    if (this._news().length) about.push({ key: "anews", icon: "mdi:bullhorn-outline", color: "#fb8c00", title: t("Neu in dieser Beta", "New in this beta"), info: `v${AC_VERSION}`, kw: "neu beta neuigkeiten version news", page: "news" });
+    about.push({ key: "anews", icon: "mdi:new-box", color: "#fb8c00", title: t("Was ist neu", "What's new"), info: `Version ${AC_VERSION || "?"}`, kw: "neu beta neuigkeiten version news was ist neu whats new", page: "news" });
     about.push(
       { key: "acredits", icon: "mdi:information-outline", color: "#0288d1", title: t("Credits, Spenden, Datenschutz", "Credits, donations, privacy"), info: "Mister-M · MIT", kw: "credits spenden paypal datenschutz github fehler idee donate privacy bug", page: "credits" },
-      { key: "atip", icon: "mdi:lightbulb-on-outline", color: "#f9a825", title: t("Tipp und Beta-Kasten wieder zeigen", "Show tip and beta box again"), info: t("Zeigt 💡 und 📢 über den Zonen noch einmal", "Shows 💡 and 📢 above the zones once more"), kw: "tipp kasten wieder zeigen tip box again", act: "tipagain" },
+      { key: "atip", icon: "mdi:lightbulb-on-outline", color: "#f9a825", title: t("Tipp wieder zeigen", "Show tip again"), info: t("Zeigt den 💡 Tipp über den Zonen noch einmal", "Shows the 💡 tip above the zones once more"), kw: "tipp kasten wieder zeigen tip box again", act: "tipagain" },
     );
     groups.push({ key: "about", title: t("ℹ️ Über", "ℹ️ About"), rows: about });
     return groups;
@@ -698,6 +752,7 @@ class AirfryerControlCard extends HTMLElement {
       case "guide": return `<p>${esc(t("Der Knopf „📖 Anleitung“ unter der Karte. Die Anleitung findest du auch ohne ihn: ⚙️ › Über › Anleitung.", "The “📖 Guide” button below the card. You also find the guide without it: ⚙️ › About › Guide."))}</p>${sw("guide", eff.guide, t("Anleitung-Knopf zeigen", "Show guide button"), local)}${reset}`;
       case "sidebar": return `<p>${esc(t("Fügt links im Menü den Eintrag „Fritteuse“ hinzu: eine ganze Seite mit Laufband und Zonen.", "Adds a “Fritteuse” entry to the left menu: a full page with the ticker and the zones."))}</p>${sw("sidebar", !!io.sidebar, t("In der Seitenleiste zeigen", "Show in the sidebar"), t("gilt für alle", "for everyone"))}${reload}`;
       case "smasc": return `<p>${esc(t("Das Maskottchen auf der Seite in der Seitenleiste. Auf Dashboard-Karten schaltest du es unter 🍟 Karte.", "The mascot on the sidebar page. On dashboard cards you switch it under 🍟 Card."))}</p>${sw("smasc", !!io.maskottchen, t("Maskottchen in der Seitenleiste", "Mascot in the sidebar"), t("gilt für alle", "for everyone"))}${reload}`;
+      case "shake": return `<p>${esc(t("Zur Halbzeit (z. B. nach 9 von 18 Minuten) schickt Home Assistant das Ereignis „airfryer_control_schuetteln“ – einmal pro Garvorgang und Zone. Damit baust du dir eine Automation: Handy-Nachricht „Jetzt schütteln! 🥄“ oder eine Durchsage. Ein Beispiel steht in der README.", "At half time (e.g. after 9 of 18 minutes) Home Assistant fires the event “airfryer_control_schuetteln” – once per cook and zone. Use it in an automation: a phone message “Shake now! 🥄” or an announcement. There is an example in the README."))}</p>${sw("shake", !!io.schuettel_erinnerung, t("Schüttel-Erinnerung", "Shake reminder"), t("Standard: aus · gilt für alle", "Default: off · for everyone"))}${reload}`;
       case "interval": return `<p>${esc(t("So oft fragt Home Assistant die Cosori-Cloud, wenn nichts gart (30–600 Sekunden). Beim Garen wird immer alle 15 Sekunden gefragt.", "How often Home Assistant asks the Cosori cloud while nothing is cooking (30–600 seconds). While cooking it always asks every 15 seconds."))}</p>
         <div class="ac-lrow ac-swline"><span class="ac-grow" style="padding:10px 0 10px 12px"><b>${esc(t("Sekunden", "Seconds"))}</b><small>30–600</small></span><input type="number" class="ac-num" data-io="intervall" min="30" max="600" step="10" value="${esc(io.intervall ?? 60)}" style="margin-right:12px"></div>
         <button type="button" class="ac-big" data-iosave style="--b:#43a047">💾 ${esc(t("Speichern", "Save"))}</button>${reload}`;
@@ -752,15 +807,15 @@ class AirfryerControlCard extends HTMLElement {
         history.pushState(null, "", "/config/integrations/integration/airfryer_control");
         window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
       } else if (el.dataset.sact === "tipagain") {
-        lsSet("tip", null); lsSet("news", null);
+        lsSet("tip", null); lsSet("news", null); // „news“ = alter Merker vom früheren Beta-Kasten, wird nur aufgeräumt
         const s = el.querySelector("small"); if (s) s.textContent = "✅ " + t("Wird wieder gezeigt", "Will show again");
       }
     }));
     scope.querySelectorAll("[data-tgl]").forEach((el) => el.addEventListener("click", async () => {
       const k = el.dataset.tgl, on = el.getAttribute("aria-pressed") !== "true";
-      if (k === "sidebar" || k === "smasc") { // 🔌 gilt für alle → Integration speichern
+      if (k === "sidebar" || k === "smasc" || k === "shake") { // 🔌 gilt für alle → Integration speichern
         el.disabled = true; el.setAttribute("aria-pressed", String(on));
-        const ok = await this._integSave(k === "sidebar" ? { sidebar: on } : { maskottchen: on });
+        const ok = await this._integSave(k === "sidebar" ? { sidebar: on } : k === "shake" ? { schuettel_erinnerung: on } : { maskottchen: on });
         el.disabled = false;
         if (!ok) el.setAttribute("aria-pressed", String(!on));
         const msg = this.shadowRoot.querySelector("[data-iomsg]");
@@ -899,9 +954,11 @@ class AirfryerControlCard extends HTMLElement {
     const other = this._other(z, zones);
     const copyKey = `${z.key}:copy`, goKey = `${z.key}:go`, modeKey = `${z.key}:mode`;
     return `<div class="ac-edit" style="--c:${this._color(z)}">
+      ${this._favHtml(z, opts)}
       ${opts.length ? `<div class="ac-flab"><span>${t("Programm", "Program")}</span>${this._info(modeKey, tr(hass, "Programm", "Program"))}</div>${this._hint(modeKey, t("Tippe ein Programm an. Temperatur und Zeit springen dann auf den Vorschlag der Fritteuse für dieses Programm.", "Tap a program. Temperature and time then jump to the fryer's suggestion for that program."))}<div class="ac-modes">${modes}</div>` : ""}
       ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C", tHelp)}
       ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min", mHelp)}
+      ${this._plusHtml(z)}
       ${this._syncHtml(z, zones)}
       ${other ? `<div class="ac-withinfo"><button class="ac-match" data-match="${esc(z.key)}" ${RUNNING.includes(hass.states[other.state]?.state) ? "disabled" : ""}>📋 ${t(`Einstellungen auf ${other.name} übernehmen`, `Copy settings to ${other.name}`)}</button>${this._info(copyKey, tr(hass, "Einstellungen übernehmen", "Copy settings"))}</div>${this._hint(copyKey, t(`Kopiert Programm, Temperatur und Zeit nur in die Felder von ${other.name}. An die Fritteuse geht dabei noch nichts.`, `Copies program, temperature and time into the fields of ${other.name} only. Nothing is sent to the fryer yet.`))}` : ""}
       ${this._syncSendHtml(z, zones)}
@@ -911,8 +968,134 @@ class AirfryerControlCard extends HTMLElement {
     </div>`;
   }
 
+  // ⭐ Lieblinge + 🕘 zuletzt gesendet (liegen in Home Assistant, für alle Geräte gleich)
+  _progs(z) { const a = this._hass.states[z.progs]?.attributes || {}; return { favs: Array.isArray(a.lieblinge) ? a.lieblinge : [], recent: Array.isArray(a.zuletzt) ? a.zuletzt : [] }; }
+  _favHtml(z, opts) {
+    const hass = this._hass, t = (d, e) => esc(tr(hass, d, e));
+    if (!z.progs || !hass.entities?.[z.state]?.device_id) return "";
+    const fits = (p) => !opts.length || opts.includes(p.programm); // nur Programme, die diese Zone kann
+    const { favs, recent } = this._progs(z);
+    const busy = RUNNING.includes(hass.states[z.state]?.state) ? "disabled" : "";
+    const edit = this._favEdit === z.key, favKey = `${z.key}:fav`, recKey = `${z.key}:recent`;
+    const favChips = favs.map((p, i) => [p, i]).filter(([p]) => fits(p)).map(([p, i]) => edit
+      ? `<button type="button" class="ac-chip del" data-favdel="${i}" aria-label="${t(`${p.name} löschen`, `Delete ${p.name}`)}"><b>⭐ ${esc(p.name)}</b><small>${esc(progLine(hass, p))}</small></button>`
+      : `<button type="button" class="ac-chip" data-fav="${i}" ${busy}><b>⭐ ${esc(p.name)}</b><small>${esc(progLine(hass, p))}</small></button>`).join("");
+    const mode = hass.states[z.mode]?.state, temp = hass.states[z.temp]?.state;
+    const form = this._favForm === z.key ? `<div class="ac-favform"><input class="ac-num" data-favname maxlength="40" value="${esc(this._favName ?? `${modeText(hass, mode)} ${temp}°`)}" aria-label="${t("Name des Lieblings", "Name of the favourite")}" enterkeyhint="done"><button type="button" class="pri" data-favsave>💾</button><button type="button" data-favcancel aria-label="${t("Abbrechen", "Cancel")}">✕</button></div>` : "";
+    const recChips = recent.filter(fits).slice(0, 5).map((p) => `<button type="button" class="ac-chip" data-recent="${esc(JSON.stringify([p.programm, p.temperatur, p.minuten]))}" ${busy}><b>🕘 ${esc(modeText(hass, p.programm))}</b><small>${esc(`${p.temperatur} °C · ${p.minuten} ${tr(hass, "Min", "min")}`)}</small></button>`).join("");
+    return `<div class="ac-flab"><span>⭐ ${t("Lieblinge", "Favourites")}</span>${this._info(favKey, tr(hass, "Lieblinge", "Favourites"))}${favChips ? `<button type="button" class="ac-edbtn" data-favedit>${edit ? t("✓ Fertig", "✓ Done") : t("✏️ Löschen", "✏️ Delete")}</button>` : ""}</div>
+      ${this._hint(favKey, t("Antippen = sofort an diese Zone senden (nur bereitstellen, Start am Gerät). ＋ merkt sich Programm, Temperatur und Zeit, die unten gerade eingestellt sind. Lieblinge gelten auf allen Geräten.", "Tap = send to this zone right away (prepare only, start on the device). ＋ saves the program, temperature and time set below. Favourites apply on all devices."))}
+      <div class="ac-chips">${favChips}${edit ? "" : `<button type="button" class="ac-chip add" data-favadd title="${t("Jetzige Einstellung als Liebling speichern", "Save the current setting as a favourite")}">＋ ${favs.length ? t("Neu", "New") : t("Als Liebling speichern", "Save as favourite")}</button>`}</div>${form}
+      ${recChips ? `<div class="ac-flab"><span>🕘 ${t("Zuletzt gesendet", "Recently sent")}</span>${this._info(recKey, tr(hass, "Zuletzt gesendet", "Recently sent"))}</div>${this._hint(recKey, t("Die letzten 5 Programme, die an die Fritteuse gingen. Antippen = nochmal an diese Zone senden.", "The last 5 programs sent to the fryer. Tap = send to this zone again."))}<div class="ac-chips">${recChips}</div>` : ""}`;
+  }
+  // ⏱️ +1 / +3 min – was der Knopf macht, hängt davon ab, was die Zone gerade tut
+  _plusKind(z) {
+    const s = this._hass.states[z.state]?.state;
+    if (["gart", "pausiert", "schublade_offen", "vorheizen"].includes(s)) return "run";
+    if (s === "fertig" || s === "warmhalten") return "done";
+    return s === "offline" ? "" : "field";
+  }
+  _plusHtml(z) {
+    const hass = this._hass, t = (d, e) => esc(tr(hass, d, e)), kind = this._plusKind(z);
+    if (!kind || !hass.entities?.[z.state]?.device_id) return "";
+    const key = `${z.key}:plus`;
+    const label = { run: t("Garen verlängern", "Extend cooking"), done: t("Nachgaren", "Cook a bit more"), field: t("Zur Garzeit dazu", "Add to the time") }[kind];
+    return `<div class="ac-quick"><span>⏱️ ${label}</span><button type="button" class="ac-plus" data-plus="1" data-zk="${esc(z.key)}">+1 min</button><button type="button" class="ac-plus" data-plus="3" data-zk="${esc(z.key)}">+3 min</button>${this._info(key, tr(hass, "Schnellknöpfe", "Quick buttons"))}</div>
+      ${this._hint(key, t("Gart die Zone: die laufende Zeit wird länger. Ist sie fertig: dasselbe Programm wird für 1 oder 3 Minuten nochmal bereitgestellt – dann am Gerät auf Start. Sonst: nur das Zeit-Feld oben wird größer.", "Cooking: the running time gets longer. Done: the same program is prepared again for 1 or 3 minutes – then press Start on the device. Otherwise: only the time field above grows."))}`;
+  }
+  _rowPlusHtml(z) { // in der Zeile nur, wenn es gerade wirklich gebraucht wird (gart oder fertig)
+    const kind = this._plusKind(z);
+    if ((kind !== "run" && kind !== "done") || !this._hass.entities?.[z.state]?.device_id) return "";
+    return `<div class="ac-rowplus"><button type="button" class="ac-plus" data-plus="1" data-zk="${esc(z.key)}">+1 min</button><button type="button" class="ac-plus" data-plus="3" data-zk="${esc(z.key)}">+3 min</button></div>`;
+  }
+  _flash(z, text) { // kurze Meldung unter der Zeile (verschwindet nach 6 s)
+    this._msg = { key: z.key, text }; this._sig = ""; this.hass = this._hass;
+    clearTimeout(this._msgT);
+    this._msgT = setTimeout(() => { if (this._msg?.key === z.key) { this._msg = null; this._sig = ""; this.hass = this._hass; } }, 6000);
+  }
+  async _svc(service, data, withAnswer = false) { // Dienst der Integration (mit Antwort, wenn gewünscht)
+    const hass = this._hass;
+    if (withAnswer && typeof hass.callWS === "function") {
+      const r = await hass.callWS({ type: "call_service", domain: AC, service, service_data: data, return_response: true });
+      return r?.response;
+    }
+    await hass.callService(AC, service, data);
+    return null;
+  }
+  async _sendProg(z, p) { // ⭐/🕘 an die Zone schicken – nur bereitstellen, nie starten
+    const hass = this._hass, dev = hass.entities?.[z.state]?.device_id;
+    if (!dev || this._busySend) return;
+    this._busySend = true;
+    try {
+      const r = await this._svc("programm_senden", { geraet: dev, zone: zoneNum(z), programm: p.programm, temperatur: p.temperatur, minuten: p.minuten }, true);
+      this._flash(z, r && r.ok === false
+        ? tr(hass, `😕 Hat nicht geklappt (${r.fehler || r.ergebnis}). Ist die Fritteuse an?`, `😕 Did not work (${r.fehler || r.ergebnis}). Is the fryer on?`)
+        : tr(hass, `✅ ${progLine(hass, p)} ist bereit – jetzt am Gerät auf Start drücken.`, `✅ ${progLine(hass, p)} is ready – now press Start on the device.`));
+    } catch (e) {
+      this._flash(z, tr(hass, `😕 Senden ging nicht: ${e?.message || e}`, `😕 Sending failed: ${e?.message || e}`));
+    } finally { this._busySend = false; }
+  }
+  async _plus(z, n) {
+    const hass = this._hass, dev = hass.entities?.[z.state]?.device_id;
+    if (!dev || this._busySend) return;
+    this._busySend = true;
+    try {
+      const r = await this._svc("garzeit_plus", { geraet: dev, zone: zoneNum(z), minuten: n }, true);
+      const m = r?.minuten;
+      this._flash(z, r?.ergebnis === "verlaengert" ? tr(hass, `⏱️ +${n} Min – Garzeit jetzt ${m} Min.`, `⏱️ +${n} min – cooking time now ${m} min.`)
+        : r?.ergebnis === "bereitgestellt" ? tr(hass, `✅ Nachgaren ${n} Min ist bereit – jetzt am Gerät auf Start drücken.`, `✅ ${n} more min is ready – now press Start on the device.`)
+        : tr(hass, `⏱️ Garzeit-Feld: ${m ?? "?"} Min.`, `⏱️ Time field: ${m ?? "?"} min.`));
+    } catch (e) {
+      this._flash(z, tr(hass, `😕 Ging nicht: ${e?.message || e}`, `😕 Did not work: ${e?.message || e}`));
+    } finally { this._busySend = false; }
+  }
+
   _wire() {
     const root = this.shadowRoot;
+    const zoneOf = (k) => (this._zones || []).find((x) => x.key === k);
+    // ⏱️ +1 / +3 min (in der Zeile und im aufgeklappten Teil)
+    root.querySelectorAll("[data-plus]").forEach((el) => el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const z = zoneOf(el.dataset.zk);
+      if (z) this._plus(z, Number(el.dataset.plus));
+    }));
+    // ⭐ Lieblinge: senden, speichern, löschen
+    const openZ = () => zoneOf(this._open);
+    root.querySelectorAll("[data-fav]").forEach((el) => el.addEventListener("click", () => {
+      const z = openZ(), p = z && this._progs(z).favs[Number(el.dataset.fav)];
+      if (p) this._sendProg(z, p);
+    }));
+    root.querySelectorAll("[data-recent]").forEach((el) => el.addEventListener("click", () => {
+      const z = openZ();
+      try { const [programm, temperatur, minuten] = JSON.parse(el.dataset.recent); if (z) this._sendProg(z, { programm, temperatur, minuten }); } catch (_) { /* egal */ }
+    }));
+    root.querySelector("[data-favedit]")?.addEventListener("click", () => { this._favEdit = this._favEdit === this._open ? null : this._open; this._favForm = null; this._sig = ""; this.hass = this._hass; });
+    root.querySelector("[data-favadd]")?.addEventListener("click", () => {
+      this._favForm = this._open; this._favName = null; this._sig = ""; this.hass = this._hass;
+      const inp = root.querySelector("[data-favname]"); if (inp) { inp.focus(); inp.select(); }
+    });
+    root.querySelector("[data-favcancel]")?.addEventListener("click", () => { this._favForm = null; this._favName = null; this._sig = ""; this.hass = this._hass; });
+    const favName = root.querySelector("[data-favname]");
+    favName?.addEventListener("input", () => { this._favName = favName.value; });
+    const saveFav = async () => {
+      const z = openZ(), hass = this._hass, name = (favName?.value || "").trim();
+      if (!z || !name) return;
+      const dev = hass.entities?.[z.state]?.device_id;
+      const p = { programm: hass.states[z.mode]?.state, temperatur: Number(hass.states[z.temp]?.state), minuten: Number(hass.states[z.time]?.state) };
+      if (!p.programm || !Number.isFinite(p.temperatur) || !Number.isFinite(p.minuten)) return;
+      this._favForm = null; this._favName = null;
+      try {
+        await this._svc("liebling_speichern", { geraet: dev, name, ...p });
+        this._flash(z, tr(hass, `⭐ „${name}“ gespeichert.`, `⭐ “${name}” saved.`));
+      } catch (e) { this._flash(z, tr(hass, `😕 Speichern ging nicht: ${e?.message || e}`, `😕 Saving failed: ${e?.message || e}`)); }
+    };
+    root.querySelector("[data-favsave]")?.addEventListener("click", saveFav);
+    favName?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveFav(); } });
+    root.querySelectorAll("[data-favdel]").forEach((el) => el.addEventListener("click", async () => {
+      const z = openZ(), p = z && this._progs(z).favs[Number(el.dataset.favdel)];
+      if (!p) return;
+      try { await this._svc("liebling_loeschen", { geraet: this._hass.entities?.[z.state]?.device_id, name: p.name }); } catch (_) { /* Fehler zeigt Home Assistant selbst */ }
+    }));
     root.querySelectorAll("[data-help]").forEach((el) => el.addEventListener("click", (e) => {
       e.stopPropagation(); // ⓘ: nur die Hilfe auf-/zuklappen, ohne neu zu zeichnen
       const k = el.dataset.help;
@@ -942,12 +1125,11 @@ class AirfryerControlCard extends HTMLElement {
       try { await navigator.clipboard.writeText(inp.value); } catch (_) { inp.select(); try { document.execCommand("copy"); } catch (__) { /* egal */ } }
       btn.textContent = "✅ " + tr(this._hass, "Kopiert", "Copied");
     });
-    // 💡 / 📢 Kästen wegklicken
+    // 💡 Tipp wegklicken
     root.querySelectorAll("[data-tip]").forEach((el) => el.addEventListener("click", () => {
       lsSet("tip", true);
       if (el.dataset.tip === "guide") this._go("guide"); else { this._sig = ""; this._render(); }
     }));
-    root.querySelector("[data-newsok]")?.addEventListener("click", () => { lsSet("news", AC_VERSION); this._render(); });
     // ⚙️ Einstellungen (Liste, Schalter, Unterseiten) + 🔎 Suche in den Einstellungen
     this._wireSet(root, true);
     const sq = root.querySelector("[data-setq]");

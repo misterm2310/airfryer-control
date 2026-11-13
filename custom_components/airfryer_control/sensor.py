@@ -35,6 +35,7 @@ from .coordinator import AirfryerCoordinator, FryerData, fryer_zones
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, reports_current_temp, zone_view
 from .core.util import redact
+from .programme import get_store
 
 
 def _minutes(seconds: int | None) -> int | None:
@@ -203,6 +204,8 @@ def _build(coordinator: AirfryerCoordinator) -> list[SensorEntity]:
                 if d.key != "temperatur" or with_temp
             ]
         entities.append(RawDataSensor(coordinator, cid))
+        if not fryer.model.startswith("CS"):
+            entities.append(ProgramsSensor(coordinator, cid))
     return entities
 
 
@@ -305,6 +308,46 @@ class RawDataSensor(AirfryerEntity, SensorEntity):
             "abgelehnte_abfragen": dict(fryer.method_errors),
             "letzter_fehler": fryer.last_error,
         }
+
+
+class ProgramsSensor(AirfryerEntity, SensorEntity):
+    """⭐ Lieblings-Programme + 🕘 zuletzt gesendet (für die Karte und Automationen).
+
+    Für Doofe: Der Wert ist die Zahl deiner Lieblinge. In den Attributen stehen
+    ``lieblinge`` (Name, Programm, Temperatur, Minuten) und ``zuletzt`` (die letzten 5).
+    """
+
+    _attr_translation_key = "programme"
+    _attr_icon = "mdi:star-outline"
+    # Listen nicht in die Verlaufs-Datenbank schreiben – sie liegen schon im Speicher
+    _unrecorded_attributes = frozenset({"lieblinge", "zuletzt"})
+
+    def __init__(self, coordinator, cid) -> None:
+        super().__init__(coordinator, cid, "programme")
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        store = get_store(self.hass)
+        if store is not None:
+            self.async_on_remove(
+                store.async_add_listener(lambda cid: self.async_write_ha_state() if cid == self._cid else None)
+            )
+
+    @property
+    def available(self) -> bool:
+        return self._cid in self.coordinator.fryers  # auch offline: Lieblinge bleiben sichtbar
+
+    @property
+    def native_value(self) -> int:
+        store = get_store(self.hass)
+        return len(store.favorites(self._cid)) if store else 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        store = get_store(self.hass)
+        if store is None:
+            return {"lieblinge": [], "zuletzt": []}
+        return {"lieblinge": store.favorites(self._cid), "zuletzt": store.recent(self._cid)}
 
 
 __all__ = ["DOMAIN"]

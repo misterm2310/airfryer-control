@@ -14,6 +14,7 @@ CONF_TERMINAL_ID = "terminal_id"
 # Optionen
 OPT_INTERVAL = "intervall"
 OPT_TIME_UNIT = "zeiteinheit"
+OPT_SHAKE = "schuettel_erinnerung"  # 🥄 Ereignis zur Halbzeit (Standard: aus)
 
 DEFAULT_INTERVAL = 60  # Sekunden, wenn die Fritteuse nichts tut
 FAST_INTERVAL = 15  # Sekunden, solange sie arbeitet
@@ -29,6 +30,9 @@ REGIONS = ["eu", "us"]
 
 # Ereignis, wenn ein Garvorgang fertig ist
 EVENT_FINISHED = f"{DOMAIN}_fertig"
+# Ereignis zur Halbzeit: „jetzt schütteln“ (nur wenn die Schüttel-Erinnerung an ist)
+EVENT_SHAKE = f"{DOMAIN}_schuetteln"
+SHAKE_MIN_SECONDS = 120  # bei ganz kurzen Garzeiten (unter 2 Minuten) lohnt Schütteln nicht
 
 # Dienste
 SERVICE_SEND_TEST = "senden_testen"
@@ -38,6 +42,13 @@ SERVICE_PROGRAM = "programm_senden"
 SERVICE_MATCH = "match_senden"
 SERVICE_SYNC = "sync_senden"
 SERVICE_CAPABILITIES = "faehigkeiten"
+SERVICE_FAV_SAVE = "liebling_speichern"
+SERVICE_FAV_DELETE = "liebling_loeschen"
+SERVICE_ADD_TIME = "garzeit_plus"
+
+# ⭐ Lieblings-Programme und 🕘 zuletzt gesendet (pro Fritteuse)
+MAX_FAVORITES = 12
+MAX_RECENT = 5
 
 # Zonen der TwinFry
 ZONE_1 = 1
