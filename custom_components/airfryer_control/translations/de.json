@@ -224,6 +224,9 @@
     "abgelehnt": {
       "message": "Die Fritteuse hat den Befehl abgelehnt: {fehler}"
     },
+    "nicht_beim_garen": {
+      "message": "Diese Fritteuse nimmt beim Garen keine neue Zeit oder Temperatur an – bitte am Gerät ändern."
+    },
     "senden_abgelehnt": {
       "message": "Die Fritteuse hat „Senden“ abgelehnt. Probierte Schreibweisen und Codes: {codes}. Schick mir die Zeile gern ins GitHub-Ticket."
     },
@@ -459,7 +462,7 @@
     },
     "garzeit_plus": {
       "name": "Garzeit verlängern",
-      "description": "Für alle Nutzer: 1–30 Minuten dazu. Gart die Zone = die laufende Zeit wird länger. Fertig = dasselbe Programm wird für diese Minuten nochmal bereitgestellt (Start am Gerät). Sonst ändert sich nur das Zeit-Feld.",
+      "description": "Für alle Nutzer: 1–30 Minuten dazu. Gart die Zone = die laufende Zeit wird länger (nicht bei der TwinFry, die lehnt das ab). Wartet auf Start = das Programm geht mit der neuen Zeit nochmal hin (ohne Start). Fertig = dasselbe Programm wird für diese Minuten nochmal bereitgestellt (Start am Gerät). Sonst ändert sich nur das Zeit-Feld.",
       "fields": {
         "geraet": {
           "name": "Fritteuse",

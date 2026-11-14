@@ -181,3 +181,14 @@ def one_drawer(model: str | None) -> bool:
 def single_basket(model: str | None) -> bool:
     """Ein-Korb-Modell mit eigenem Befehl „startCook“ (Dual Blaze CAF-P583S)."""
     return model_family(model) == "dualblaze"
+
+
+def change_while_cooking(model: str | None) -> bool:
+    """Darf man Zeit/Temperatur einer laufenden Zone ändern („setTimeOrTemp“)?
+
+    Für Doofe: Die TwinFry sagt beim Garen „nö“ (Code 11030000) und pyvesync kennt
+    keinen anderen Befehl dafür. Darum bei der TwinFry (und unbekannten Modellen,
+    die wie die TwinFry behandelt werden) nein. Andere Modelle: nicht als kaputt
+    gemeldet, also probieren wir es dort weiter.
+    """
+    return model_family(model) not in ("twinfry", None)

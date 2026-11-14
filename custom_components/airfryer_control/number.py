@@ -3,6 +3,8 @@
 Für Doofe: Die Felder merken sich, was du für die Zone einstellen willst.
 Gesendet wird erst mit dem Schalter „Zone n senden“. Gart die Zone schon,
 schicken wir die Änderung sofort hin – wie die App mit „setTimeOrTemp“.
+Ausnahme TwinFry: Die lehnt das beim Garen ab (Code 11030000). Dort gibt es
+eine klare Meldung „bitte am Gerät ändern“ und das Feld bleibt, wie es war.
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ from .const import DOMAIN, zone_label
 from .coordinator import AirfryerCoordinator, fryer_zones
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, zone_view
-from .modelle import temp_step
+from .modelle import change_while_cooking, temp_step
 from .senden import clamp_minutes, clamp_temp, get_plan, temp_limits, time_limits
 
 
@@ -141,6 +143,13 @@ class ZoneNumber(AirfryerEntity, NumberEntity, RestoreEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         plan = get_plan(self.coordinator, self._cid, self._zone)
+        zs_now = zone_view(self.fryer.state, self._zone)
+        if zs_now is not None and zs_now.active and not change_while_cooking(self._model):
+            # TwinFry: beim Garen nimmt sie keine neue Zeit/Temperatur an – lieber ehrlich sagen
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="nicht_beim_garen",
+            )
         if self.entity_description.key == "temperatur":
             value = clamp_temp(plan["mode"], int(value), self._model)
         else:

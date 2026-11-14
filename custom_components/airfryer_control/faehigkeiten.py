@@ -14,7 +14,7 @@ from typing import Any
 
 from .coordinator import FryerData
 from .core.parser import zones_for_device
-from .modelle import TWINFRY_PREFIXES, mode_default, model_family, modes_for, temp_step
+from .modelle import TWINFRY_PREFIXES, change_while_cooking, mode_default, model_family, modes_for, temp_step
 from .senden import temp_limits, time_limits
 
 # Programme, bei denen „Senden“ an einer echten Fritteuse bestätigt ist (je Modellfamilie)
@@ -52,6 +52,7 @@ def capabilities(fryer: FryerData) -> dict[str, Any]:
         "modell_bekannt": family is not None,
         "modellfamilie": family,
         "zonen": zones,
+        "zeit_aendern_beim_garen": change_while_cooking(fryer.model),
         "programme": programs,
     }
 

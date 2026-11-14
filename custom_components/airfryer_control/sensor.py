@@ -239,7 +239,7 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
     """Sensor für eine Zone (oder für die einzige Kammer)."""
 
     entity_description: ZoneSensorDescription
-    _unrecorded_attributes = frozenset({"letzte_meldung", "revision", "verbindung", "gemeldet"})
+    _unrecorded_attributes = frozenset({"letzte_meldung", "revision", "verbindung", "gemeldet", "zeit_aendern_beim_garen"})
 
     def __init__(
         self, coordinator, cid, description: ZoneSensorDescription, zone: int, single: bool = False
@@ -277,6 +277,8 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
         return {
             "rohwert": zs.status_raw if zs else None,
             "gemeldet": zs is not None and self.fryer.online,
+            # TwinFry: beim Garen keine neue Zeit/Temperatur (Karte blendet +1/+3 dann aus)
+            "zeit_aendern_beim_garen": modelle.change_while_cooking(self.fryer.model),
             **_freshness(self.fryer),
         }
 

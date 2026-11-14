@@ -224,6 +224,9 @@
     "abgelehnt": {
       "message": "The air fryer rejected the command: {fehler}"
     },
+    "nicht_beim_garen": {
+      "message": "This air fryer does not accept a new time or temperature while cooking – please change it on the device."
+    },
     "senden_abgelehnt": {
       "message": "Die Fritteuse hat „Senden“ abgelehnt. Probierte Schreibweisen und Codes: {codes}. Schick mir die Zeile gern ins GitHub-Ticket."
     },
@@ -459,7 +462,7 @@
     },
     "garzeit_plus": {
       "name": "Add cooking time",
-      "description": "For all users: adds 1–30 minutes. Cooking = the running time gets longer. Done = the same program is prepared again for these minutes (start on the device). Otherwise only the time field changes.",
+      "description": "For all users: adds 1–30 minutes. Cooking = the running time gets longer (not on the TwinFry, it refuses that). Waiting for start = the program is sent again with the new time (no start). Done = the same program is prepared again for these minutes (start on the device). Otherwise only the time field changes.",
       "fields": {
         "geraet": {
           "name": "Air fryer",

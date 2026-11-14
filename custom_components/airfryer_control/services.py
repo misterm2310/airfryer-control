@@ -51,7 +51,7 @@ from .const import (
 from .coordinator import AirfryerCoordinator, FryerData
 from .core.parser import zone_view
 from .faehigkeiten import capabilities, outside_limits
-from .modelle import ALL_MODES, modes_for
+from .modelle import ALL_MODES, change_while_cooking, modes_for
 from .senden import (
     RESULT_ACCEPTED,
     RESULT_REJECTED,
@@ -414,7 +414,9 @@ async def _add_time(call: ServiceCall) -> ServiceResponse:
 
     Für Doofe – je nachdem, was die Zone gerade macht:
     - gart (oder Pause/Schublade offen): die eingestellte Zeit wird um X Minuten länger
-      (gleicher Befehl wie die App beim Zeit-Ändern, „setTimeOrTemp“),
+      (gleicher Befehl wie die App beim Zeit-Ändern, „setTimeOrTemp“).
+      TwinFry: geht nicht – sie lehnt das beim Garen ab (Code 11030000), dann kommt eine klare Meldung,
+    - wartet auf Start: dasselbe Programm geht mit X Minuten mehr nochmal an die Fritteuse (ohne Start),
     - fertig oder hält warm: dasselbe Programm wird für X Minuten nochmal bereitgestellt
       („Nachgaren“) – gestartet wird wie immer am Gerät,
     - sonst: nur das Zeit-Feld der Zone wird um X Minuten größer.
@@ -424,6 +426,10 @@ async def _add_time(call: ServiceCall) -> ServiceResponse:
     plan = get_plan(coordinator, fryer.cid, zone)
     zs = zone_view(fryer.state, zone) if fryer.online else None
     if zs is not None and zs.active:
+        if not change_while_cooking(fryer.model):
+            raise HomeAssistantError(
+                "Diese Fritteuse lässt die Garzeit beim Garen nicht ändern – bitte am Gerät verlängern."
+            )
         if not zs.set_time_s:
             raise HomeAssistantError("Die Fritteuse meldet keine eingestellte Garzeit – bitte am Gerät verlängern.")
         minutes = clamp_minutes(plan["mode"], round(zs.set_time_s / 60) + extra, fryer.model)
@@ -434,6 +440,22 @@ async def _add_time(call: ServiceCall) -> ServiceResponse:
         plan["minuten"] = minutes
         await coordinator.async_request_fast_refresh()
         return {"ergebnis": "verlaengert", "minuten": minutes} if call.return_response else None
+    if zs is not None and zs.status == STATE_WAITING:
+        # Wartet auf Start: Programm mit der neuen Zeit nochmal bereitstellen (gestartet wird am Gerät)
+        base = round(zs.set_time_s / 60) if zs.set_time_s else int(plan["minuten"])
+        minutes = clamp_minutes(plan["mode"], base + extra, fryer.model)
+        temp = clamp_temp(plan["mode"], plan["temp"], fryer.model)
+        try:
+            results = await async_send(
+                coordinator, fryer, zone, temp, minutes, plan["mode"], allow_start=False
+            )
+        except AirfryerError as err:
+            raise HomeAssistantError(f"Fritteuse hat die neue Zeit abgelehnt: {err}") from err
+        if not any(r["ok"] for r in results):
+            raise HomeAssistantError("Fritteuse hat die neue Zeit abgelehnt.")
+        plan["minuten"] = minutes
+        coordinator.async_update_listeners()
+        return {"ergebnis": "neu_bereitgestellt", "minuten": minutes} if call.return_response else None
     if zs is not None and zs.status in (STATE_FINISHED, STATE_KEEP_WARM):
         minutes = clamp_minutes(plan["mode"], extra, fryer.model)
         temp = clamp_temp(plan["mode"], plan["temp"], fryer.model)

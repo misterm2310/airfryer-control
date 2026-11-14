@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -460,16 +461,15 @@ async def test_twinfry_real_cooking(hass: HomeAssistant, fake_api) -> None:
     assert hass.states.get(eid(hass, "number", "zone1_garzeit")).state == "20"
 
     api = FakeApi.instances[-1]
-    await hass.services.async_call(
-        "number", "set_value",
-        {"entity_id": eid(hass, "number", "zone1_temperatur"), "value": 180}, blocking=True,
-    )
-    assert ("setTimeOrTemp", {"cookSetTime": 900, "cookSetTemp": 180, "chamber": 1}) in api.calls
-    await hass.services.async_call(
-        "number", "set_value",
-        {"entity_id": eid(hass, "number", "zone1_garzeit"), "value": 20}, blocking=True,
-    )
-    assert ("setTimeOrTemp", {"cookSetTime": 1200, "cookSetTemp": 200, "chamber": 1}) in api.calls
+    # TwinFry lehnt neue Zeit/Temperatur beim Garen ab (Code 11030000, #8) → klare Meldung, nichts gesendet
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).attributes["zeit_aendern_beim_garen"] is False
+    for key, value in (("zone1_temperatur", 180), ("zone1_garzeit", 20)):
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call(
+                "number", "set_value", {"entity_id": eid(hass, "number", key), "value": value}, blocking=True,
+            )
+    assert not [c for c in api.calls if c[0] == "setTimeOrTemp"]
+    assert hass.states.get(eid(hass, "number", "zone1_temperatur")).state == "200"  # Feld bleibt
 
     await hass.services.async_call(
         "switch", "turn_off", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
@@ -1384,12 +1384,12 @@ async def test_add_time(hass: HomeAssistant, fake_api) -> None:
     fake_api.multi = real_twinfry("cooking", remaining=600, set_time=900, temp=200)
     await setup(hass)
     api = FakeApi.instances[-1]
-    # gart → laufende Zeit wird länger (15 → 18 min)
-    res = await hass.services.async_call(
-        DOMAIN, "garzeit_plus", {"zone": 1, "minuten": 3}, blocking=True, return_response=True
-    )
-    assert res["ergebnis"] == "verlaengert"
-    assert ("setTimeOrTemp", {"cookSetTime": 1080, "cookSetTemp": 200, "chamber": 1}) in api.calls
+    # gart (TwinFry) → geht nicht, die Fritteuse lehnt das ab (#8): klare Meldung, nichts gesendet
+    with pytest.raises(HomeAssistantError, match="nicht ändern"):
+        await hass.services.async_call(
+            DOMAIN, "garzeit_plus", {"zone": 1, "minuten": 3}, blocking=True, return_response=True
+        )
+    assert not [c for c in api.calls if c[0] == "setTimeOrTemp"]
     # Zone 2 steht still → nur das Zeit-Feld
     before = int(float(hass.states.get(eid(hass, "number", "zone2_garzeit")).state))
     res = await hass.services.async_call(
@@ -1409,3 +1409,40 @@ async def test_add_time(hass: HomeAssistant, fake_api) -> None:
     sent = [c for c in api.calls if c[0] == "startMultiCook"]
     assert sent and all(c[1].get("readyStart") is True for c in sent)
     assert sent[-1][1]["cookConfigs"][0]["cookSetTime"] == 180
+
+
+async def test_add_time_waiting_resends(hass: HomeAssistant, fake_api) -> None:
+    """⏳ Wartet auf Start: +3 schickt dasselbe Programm mit 3 Minuten mehr nochmal hin – ohne Start."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry("ready", remaining=900, set_time=900, temp=200)
+    await setup(hass)
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).state == "wartet_auf_start"
+    api = FakeApi.instances[-1]
+    api.calls.clear()
+    res = await hass.services.async_call(
+        DOMAIN, "garzeit_plus", {"zone": 1, "minuten": 3}, blocking=True, return_response=True
+    )
+    assert res == {"ergebnis": "neu_bereitgestellt", "minuten": 18}
+    assert not [c for c in api.calls if c[0] == "setTimeOrTemp"]
+    sent = [c for c in api.calls if c[0] == "startMultiCook"]
+    assert sent and all(c[1].get("readyStart") is True for c in sent)
+    assert sent[-1][1]["cookConfigs"][0]["cookSetTime"] == 1080
+    await hass.async_block_till_done()
+    assert hass.states.get(eid(hass, "number", "zone1_garzeit")).state == "18"
+
+
+async def test_add_time_cooking_other_model_still_tries(hass: HomeAssistant, fake_api) -> None:
+    """🗼 Turbo Tower: nicht als kaputt gemeldet → beim Garen wird die Zeit weiter per setTimeOrTemp verlängert."""
+    fake_api.devices = [{**DEVICE, "deviceType": "CAF-DC111S-AEU"}]
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry("cooking", remaining=600, set_time=900, temp=200)
+    await setup(hass)
+    assert hass.states.get(eid(hass, "sensor", "zone1_status")).attributes["zeit_aendern_beim_garen"] is True
+    res = await hass.services.async_call(DOMAIN, "faehigkeiten", {}, blocking=True, return_response=True)
+    assert res["zeit_aendern_beim_garen"] is True
+    api = FakeApi.instances[-1]
+    res = await hass.services.async_call(
+        DOMAIN, "garzeit_plus", {"zone": 1, "minuten": 3}, blocking=True, return_response=True
+    )
+    assert res["ergebnis"] == "verlaengert"
+    assert ("setTimeOrTemp", {"cookSetTime": 1080, "cookSetTemp": 200, "chamber": 1}) in api.calls
