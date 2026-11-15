@@ -41,14 +41,18 @@
           "zeiteinheit": "Zeitangaben der Fritteuse",
           "sidebar": "📌 In der Seitenleiste anzeigen",
           "maskottchen": "🍟 Maskottchen in der Seitenleiste zeigen",
-          "schuettel_erinnerung": "🥄 Schüttel-Erinnerung"
+          "schuettel_erinnerung": "🥄 Schüttel-Erinnerung",
+          "melden_an": "📲 „Fertig“ an diese Handys melden",
+          "melden_schuetteln": "📲 Auch zur Halbzeit („Jetzt schütteln!“)"
         },
         "data_description": {
           "intervall": "Solange sie arbeitet, wird immer alle 15 Sekunden nachgefragt.",
           "zeiteinheit": "Nur ändern, wenn die Restzeit 60-mal zu groß oder zu klein angezeigt wird.",
           "sidebar": "Legt einen Eintrag „Fritteuse“ in der Seitenleiste an (Vollbild mit Laufband und Zonenkarte). Standardmäßig aus.",
           "maskottchen": "Zeigt den kleinen Airfryer mit Gesicht in der Seitenleisten-Ansicht (auf Dashboard-Karten schaltest du ihn im Karten-Editor). Standardmäßig aus.",
-          "schuettel_erinnerung": "Schickt zur Halbzeit das Ereignis airfryer_control_schuetteln (für Handy-Nachricht oder Durchsage). Standard: aus."
+          "schuettel_erinnerung": "Schickt zur Halbzeit das Ereignis airfryer_control_schuetteln (für Handy-Nachricht oder Durchsage). Standard: aus.",
+          "melden_an": "Die Fritteuse schickt selbst eine Nachricht, wenn sie fertig ist – ganz ohne Automation. Wähle einen oder mehrere notify-Dienste (z. B. mobile_app_dein_handy). Leer = aus (Standard).",
+          "melden_schuetteln": "Schickt zur Halbzeit zusätzlich „🥄 Jetzt schütteln!“ an die Handys oben. Standard: aus."
         }
       }
     }

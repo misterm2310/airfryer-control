@@ -25,6 +25,7 @@ Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https:
 - 🔥 **Zustand, Restzeit und „Fertig um“** – gesamt und für jede Zone (auch die Grandzone).
 - 📤 **Senden wie in der App:** Programm, Temperatur und Zeit hinschicken, gestartet wird am Gerät.
 - 🔔 **Ereignis „fertig“** für Handy-Nachricht, Durchsage oder „Fernseher pausieren“.
+- 📲 **Fertig-Meldung aufs Handy ohne Automation** – einfach in ⚙️ dein Handy anhaken (Standard: aus).
 - 🃏 **Zwei fertige Karten** (Zonen-Karte + Laufband) und eine 📱 **Handy-App** – nichts extra installieren.
 - 🟰 **Match & Sync**, damit beide Zonen gleichzeitig fertig werden.
 - ⭐ **Lieblings-Programme** und 🕘 **Zuletzt gesendet** – ein Tipp statt drei Felder.
@@ -41,6 +42,7 @@ Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https:
 | 🌡️ **Grenzen** | Die Temperatur passt sich dem Programm an: Heißluft 120–205 °C, Braten 120–205 °C, Backen 80–205 °C, Grillen 205–240 °C, Aufwärmen 40–205 °C. Passt ein Wert nicht, sagt die Integration es dir im Klartext. |
 | 🌡️ **Temperatur & Programm** | Eingestellte Temperatur und Programm (AirFry, Roast …). Eine gemessene Temperatur gibt's nur, wenn die Fritteuse sie meldet (die TwinFry tut das nicht). |
 | 🔔 **Ereignis „fertig“** | `airfryer_control_fertig` – für Handy-Nachricht, Alexa-/Google-Durchsage oder „Fernseher pausieren“. |
+| 📲 **Fertig-Meldung aufs Handy** | Ganz ohne eigene Automation: In der Karte unter ⚙️ › Integration › **Fertig melden an** (oder in den Optionen der Integration) ein oder mehrere Handys anhaken (`notify.mobile_app_…`, auch andere notify-Dienste gehen). Dann schreibt die Fritteuse selbst **„🍟 Fritteuse fertig! – Zone 1: fertig – guten Appetit!“** – sind zwei Zonen gleichzeitig fertig, kommt nur **eine** Nachricht. Bei „vorgeheizt“ kommt „🔥 Vorgeheizt!“. Hat jemand selbst auf Stopp gedrückt, kommt nichts. Auf Wunsch auch zur Halbzeit **„🥄 Jetzt schütteln!“** (Schalter „Auch zur Halbzeit“, geht auch ohne die Schüttel-Erinnerung). Kein Häkchen = aus (Standard). Hast du schon eine eigene Automation, lass es einfach aus – sonst kommt die Nachricht doppelt. |
 | 🥄 **Ereignis „schütteln“** | `airfryer_control_schuetteln` – zur Halbzeit, einmal pro Garvorgang und Zone. Nur wenn die **Schüttel-Erinnerung** eingeschaltet ist (Optionen der Integration oder ⚙️ › Integration in der Karte, Standard: aus). |
 | ⭐ **Lieblings-Programme** | Programm, Temperatur und Zeit unter einem Namen speichern (z. B. „Pommes 200 °C, 18 min“), höchstens 12 pro Fritteuse. In der Karte ein Tipp = an die Zone senden (nur bereitstellen). Liegen in Home Assistant, nicht im Browser – Handy und Küchen-Tablet sehen dieselben. Sensor **„Lieblings-Programme“** (Wert = Anzahl, Attribute `lieblinge` und `zuletzt`). |
 | 🕘 **Zuletzt gesendet** | Die letzten 5 Programme, die an die Fritteuse gingen – egal ob aus der Karte, per Schalter oder per Dienst. In der Karte zum nochmal Antippen. |
@@ -134,10 +136,12 @@ Die Handy-Seite und die Seitenleiste (Option „📌 In der Seitenleiste anzeige
 **⚙️ Einstellungen in der Karte:** Das Zahnrad oben in der Karte öffnet eine Seite 1:1 wie die Einstellungen der Einkaufsliste: Suchfeld oben, Gruppen zum Aufklappen, Schalter direkt in der Zeile, und Antippen einer Zeile öffnet eine eigene Seite mit Erklärung:
 - **👁️ Ansicht:** Schriftgröße (Kleiner / Standard / Größer) und Farben (Auto / Hell / Dunkel). Gilt nur auf diesem Gerät, z. B. größer auf dem Küchen-Tablet.
 - **🍟 Karte:** Maskottchen, Leiste oben und Anleitung-Knopf an/aus, nur auf diesem Gerät. „Wie im Karten-Editor“ nimmt wieder die Werte aus dem Editor.
-- **🔌 Integration** (nur Admins, nicht in der Handy-App): Abfrage-Takt, Seitenleiste, Maskottchen in der Seitenleiste und 🥄 Schüttel-Erinnerung. Gilt für alle. Beim Speichern lädt die Integration kurz neu.
+- **🔌 Integration** (nur Admins, nicht in der Handy-App): Abfrage-Takt, Seitenleiste, Maskottchen in der Seitenleiste, 🥄 Schüttel-Erinnerung und 📲 Fertig melden an (Handys anhaken). Gilt für alle. Beim Speichern lädt die Integration kurz neu.
 - **ℹ️ Über:** Anleitung, **📢 Was ist neu** und Credits.
 
-**📢 Was ist neu** (wie bei der Einkaufsliste): In einer Beta steht oben ein oranger Kasten **🧪 Du bist in der Beta …** mit allem, was in dieser Beta-Reihe neu ist (höchste Beta oben). Darunter **„Die letzten Neuerungen bis Version …“** – höchstens 15, das Neueste oben. Ohne Beta gibt es nur die normale Liste.
+**📢 Was ist neu** (wie bei der Einkaufsliste): In einer Beta steht oben ein oranger Kasten **🧪 Du bist in der Beta …** mit allem, was in dieser Beta-Reihe neu ist (höchste Beta oben). Darunter **„Die letzten Neuerungen bis Version …“** – höchstens 15, das Neueste oben, jeder Punkt mit fettem Stichwort und kurzer Erklärung (wie bei Kegelclub und Fixkosten). Ohne Beta gibt es nur die normale Liste.
+
+**🔄 Neue Version da:** Hat Home Assistant schon eine neuere Version als die Karte, die dein Browser gerade geladen hat, steht über der Karte **„Neue Version … ist da – Neu laden“**. Ein Tipp lädt die Seite neu (in der Handy-App wird dabei auch der Zwischenspeicher erneuert). Gilt für Karte, Seitenleiste und Handy-App.
 
 **⭐ Lieblinge & 🕘 Zuletzt gesendet:** Zeile antippen → oben stehen deine Lieblinge. Antippen = sofort an diese Zone senden (nur bereitstellen, Start am Gerät). **＋** speichert, was unten gerade eingestellt ist (Name frei wählbar), **✏️ Löschen** schaltet ✕ an den Lieblingen ein. Darunter die letzten 5 gesendeten Programme. Gart die Zone gerade, sind die Knöpfe grau.
 
@@ -214,7 +218,7 @@ Die Integration bringt eine **eigene kleine Seite** mit: **`/airfryer_control/ap
 
 Der Knopf **🔅 Bildschirm anlassen** hält das Display an (praktisch für ein Küchen-Tablet).
 
-**Ehrlich:** Ohne Netz geht an der Fritteuse nichts, denn jeder Befehl läuft über Home Assistant und die Cosori-Cloud. Deshalb zeigt die App dann **„Keine Verbindung“** und merkt sich **nie** einen Befehl, um ihn später nachzuschicken (ein verspäteter Start wäre gefährlich). Gespeichert wird nur das Programm, damit sie schnell startet. Für „Zum Startbildschirm“ und den Schnellstart braucht der Browser meist eine **https-Adresse** (z. B. Nabu Casa).
+**Ehrlich:** Ohne Netz geht an der Fritteuse nichts, denn jeder Befehl läuft über Home Assistant und die Cosori-Cloud. Deshalb zeigt die App dann **„Keine Verbindung“** und merkt sich **nie** einen Befehl, um ihn später nachzuschicken (ein verspäteter Start wäre gefährlich). Gespeichert wird nur das Programm, damit sie schnell startet. Hat Home Assistant schon eine **neuere Version**, steht oben **„🔄 Neue Version da – Neu laden“** (genau wie in der Karte und in der Seitenleiste). Für „Zum Startbildschirm“ und den Schnellstart braucht der Browser meist eine **https-Adresse** (z. B. Nabu Casa).
 
 </details>
 

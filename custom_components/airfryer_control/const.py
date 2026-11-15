@@ -15,6 +15,9 @@ CONF_TERMINAL_ID = "terminal_id"
 OPT_INTERVAL = "intervall"
 OPT_TIME_UNIT = "zeiteinheit"
 OPT_SHAKE = "schuettel_erinnerung"  # 🥄 Ereignis zur Halbzeit (Standard: aus)
+OPT_NOTIFY = "melden_an"  # 📲 notify-Dienste ohne „notify.“ (z. B. mobile_app_marco) – leer = aus
+OPT_NOTIFY_SHAKE = "melden_schuetteln"  # 📲 auch zur Halbzeit „Jetzt schütteln!“ aufs Handy (Standard: aus)
+NOTIFY_MAX = 10  # höchstens so viele Handys
 
 DEFAULT_INTERVAL = 60  # Sekunden, wenn die Fritteuse nichts tut
 FAST_INTERVAL = 15  # Sekunden, solange sie arbeitet

@@ -241,7 +241,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
         result["flow_id"], {"intervall": 120, "zeiteinheit": "minuten"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False, "schuettel_erinnerung": False}
+    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False, "schuettel_erinnerung": False, "melden_an": [], "melden_schuetteln": False}
 
 
 async def test_reauth_when_login_fails(hass: HomeAssistant, fake_api) -> None:
@@ -1446,3 +1446,74 @@ async def test_add_time_cooking_other_model_still_tries(hass: HomeAssistant, fak
     )
     assert res["ergebnis"] == "verlaengert"
     assert ("setTimeOrTemp", {"cookSetTime": 1080, "cookSetTemp": 200, "chamber": 1}) in api.calls
+
+
+# --------------------------------------------------------------- 📲 Handy-Meldung ohne Automation
+async def _set_options(hass: HomeAssistant, entry, **opts) -> None:
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {"intervall": 60, "zeiteinheit": "auto", **opts}
+    )
+    await hass.async_block_till_done()
+
+
+async def test_notify_done_one_message_for_both_zones(hass: HomeAssistant, fake_api) -> None:
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    calls = async_mock_service(hass, "notify", "mobile_app_marco")
+    entry = await setup(hass)
+    await _set_options(hass, entry, melden_an=["notify.mobile_app_marco", "mobile_app_marco", "gibts_nicht"])
+    assert entry.options["melden_an"] == ["mobile_app_marco", "gibts_nicht"]  # „notify.“ weg, keine Doppelten
+    fake_api.status = {"cookStatus": "cookEnd"}
+    fake_api.multi = finished_multi()
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert len(calls) == 1  # zwei Zonen fertig = EINE Nachricht; fehlender Dienst stört nicht
+    data = calls[0].data
+    assert data["title"].endswith("fertig!") or data["title"].endswith("done!")
+    assert "Zone 1" in data["message"] and "Zone 2" in data["message"]
+    assert data["data"]["tag"].startswith("airfryer_control_fertig_")
+
+
+async def test_notify_off_by_default(hass: HomeAssistant, fake_api) -> None:
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    calls = async_mock_service(hass, "notify", "mobile_app_marco")
+    entry = await setup(hass)
+    fake_api.status = {"cookStatus": "cookEnd"}
+    fake_api.multi = finished_multi()
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert calls == []
+
+
+async def test_notify_shake_without_shake_event(hass: HomeAssistant, fake_api) -> None:
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    calls = async_mock_service(hass, "notify", "mobile_app_marco")
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, melden_an=["mobile_app_marco"], melden_schuetteln=True)
+    events = async_capture_events(hass, EVENT_SHAKE)
+    coordinator = entry.runtime_data
+    for rest in (800, 440, 300):
+        fake_api.multi = real_twinfry("cooking", remaining=rest, set_time=900, temp=200)
+        await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert events == []  # Schüttel-Ereignis bleibt aus – nur die Handy-Meldung kommt
+    assert len(calls) == 1
+    assert "7" in calls[0].data["message"]
+
+
+async def test_ws_info_reports_version(hass: HomeAssistant, hass_ws_client) -> None:
+    import json as _json
+    from pathlib import Path as _Path
+
+    await setup(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "airfryer_control/info"})
+    msg = await client.receive_json()
+    assert msg["success"]
+    manifest = _json.loads((_Path(__file__).parent.parent / "custom_components/airfryer_control/manifest.json").read_text(encoding="utf-8"))
+    assert msg["result"]["version"] == manifest["version"]

@@ -8,7 +8,8 @@
   "dependencies": [
     "frontend",
     "http",
-    "lovelace"
+    "lovelace",
+    "websocket_api"
   ],
   "documentation": "https://github.com/misterm2310/airfryer-control",
   "integration_type": "hub",
@@ -18,5 +19,5 @@
     "custom_components.airfryer_control"
   ],
   "requirements": [],
-  "version": "1.0.4"
+  "version": "1.0.5-beta.1"
 }

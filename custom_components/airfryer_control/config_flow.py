@@ -30,6 +30,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
+from .coordinator import clean_notify
 from .core.api import AirfryerApi, AirfryerAuthError, AirfryerError, hash_password, is_air_fryer
 from .const import (
     CONF_EMAIL,
@@ -42,6 +43,8 @@ from .const import (
     MIN_INTERVAL,
     OPT_INTERVAL,
     OPT_MASCOT,
+    OPT_NOTIFY,
+    OPT_NOTIFY_SHAKE,
     OPT_SHAKE,
     OPT_SIDEBAR,
     OPT_TIME_UNIT,
@@ -183,8 +186,16 @@ class AirfryerOptionsFlow(OptionsFlow):
             user_input[OPT_SIDEBAR] = bool(user_input.get(OPT_SIDEBAR, False))
             user_input[OPT_MASCOT] = bool(user_input.get(OPT_MASCOT, False))
             user_input[OPT_SHAKE] = bool(user_input.get(OPT_SHAKE, False))
+            user_input[OPT_NOTIFY] = clean_notify(user_input.get(OPT_NOTIFY))  # 📲 leer = aus
+            user_input[OPT_NOTIFY_SHAKE] = bool(user_input.get(OPT_NOTIFY_SHAKE, False))
             return self.async_create_entry(data=user_input)
         opts = self.config_entry.options
+        chosen = clean_notify(opts.get(OPT_NOTIFY))
+        # 📲 alle notify-Dienste zur Auswahl, Handys (mobile_app_…) zuerst
+        services = sorted(
+            (s for s in self.hass.services.async_services().get("notify", {}) if s != "send_message"),
+            key=lambda s: (not s.startswith("mobile_app_"), s),
+        )
         schema = vol.Schema(
             {
                 vol.Required(
@@ -210,6 +221,15 @@ class AirfryerOptionsFlow(OptionsFlow):
                 vol.Optional(OPT_SIDEBAR, default=bool(opts.get(OPT_SIDEBAR, False))): BooleanSelector(),
                 vol.Optional(OPT_MASCOT, default=bool(opts.get(OPT_MASCOT, False))): BooleanSelector(),
                 vol.Optional(OPT_SHAKE, default=bool(opts.get(OPT_SHAKE, False))): BooleanSelector(),
+                vol.Optional(OPT_NOTIFY, default=chosen): SelectSelector(
+                    SelectSelectorConfig(
+                        options=sorted(set(services) | set(chosen), key=lambda s: (not s.startswith("mobile_app_"), s)),
+                        multiple=True,
+                        custom_value=True,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(OPT_NOTIFY_SHAKE, default=bool(opts.get(OPT_NOTIFY_SHAKE, False))): BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

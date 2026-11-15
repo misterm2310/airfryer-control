@@ -41,14 +41,18 @@
           "zeiteinheit": "Time values of the air fryer",
           "sidebar": "📌 Show in sidebar",
           "maskottchen": "🍟 Show mascot in the sidebar",
-          "schuettel_erinnerung": "🥄 Shake reminder"
+          "schuettel_erinnerung": "🥄 Shake reminder",
+          "melden_an": "📲 Report “done” to these phones",
+          "melden_schuetteln": "📲 Also at half time (“Shake now!”)"
         },
         "data_description": {
           "intervall": "While cooking, it is always polled every 15 seconds.",
           "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small.",
           "sidebar": "Adds a \"Fritteuse\" entry to the sidebar (full-page view with the ticker and the zone card). Off by default.",
           "maskottchen": "Shows the little air fryer with a face in the sidebar view (on dashboard cards you switch it in the card editor). Off by default.",
-          "schuettel_erinnerung": "Fires the event airfryer_control_schuetteln at half time (for a phone message or announcement). Off by default."
+          "schuettel_erinnerung": "Fires the event airfryer_control_schuetteln at half time (for a phone message or announcement). Off by default.",
+          "melden_an": "The air fryer sends a message itself when it is done – no automation needed. Pick one or more notify services (e.g. mobile_app_your_phone). Empty = off (default).",
+          "melden_schuetteln": "Also sends “🥄 Shake now!” at half time to the phones above. Off by default."
         }
       }
     }

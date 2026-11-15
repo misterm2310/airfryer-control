@@ -32,6 +32,10 @@ from .const import (
     EVENT_FINISHED,
     EVENT_SHAKE,
     OPT_SHAKE,
+    OPT_NOTIFY,
+    OPT_NOTIFY_SHAKE,
+    NOTIFY_MAX,
+    ZONE_WHOLE,
     SHAKE_MIN_SECONDS,
     FAST_INTERVAL,
     STATE_WAITING,
@@ -117,6 +121,9 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         self._unit_option = entry.options.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
         # 🥄 Schüttel-Erinnerung (Standard aus) + welche Zonen in diesem Garvorgang schon erinnert wurden
         self._shake = bool(entry.options.get(OPT_SHAKE, False))
+        # 📲 Handy-Meldung ohne eigene Automation: notify-Dienste (leer = aus) + „auch beim Schütteln“
+        self._notify: list[str] = clean_notify(entry.options.get(OPT_NOTIFY))
+        self._notify_shake = bool(entry.options.get(OPT_NOTIFY_SHAKE, False)) and bool(self._notify)
         self._shaken: set[tuple[str, int]] = set()
         self._unsupported: dict[str, set[str]] = {}
         self.fryers: dict[str, FryerData] = {}
@@ -306,6 +313,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
     def _fire_events(self, fryer: FryerData, old: FryerState, new: FryerState) -> None:
         """Ereignis „fertig“, wenn etwas aufhört zu garen."""
         base = {"geraet": fryer.name, "modell": fryer.model}
+        done: dict[int, str] = {}  # 📲 Zone → Zustand, für EINE Handy-Meldung pro Abfrage
         for zone, zs in new.zones.items():
             before = old.zones.get(zone)
             if before is not None and before.active and zs.status in DONE_STATES:
@@ -313,11 +321,14 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                     EVENT_FINISHED,
                     {**base, "zone": zone, "zustand": zs.status, "programm": before.mode},
                 )
+                done[zone] = zs.status
         if old.active and not new.active and new.status in DONE_STATES:
             self.hass.bus.async_fire(
                 EVENT_FINISHED, {**base, "zone": "alle", "zustand": new.status}
             )
-        if self._shake:
+        if self._notify and done:
+            self._notify_done(fryer, done)
+        if self._shake or self._notify_shake:
             self._shake_events(fryer, old, new, base)
 
     def _shake_events(self, fryer: FryerData, old: FryerState, new: FryerState, base: dict[str, Any]) -> None:
@@ -343,16 +354,73 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             before = old.zones.get(zone)
             if before is None or not before.active:
                 continue  # gerade erst gesehen (z. B. nach Neustart) → nicht nachträglich erinnern
-            self.hass.bus.async_fire(
-                EVENT_SHAKE,
-                {
-                    **base,
-                    "zone": zone,
-                    "programm": zs.mode,
-                    "rest_minuten": int(round(left / 60)),
-                    "garzeit_minuten": int(round(total / 60)),
-                },
+            if self._shake:
+                self.hass.bus.async_fire(
+                    EVENT_SHAKE,
+                    {
+                        **base,
+                        "zone": zone,
+                        "programm": zs.mode,
+                        "rest_minuten": int(round(left / 60)),
+                        "garzeit_minuten": int(round(total / 60)),
+                    },
+                )
+            if self._notify_shake:
+                de = self._de()
+                rest = int(round(left / 60))
+                self._notify_send(
+                    "🥄 Jetzt schütteln!" if de else "🥄 Shake now!",
+                    (f"{_zone_txt(fryer, zone, de)}: Halbzeit – noch {rest} Min." if de
+                     else f"{_zone_txt(fryer, zone, de)}: half time – {rest} min left."),
+                    f"airfryer_control_schuetteln_{fryer.cid}_{zone}",
+                )
+
+    # ---------------------------------------------------------------- 📲 Handy-Meldung
+    def _de(self) -> bool:
+        return str(self.hass.config.language or "de").lower().startswith("de")
+
+    def _notify_done(self, fryer: FryerData, done: dict[int, str]) -> None:
+        """📲 „Fertig“ aufs Handy – eine Meldung pro Fritteuse, egal wie viele Zonen gleichzeitig fertig sind.
+
+        Für Doofe: Nur wenn wirklich fertig (oder warmhalten / vorgeheizt). Hat jemand
+        selbst auf Stopp gedrückt (Zustand „bereit“ oder „aus“), kommt keine Meldung.
+        """
+        de = self._de()
+        if ZONE_WHOLE in done:  # Grandzone = ganze Schublade → Zone 1/2 nicht extra nennen
+            done = {ZONE_WHOLE: done[ZONE_WHOLE]}
+        ready = [z for z, st in done.items() if st in (STATE_FINISHED, STATE_KEEP_WARM)]
+        heated = [z for z, st in done.items() if st == STATE_PREHEATED]
+        if ready:
+            names = (" und " if de else " and ").join(_zone_txt(fryer, z, de) for z in sorted(ready))
+            self._notify_send(
+                "🍟 Fritteuse fertig!" if de else "🍟 Air fryer done!",
+                f"{names}: {'fertig – guten Appetit!' if de else 'done – enjoy your meal!'}",
+                f"airfryer_control_fertig_{fryer.cid}",
             )
+        if heated:
+            names = (" und " if de else " and ").join(_zone_txt(fryer, z, de) for z in sorted(heated))
+            self._notify_send(
+                "🔥 Vorgeheizt!" if de else "🔥 Preheated!",
+                f"{names}: {'Essen kann rein.' if de else 'food can go in.'}",
+                f"airfryer_control_vorgeheizt_{fryer.cid}",
+            )
+
+    def _notify_send(self, title: str, message: str, tag: str) -> None:
+        """Schickt die Meldung an alle gewählten Handys – im Hintergrund, Fehler landen nur im Log."""
+        self.hass.async_create_task(self._async_notify(title, message, tag), "airfryer_control_melden")
+
+    async def _async_notify(self, title: str, message: str, tag: str) -> None:
+        for svc in self._notify:
+            if not self.hass.services.has_service("notify", svc):
+                _LOGGER.warning("📲 notify.%s gibt es nicht (mehr) – bitte in den Einstellungen neu wählen", svc)
+                continue
+            data: dict[str, Any] = {"title": title, "message": message}
+            if svc.startswith("mobile_app_"):  # nur die Companion-App kennt diese Zusätze
+                data["data"] = {"tag": tag, "ttl": 0, "priority": "high", "push": {"interruption-level": "time-sensitive"}}
+            try:
+                await self.hass.services.async_call("notify", svc, data, blocking=True)
+            except Exception as err:  # noqa: BLE001 – eine kaputte Meldung darf nie das Abfragen stören
+                _LOGGER.warning("📲 Meldung an notify.%s ging nicht: %s", svc, err)
 
     async def async_request_fast_refresh(self) -> None:
         """Nach einem Befehl gleich nachschauen (und dann wieder im Takt)."""
@@ -370,6 +438,27 @@ def _stable_finish(
     if old is not None and abs((new - old).total_seconds()) < 45:
         return old
     return new
+
+
+def clean_notify(value: Any) -> list[str]:
+    """📲 Gewählte notify-Dienste aufräumen: Text oder Liste, ohne „notify.“, ohne Doppelte, höchstens 10."""
+    if isinstance(value, str):
+        value = [value]
+    out: list[str] = []
+    for v in value or []:
+        v = str(v or "").strip().removeprefix("notify.")
+        if v and v not in out and v.replace("_", "").isalnum():
+            out.append(v)
+    return out[:NOTIFY_MAX]
+
+
+def _zone_txt(fryer: FryerData, zone: int, de: bool) -> str:
+    """„Zone 1“ – oder bei einer Fritteuse mit nur einer Zone einfach ihr Name."""
+    if zone == ZONE_WHOLE:
+        return "Grandzone"
+    if len(fryer_zones(fryer)) <= 1:
+        return fryer.name or ("Fritteuse" if de else "Air fryer")
+    return f"Zone {zone}"
 
 
 def fryer_zones(fryer: FryerData) -> list[int]:

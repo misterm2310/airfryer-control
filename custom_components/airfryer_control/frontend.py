@@ -12,9 +12,10 @@ import json
 import logging
 from pathlib import Path
 
+from homeassistant.components import websocket_api
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
 from .const import CARD_FILENAME, OPT_SIDEBAR, PANEL_FILENAME, PANEL_URL_PATH, STATIC_URL
 
@@ -66,8 +67,18 @@ def _resources(hass: HomeAssistant):
     return resources
 
 
+@websocket_api.websocket_command({"type": "airfryer_control/info"})
+@callback
+def _ws_info(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """🔄 Welche Version läuft in Home Assistant? Die Karte vergleicht das mit sich selbst
+    und zeigt „Neue Version da – Neu laden“, wenn der Browser noch die alte Karte hat."""
+    connection.send_result(msg["id"], {"version": _VERSION or ""})
+
+
 async def async_setup_frontend(hass: HomeAssistant) -> None:
     """Datei bereitstellen und als Dashboard-Ressource eintragen."""
+    await async_version(hass)  # Version einmal lesen (für airfryer_control/info)
+    websocket_api.async_register_command(hass, _ws_info)
     await hass.http.async_register_static_paths(
         [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "www"), False)]
     )

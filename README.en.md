@@ -25,6 +25,7 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 - 🔥 **Status, time remaining and “done at”** – overall and per zone (Grandzone too).
 - 📤 **Send like the app:** program, temperature and time go to the fryer, you start on the device.
 - 🔔 **“Done” event** for phone notifications, announcements or pausing the TV.
+- 📲 **Done message to your phone without an automation** – just tick your phone in ⚙️ (off by default).
 - 🃏 **Two ready-made cards** (zone card + ticker) and a 📱 **phone app** – nothing extra to install.
 - 🟰 **Match & Sync** so both zones finish at the same time.
 - ⭐ **Favourite programs** and 🕘 **recently sent** – one tap instead of three fields.
@@ -128,10 +129,12 @@ The phone page and the sidebar (option “📌 Show in sidebar”, off by defaul
 **⚙️ Settings in the card:** the cog at the top of the card opens a page 1:1 like the shopping list settings: search field at the top, groups to unfold, switches right in the row, and tapping a row opens its own page with an explanation:
 - **👁️ View:** font size (smaller / standard / larger) and colours (auto / light / dark). Only on this device, e.g. larger on the kitchen tablet.
 - **🍟 Card:** mascot, top bar and guide button on/off, only on this device. “Like in the card editor” goes back to the editor values.
-- **🔌 Integration** (admins only, not in the phone app): polling interval, sidebar, mascot in the sidebar and 🥄 shake reminder. Applies to everyone. Saving reloads the integration briefly.
+- **🔌 Integration** (admins only, not in the phone app): polling interval, sidebar, mascot in the sidebar, 🥄 shake reminder and 📲 report done to (tick phones). Applies to everyone. Saving reloads the integration briefly.
 - **ℹ️ About:** guide, **📢 What's new** and credits.
 
-**📢 What's new** (like the shopping list): in a beta an orange box **🧪 You are in the beta …** sits on top with everything new in this beta series (highest beta first). Below it **“The latest new features up to version …”** – at most 15, newest first. Without a beta there is only the normal list.
+**📢 What's new** (like the shopping list): in a beta an orange box **🧪 You are in the beta …** sits on top with everything new in this beta series (highest beta first). Below it **“The latest new features up to version …”** – at most 15, newest first, every point with a bold keyword and a short explanation (like Kegelclub and Fixkosten). Without a beta there is only the normal list.
+
+**🔄 New version available:** if Home Assistant already has a newer version than the card your browser loaded, a hint **“New version … is available – Reload”** appears above the card. One tap reloads the page (in the phone app it also refreshes the cache). Works in the card, the sidebar and the phone app.
 
 **⭐ Favourites & 🕘 recently sent:** tap a row → your favourites are at the top. Tap = send to this zone right away (prepare only, start on the device). **＋** saves what is set below (any name), **✏️ Delete** shows ✕ on the favourites. Below that the last 5 programs sent. While the zone is cooking the buttons are grey.
 
@@ -174,6 +177,8 @@ The **🔅 Keep screen on** button keeps the display awake (handy for a kitchen 
 ## 🤖 Automations
 
 <details><summary>“Done” and “shake” events, ready-made examples and all actions – <i>expand</i></summary>
+
+**No automation needed for a phone message:** in the card under ⚙️ › Integration › **Report done to** (or in the integration options) tick one or more phones (`notify.mobile_app_…`, other notify services work too). The air fryer then sends **“🍟 Air fryer done!”** itself – two zones finishing together give **one** message, “preheated” gives “🔥 Preheated!”, pressing stop yourself gives nothing. Optionally also **“🥄 Shake now!”** at half time. No tick = off (default). If you already have your own automation, leave it off – otherwise you get the message twice.
 
 The event `airfryer_control_fertig` carries `geraet` (name), `modell`, `zone` (`1`, `2`, `3` or `alle` = whole fryer), `zustand` and `programm`.
 
