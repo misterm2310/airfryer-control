@@ -16,6 +16,7 @@ const AC_REPO = "https://github.com/misterm2310/airfryer-control";
 // Reihenfolge egal: angezeigt wird immer nach Version, Neueste oben. In einer Beta landen die Einträge dieser Beta-Reihe im orangen Kasten.
 // ⚠️ Die Texte sind HTML (nur <b>) und werden NICHT maskiert – also nur eigene, feste Texte hier eintragen.
 const AC_NEWS = [
+  ["1.0.5-beta.2", "📶 <b>Wieder online = gleich aktuell:</b> War die Verbindung weg (Funkloch, Handy in der Tasche, Fire TV im Standby) und ist sie wieder da, holt die Karte die Werte der Fritteuse sofort im Hintergrund – wie bei der Einkaufsliste. Oben steht kurz „🔄 aktualisiere …“, ohne Verbindung „📴 keine Verbindung – letzter Stand“. Befehle werden bewusst nicht nachgeschickt", "📶 <b>Back online = up to date right away:</b> if the connection was gone (dead zone, phone in your pocket, Fire TV in standby) and is back, the card fetches the air fryer values in the background right away – like the shopping list. The top shows “🔄 updating …” briefly, without a connection “📴 no connection – last known state”. Commands are deliberately not sent later"],
   ["1.0.5-beta.1", "📲 <b>Fertig-Meldung aufs Handy – ohne Automation:</b> unter ⚙️ › Integration › „Fertig melden an“ Häkchen bei deinem Handy setzen. Die Fritteuse schreibt dann selbst „🍟 Fritteuse fertig!“ (bei zwei Zonen in einer Nachricht). Auf Wunsch auch zur Halbzeit „🥄 Jetzt schütteln!“. Standard: aus", "📲 <b>Done message to your phone – no automation:</b> under ⚙️ › Integration › “Report done to” tick your phone. The air fryer then sends “🍟 Air fryer done!” itself (two zones in one message). Optionally also “🥄 Shake now!” at half time. Default: off"],
   ["1.0.5-beta.1", "🔄 <b>Neue Version da:</b> Hat Home Assistant schon eine neuere Version als die Karte im Browser, steht oben ein Hinweis mit dem Knopf <b>„Neu laden“</b> – wie bei der Einkaufsliste. Gilt für Karte, Seitenleiste und Offline-App", "🔄 <b>New version available:</b> if Home Assistant already has a newer version than the card in your browser, a hint with the <b>“Reload”</b> button appears at the top – like the shopping list. Works in the card, the sidebar and the offline app"],
   ["1.0.5-beta.1", "📢 <b>Was ist neu</b> sieht jetzt aus wie bei Kegelclub und Fixkosten: jeder Punkt mit fettem Stichwort und kurzer Erklärung, eine Neuerung pro Punkt", "📢 <b>What's new</b> now looks like Kegelclub and Fixkosten: every point with a bold keyword and a short explanation, one feature per point"],
@@ -179,6 +180,33 @@ function findOnline(hass, zones) {
   if (e) return hass.states[e.entity_id];
   const byName = Object.keys(hass.states).find((id) => /^binary_sensor\..+_online$/.test(id) && hass.entities?.[id]?.platform === AC);
   return hass.states[byName] || hass.states["binary_sensor.cosori_online"];
+}
+// 📶 Wieder online – im Hintergrund frisch holen (wie bei der Einkaufsliste)
+// Für Doofe: War die Verbindung zu Home Assistant weg (Funkloch, Handy in der Tasche, Fire TV im Standby …)
+// und ist sie wieder da, fragt die Karte die Fritteuse SOFORT neu (Knopf „Jetzt aktualisieren“ der Integration),
+// statt bis zu einer Minute alte Werte zu zeigen. Nur EINE Abfrage für alle Karten und höchstens alle 30 s –
+// das schont schwache Geräte wie den Fire TV. Befehle werden dabei NICHT nachgeschickt (wäre bei Hitze gefährlich).
+const AC_BACK = { at: 0, busy: false, cards: new Set() };
+function acRefreshIds(hass) {
+  const ids = Object.values(hass.entities || {}).filter((e) => e && e.platform === AC && e.translation_key === "aktualisieren" && hass.states[e.entity_id]).map((e) => e.entity_id);
+  return ids.length ? ids : Object.keys(hass.states).filter((id) => /^button\..+_((jetzt_)?aktualisieren|refresh_now)$/.test(id) && (!hass.entities || hass.entities[id]?.platform === AC));
+}
+function acBackOnline(card) {
+  AC_BACK.cards.add(card);
+  if (AC_BACK.busy || Date.now() - AC_BACK.at < 30000) return;
+  AC_BACK.busy = true; AC_BACK.at = Date.now();
+  const redraw = () => { for (const c of AC_BACK.cards) if (c.isConnected && c._hass) { c._sig = ""; c.hass = c._hass; } };
+  redraw(); // 🔄 Leiste oben: „aktualisiere …“
+  setTimeout(async () => { // kurz warten: Home Assistant meldet erst die Entitäten neu an
+    const h = card._hass;
+    try {
+      const ids = h && h.connected !== false && !document.hidden ? acRefreshIds(h) : [];
+      if (ids.length) await Promise.race([h.callService("button", "press", { entity_id: ids }), new Promise((ok) => setTimeout(ok, 15000))]);
+    } catch (_) { /* egal – der normale Takt holt es sowieso */ }
+    AC_BACK.busy = false;
+    redraw();
+    AC_BACK.cards.clear();
+  }, 2000);
 }
 function zoneName(hass, key, st) {
   if (/grandzone$/.test(key)) return "Grandzone";
@@ -504,7 +532,7 @@ function acGuideHtml(hass) {
     ${acSec("🥄", t("Schüttel-Erinnerung", "Shake reminder"), `<p>${t("Unter ⚙️ › Integration einschalten (Standard: aus). Zur Halbzeit kommt dann das Ereignis <code>airfryer_control_schuetteln</code> – für eine Handy-Nachricht oder Durchsage per Automation.", "Switch it on under ⚙️ › Integration (default: off). At half time the event <code>airfryer_control_schuetteln</code> fires – for a phone message or announcement via an automation.")}</p>`, "#f4511e", t("Halbzeit = schütteln", "Half time = shake"))}
     ${acSec("⏹️", t("Knopf rechts", "Button on the right"), `<p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>`, "#e53935", t("Senden, Abbrechen, Beenden", "Send, cancel, stop"))}
     ${acSec("🔗", "Match & Sync", `<p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. <b>Match senden</b> = beide Zonen bekommen dieselben Werte. <b>Sync senden</b> = beide werden zur selben Zeit fertig.", "With two zones: “Copy settings” copies the other zone. <b>Send Match</b> = both zones get the same values. <b>Send Sync</b> = both finish at the same time.")}</p><p>${t("Der Sync-Hinweis sagt dir außerdem, wann du die zweite Zone startest.", "The sync hint also tells you when to start the second zone.")}</p>`, "#1e88e5", t("Zwei Körbe, ein Abendessen", "Two baskets, one dinner"))}
-    ${acSec("🔢", t("Oben in der Karte", "At the top of the card"), `<p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. <b>ⓘ</b> = Infos & Credits. <b>⚙️</b> = Einstellungen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. <b>ⓘ</b> = info & credits. <b>⚙️</b> = settings.")}</p>`, "#8e24aa", t("Zahl, Punkt, Knöpfe", "Number, dot, buttons"))}
+    ${acSec("🔢", t("Oben in der Karte", "At the top of the card"), `<p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. 📴 = gerade keine Verbindung zu Home Assistant (die Karte zeigt den letzten Stand). Ist die Verbindung wieder da, holt die Karte die Werte sofort im Hintergrund (🔄). <b>ⓘ</b> = Infos & Credits. <b>⚙️</b> = Einstellungen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. 📴 = no connection to Home Assistant right now (the card shows the last known state). Once it is back, the card fetches the values in the background right away (🔄). <b>ⓘ</b> = info & credits. <b>⚙️</b> = settings.")}</p>`, "#8e24aa", t("Zahl, Punkt, Knöpfe", "Number, dot, buttons"))}
     ${acSec("⚙️", t("Einstellungen", "Settings"), `<p>${t("Das Zahnrad oben in der Karte öffnet die Einstellungen:", "The cog at the top of the card opens the settings:")}</p><ul class="ac-ol"><li>${t("<b>👁️ Ansicht</b>: Schriftgröße und Hell/Dunkel – gilt nur auf diesem Gerät.", "<b>👁️ View</b>: font size and light/dark – only on this device.")}</li><li>${t("<b>🍟 Karte</b>: Maskottchen, Leiste oben, Anleitung-Knopf – nur auf diesem Gerät.", "<b>🍟 Card</b>: mascot, top bar, guide button – only on this device.")}</li><li>${t("<b>🔌 Integration</b> (nur Admins): Abfrage-Takt, Seitenleiste, Schüttel-Erinnerung und Fertig-Meldung aufs Handy – gilt für alle.", "<b>🔌 Integration</b> (admins only): polling interval, sidebar, shake reminder and done message to your phone – for everyone.")}</li></ul>`, "#607d8b", t("Ansicht, Karte, Integration", "View, card, integration"))}
     ${app ? acSec("📱", t("Als App aufs Handy", "As an app on your phone"), app, "#0288d1", t("Ohne App-Store", "No app store")) : ""}
     ${acSec("📦", t("Installieren & Updates", "Install & updates"), `<p>${t("Installation über HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace). Dort kommen auch die Updates an. Betas siehst du nur mit „Beta-Versionen anzeigen“.", "Install via HACS (from Home Assistant 2026.11: Settings › Marketplace). Updates arrive there too. You only see betas with “Show beta versions”.")}</p>`, "#6d4c41", "HACS / Marketplace")}
@@ -534,13 +562,14 @@ class AirfryerControlCard extends HTMLElement {
   set hass(hass) {
     const lang = this._hass?.language;
     this._hass = hass;
+    this._backCheck(hass);
     this._verCheck();
     // 📄 Auf einer Seite nicht neu zeichnen – sonst gehen Suchtext und aufgeklappte Kapitel verloren
     if (this._page && this._pageDrawn && lang === hass.language) return;
     const zones = findZones(hass);
     const sig = zones.map((z) => [z.state, z.finish, z.mode, z.temp, z.time, z.sw]
       .map((e) => { const s = hass.states[e]; return s ? s.state + "|" + (s.attributes?.min ?? "") + (s.attributes?.max ?? "") : "-"; }).join(",")).join(";")
-      + "#" + (findOnline(hass, zones)?.state || "") + this._open + (hass.language || "") + new Date().getHours()
+      + "#" + (findOnline(hass, zones)?.state || "") + (hass.connected === false ? "x" : "") + (AC_BACK.busy ? "b" : "") + this._open + (hass.language || "") + new Date().getHours()
       + "#" + JSON.stringify(zones.map((z) => { const a = hass.states[z.progs]?.attributes || {}; return [a.lieblinge, a.zuletzt]; }));
     if (sig === this._sig) return;
     // ⌨️ Tippt gerade jemand den Namen eines Lieblings? Dann nicht dazwischenfunken (kommt gleich danach)
@@ -548,6 +577,13 @@ class AirfryerControlCard extends HTMLElement {
     this._sig = sig;
     this._zones = zones;
     this._render();
+  }
+
+  // 📶 Verbindung zu Home Assistant war weg und ist wieder da? Dann im Hintergrund frisch holen (siehe AC_BACK)
+  _backCheck(hass) {
+    const up = hass.connected !== false, was = this._up;
+    this._up = up;
+    if (was === false && up) { this._verAt = 0; acBackOnline(this); } // 🔄 auch gleich nach einer neuen Version schauen
   }
 
   // 🔄 Neue Version da? Home Assistant fragen, welche Version dort läuft (höchstens jede Minute, nur wenn die Seite sichtbar ist)
@@ -609,8 +645,12 @@ class AirfryerControlCard extends HTMLElement {
     const title = !this._config.title || (this._config.title === "Heißluftfritteuse" && !isDe(hass)) ? tr(hass, "Heißluftfritteuse", "Air fryer") : this._config.title;
     const online = findOnline(hass, zones);
     const on = online?.state === "on";
+    const lost = hass.connected === false; // 📶 keine Verbindung zu Home Assistant (nicht die Fritteuse)
+    const pill = lost ? ["off", `📴 ${tr(hass, "keine Verbindung – letzter Stand", "no connection – last known state")}`]
+      : AC_BACK.busy ? ["", `🔄 ${tr(hass, "aktualisiere …", "updating …")}`]
+      : on ? ["", `🟢 ${tr(hass, "verbunden", "connected")}`] : ["off", `🔴 ${tr(hass, "offline", "offline")}`];
     const top = !eff.top ? "" : `<div class="ac-top">
-        <span class="ac-pill ${on ? "" : "off"}">${on ? `🟢 ${esc(tr(hass, "verbunden", "connected"))}` : `🔴 ${esc(tr(hass, "offline", "offline"))}`}</span>
+        <span class="ac-pill ${pill[0]}">${esc(pill[1])}</span>
         <span class="ac-greet">${esc(acGreeting(hass))}</span>
         ${AC_VERSION ? `<span class="ac-ver" translate="no">v${esc(AC_VERSION)}</span>` : ""}</div>`;
     let body;
