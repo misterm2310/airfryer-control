@@ -31,7 +31,15 @@ from .const import (
     DOMAIN,
     EVENT_FINISHED,
     EVENT_SHAKE,
+    EVENT_FORGOT,
     OPT_SHAKE,
+    OPT_SHAKE_EVERY,
+    OPT_FORGOT,
+    OPT_NOTIFY_FORGOT,
+    DEFAULT_FORGOT,
+    SHAKE_LAST_SECONDS,
+    SHAKE_SHOW_SECONDS,
+    STATE_DRAWER_OPEN,
     OPT_NOTIFY,
     OPT_NOTIFY_SHAKE,
     NOTIFY_MAX,
@@ -54,6 +62,7 @@ from .const import (
 )
 from .core.parser import FryerState, guess_unit, parse, zones_for_device
 from . import modelle
+from .programme import get_store
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +70,7 @@ RUNNING = {STATE_COOKING, STATE_PREHEAT}
 METHOD_STATUS = "getAirfryerStatus"
 METHOD_MULTI = "getAirfryerMultiStatus"
 DONE_STATES = {STATE_FINISHED, STATE_STANDBY, STATE_KEEP_WARM, STATE_OFF, STATE_PREHEATED}
+IDLE_STATES = {STATE_STANDBY, STATE_OFF}  # 🧹 Zone steht still → Inhalt vom letzten Garen vergessen
 # 🤫 Kurzer Aussetzer: So lange behalten wir die letzten Werte, bevor wir „offline“ zeigen
 OFFLINE_GRACE_SECONDS = 90
 # … und so schnell fragen wir in der Zeit nochmal nach
@@ -124,7 +134,18 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         # 📲 Handy-Meldung ohne eigene Automation: notify-Dienste (leer = aus) + „auch beim Schütteln“
         self._notify: list[str] = clean_notify(entry.options.get(OPT_NOTIFY))
         self._notify_shake = bool(entry.options.get(OPT_NOTIFY_SHAKE, False)) and bool(self._notify)
-        self._shaken: set[tuple[str, int]] = set()
+        # 🥄 0 = einmal zur Halbzeit, sonst alle X Minuten
+        self._shake_every = max(0, int(entry.options.get(OPT_SHAKE_EVERY, 0) or 0))
+        # ⏰ „Vergessen zu starten?“ nach X Minuten „Wartet auf Start“ (0 = aus) + auch aufs Handy
+        self._forgot_min = max(0, int(entry.options.get(OPT_FORGOT, DEFAULT_FORGOT) or 0))
+        self._notify_forgot = bool(entry.options.get(OPT_NOTIFY_FORGOT, True)) and bool(self._notify)
+        # Wie oft schon erinnert (pro Fritteuse+Zone und Garvorgang)
+        self._shaken: dict[tuple[str, int], int] = {}
+        # 🥄 Seit wann „Jetzt schütteln!“ gilt (für Karte und Laufband, verschwindet nach 3 Minuten)
+        self.shake_at: dict[tuple[str, int], datetime] = {}
+        # ⏰ Seit wann eine Zone auf Start wartet – und ob schon daran erinnert wurde
+        self.waiting_since: dict[tuple[str, int], datetime] = {}
+        self._forgot_sent: set[tuple[str, int]] = set()
         self._unsupported: dict[str, set[str]] = {}
         self.fryers: dict[str, FryerData] = {}
         # Eingaben pro (Fritteuse, Zone): {"temp": °C, "minuten": min, "mode": "airfry"}
@@ -310,6 +331,36 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         fryer.method_errors.pop(method, None)
         return data
 
+    # ---------------------------------------------------------------- 🏷️ Inhalt pro Zone
+    def zone_info(self, cid: str, zone: int) -> dict[str, Any]:
+        """🏷️ Was liegt in der Zone (Inhalt, Schütteln ja/nein)? Leer = nichts bekannt."""
+        store = get_store(self.hass)
+        return store.zone_info(cid, zone) if store is not None else {}
+
+    def content(self, cid: str, zone: int) -> str | None:
+        return self.zone_info(cid, zone).get("inhalt") or None
+
+    def _track_content(self, fryer: FryerData, new: FryerState) -> None:
+        """🧹 Merkt sich „hat gegart“ – und vergisst Inhalt + Schütteln, sobald die Zone danach still steht.
+
+        Für Doofe: Du tippst „Pommes“ ein, die Fritteuse gart, ist fertig – und steht
+        wieder auf „Bereit“ oder „Aus“. Dann ist „Pommes“ weg, damit beim nächsten Mal
+        nicht noch „Pommes“ dasteht, obwohl Kuchen drin ist. Vor dem Garen (Inhalt schon
+        eingetippt, Zone noch aus) bleibt er natürlich stehen.
+        """
+        store = get_store(self.hass)
+        if store is None:
+            return
+        for zone, zs in new.zones.items():
+            info = store.zone_info(fryer.cid, zone)
+            if not info:
+                continue
+            if zs.active or zs.status in (STATE_FINISHED, STATE_KEEP_WARM):
+                if not info.get("gegart"):
+                    store.set_zone_info(fryer.cid, zone, gegart=True)
+            elif zs.status in IDLE_STATES and info.get("gegart"):
+                store.clear_zone_info(fryer.cid, zone)
+
     def _fire_events(self, fryer: FryerData, old: FryerState, new: FryerState) -> None:
         """Ereignis „fertig“, wenn etwas aufhört zu garen."""
         base = {"geraet": fryer.name, "modell": fryer.model}
@@ -319,7 +370,8 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             if before is not None and before.active and zs.status in DONE_STATES:
                 self.hass.bus.async_fire(
                     EVENT_FINISHED,
-                    {**base, "zone": zone, "zustand": zs.status, "programm": before.mode},
+                    {**base, "zone": zone, "zustand": zs.status, "programm": before.mode,
+                     "inhalt": self.content(fryer.cid, zone)},
                 )
                 done[zone] = zs.status
         if old.active and not new.active and new.status in DONE_STATES:
@@ -330,30 +382,106 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             self._notify_done(fryer, done)
         if self._shake or self._notify_shake:
             self._shake_events(fryer, old, new, base)
+        self._forgot_events(fryer, new, base)
+        self._track_content(fryer, new)  # erst NACH den Meldungen – die sollen „Pommes“ ja noch nennen
 
-    def _shake_events(self, fryer: FryerData, old: FryerState, new: FryerState, base: dict[str, Any]) -> None:
-        """🥄 Ereignis „schütteln“ zur Halbzeit – einmal pro Garvorgang und Zone.
+    def _forgot_events(self, fryer: FryerData, new: FryerState, base: dict[str, Any]) -> None:
+        """⏰ „Vergessen zu starten?“ – Zone wartet schon X Minuten auf Start am Gerät.
 
-        Für Doofe: Ist die Hälfte der Garzeit um, kommt das Ereignis
-        ``airfryer_control_schuetteln``. Damit kann eine Automation aufs Handy schreiben
-        oder eine Durchsage machen. Startet Home Assistant mitten im Garen neu (schon
-        über der Hälfte), kommt keine verspätete Erinnerung.
+        Für Doofe: Nach „Senden“ muss man am Gerät noch auf Start drücken. Das vergisst
+        man gern. Steht eine Zone 10 Minuten (einstellbar) auf „Wartet auf Start“, kommt
+        einmal das Ereignis ``airfryer_control_start_vergessen`` – und mit Handys unter
+        „Fertig melden an“ auch eine Nachricht. Karte und Laufband zeigen ⏰.
         """
+        now = dt_util.utcnow()
         for zone, zs in new.zones.items():
             key = (fryer.cid, zone)
+            if zs.status != STATE_WAITING:
+                self.waiting_since.pop(key, None)
+                self._forgot_sent.discard(key)
+                continue
+            since = self.waiting_since.setdefault(key, now)
+            if not self._forgot_min or key in self._forgot_sent:
+                continue
+            waited = (now - since).total_seconds()
+            if waited < self._forgot_min * 60:
+                continue
+            self._forgot_sent.add(key)
+            minutes = int(waited // 60)
+            content = self.content(fryer.cid, zone)
+            self.hass.bus.async_fire(
+                EVENT_FORGOT,
+                {**base, "zone": zone, "programm": zs.mode, "wartet_minuten": minutes, "inhalt": content},
+            )
+            if self._notify_forgot:
+                de = self._de()
+                self._notify_send(
+                    "⏰ Vergessen zu starten?" if de else "⏰ Forgot to start?",
+                    (f"{_zone_txt(fryer, zone, de, content)} wartet seit {minutes} Min. auf Start – bitte am Gerät drücken."
+                     if de else f"{_zone_txt(fryer, zone, de, content)} has been waiting {minutes} min for start – press Start on the device."),
+                    f"airfryer_control_vergessen_{fryer.cid}_{zone}",
+                )
+
+    def forgot(self, cid: str, zone: int) -> bool:
+        """⏰ Wartet die Zone schon länger als eingestellt auf Start? (für Karte und Laufband)"""
+        since = self.waiting_since.get((cid, zone))
+        if since is None or not self._forgot_min:
+            return False
+        return (dt_util.utcnow() - since).total_seconds() >= self._forgot_min * 60
+
+    def shaking(self, cid: str, zone: int) -> bool:
+        """🥄 Gilt gerade „Jetzt schütteln!“? (3 Minuten lang, Schublade auf = vorbei)"""
+        at = self.shake_at.get((cid, zone))
+        return at is not None and (dt_util.utcnow() - at).total_seconds() < SHAKE_SHOW_SECONDS
+
+    def _shake_count(self, total: int, left: int) -> int:
+        """Wie viele Schüttel-Zeitpunkte sind schon vorbei? Halbzeit: 0 oder 1, sonst alle X Minuten einer."""
+        if not self._shake_every:
+            return 1 if left <= total / 2 else 0
+        return int((total - left) // (self._shake_every * 60))
+
+    def _shake_events(self, fryer: FryerData, old: FryerState, new: FryerState, base: dict[str, Any]) -> None:
+        """🥄 Ereignis „schütteln“ – zur Halbzeit oder alle X Minuten, pro Zone.
+
+        Für Doofe: Ist die Hälfte der Garzeit um (oder wieder X Minuten vorbei), kommt das
+        Ereignis ``airfryer_control_schuetteln``. Damit kann eine Automation aufs Handy
+        schreiben oder eine Durchsage machen. Karte und Laufband zeigen 3 Minuten lang ein
+        blinkendes 🥄 – Schublade auf (= geschüttelt) und es ist sofort weg. In der letzten
+        Minute wird nicht mehr erinnert. Startet Home Assistant mitten im Garen neu, kommt
+        keine verspätete Erinnerung. Ein Liebling mit „🥄 aus“ (z. B. Kuchen) wird nie erinnert.
+        """
+        now = dt_util.utcnow()
+        for zone, zs in new.zones.items():
+            key = (fryer.cid, zone)
+            if key in self.shake_at and (
+                zs.status == STATE_DRAWER_OPEN or (now - self.shake_at[key]).total_seconds() >= SHAKE_SHOW_SECONDS
+            ):
+                self.shake_at.pop(key, None)  # geschüttelt (Schublade war auf) oder 3 Minuten vorbei
             if zs.status != STATE_COOKING:
                 if not zs.active:
-                    self._shaken.discard(key)  # Garvorgang vorbei → nächstes Mal wieder erinnern
+                    self._shaken.pop(key, None)  # Garvorgang vorbei → nächstes Mal wieder erinnern
+                    self.shake_at.pop(key, None)
                 continue
             total, left = zs.set_time_s, zs.remaining_s
-            if key in self._shaken or not total or left is None or total < SHAKE_MIN_SECONDS:
+            if not total or left is None or total < SHAKE_MIN_SECONDS:
                 continue
-            if left > total / 2:
+            count = self._shake_count(total, left)
+            done = self._shaken.get(key)
+            if done is None:
+                before = old.zones.get(zone)
+                if before is None or not before.active:
+                    # gerade erst gesehen (z. B. nach Neustart) → Vergangenes nicht nachholen
+                    self._shaken[key] = count
+                    continue
+                done = 0
+            if count <= done or left < SHAKE_LAST_SECONDS:
                 continue
-            self._shaken.add(key)
-            before = old.zones.get(zone)
-            if before is None or not before.active:
-                continue  # gerade erst gesehen (z. B. nach Neustart) → nicht nachträglich erinnern
+            self._shaken[key] = count
+            if self.zone_info(fryer.cid, zone).get("schuetteln") is False:
+                continue  # ⭐ Liebling sagt: hier nicht schütteln (z. B. Kuchen)
+            self.shake_at[key] = now
+            rest = int(round(left / 60))
+            content = self.content(fryer.cid, zone)
             if self._shake:
                 self.hass.bus.async_fire(
                     EVENT_SHAKE,
@@ -361,17 +489,20 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                         **base,
                         "zone": zone,
                         "programm": zs.mode,
-                        "rest_minuten": int(round(left / 60)),
+                        "rest_minuten": rest,
                         "garzeit_minuten": int(round(total / 60)),
+                        "mal": count,
+                        "inhalt": content,
                     },
                 )
             if self._notify_shake:
                 de = self._de()
-                rest = int(round(left / 60))
+                half = not self._shake_every
+                name = _zone_txt(fryer, zone, de, content)
                 self._notify_send(
                     "🥄 Jetzt schütteln!" if de else "🥄 Shake now!",
-                    (f"{_zone_txt(fryer, zone, de)}: Halbzeit – noch {rest} Min." if de
-                     else f"{_zone_txt(fryer, zone, de)}: half time – {rest} min left."),
+                    (f"{name}: {'Halbzeit – ' if half else ''}noch {rest} Min." if de
+                     else f"{name}: {'half time – ' if half else ''}{rest} min left."),
                     f"airfryer_control_schuetteln_{fryer.cid}_{zone}",
                 )
 
@@ -391,7 +522,9 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         ready = [z for z, st in done.items() if st in (STATE_FINISHED, STATE_KEEP_WARM)]
         heated = [z for z, st in done.items() if st == STATE_PREHEATED]
         if ready:
-            names = (" und " if de else " and ").join(_zone_txt(fryer, z, de) for z in sorted(ready))
+            names = (" und " if de else " and ").join(
+                _zone_txt(fryer, z, de, self.content(fryer.cid, z)) for z in sorted(ready)
+            )
             self._notify_send(
                 "🍟 Fritteuse fertig!" if de else "🍟 Air fryer done!",
                 f"{names}: {'fertig – guten Appetit!' if de else 'done – enjoy your meal!'}",
@@ -452,13 +585,15 @@ def clean_notify(value: Any) -> list[str]:
     return out[:NOTIFY_MAX]
 
 
-def _zone_txt(fryer: FryerData, zone: int, de: bool) -> str:
-    """„Zone 1“ – oder bei einer Fritteuse mit nur einer Zone einfach ihr Name."""
+def _zone_txt(fryer: FryerData, zone: int, de: bool, content: str | None = None) -> str:
+    """„Zone 1“ – oder bei einer Fritteuse mit nur einer Zone einfach ihr Name. Mit Inhalt: „Zone 1 (Pommes)“."""
     if zone == ZONE_WHOLE:
-        return "Grandzone"
-    if len(fryer_zones(fryer)) <= 1:
-        return fryer.name or ("Fritteuse" if de else "Air fryer")
-    return f"Zone {zone}"
+        name = "Grandzone"
+    elif len(fryer_zones(fryer)) <= 1:
+        name = fryer.name or ("Fritteuse" if de else "Air fryer")
+    else:
+        name = f"Zone {zone}"
+    return f"{name} ({content})" if content else name
 
 
 def fryer_zones(fryer: FryerData) -> list[int]:

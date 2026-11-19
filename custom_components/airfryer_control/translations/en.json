@@ -43,16 +43,22 @@
           "maskottchen": "🍟 Show mascot in the sidebar",
           "schuettel_erinnerung": "🥄 Shake reminder",
           "melden_an": "📲 Report “done” to these phones",
-          "melden_schuetteln": "📲 Also at half time (“Shake now!”)"
+          "melden_schuetteln": "📲 Also at half time (“Shake now!”)",
+          "schuettel_takt": "🥄 Shake how often",
+          "start_vergessen": "⏰ “Forgot to start?” after",
+          "melden_vergessen": "📲 Also “⏰ Forgot to start?” to the phones"
         },
         "data_description": {
           "intervall": "While cooking, it is always polled every 15 seconds.",
           "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small.",
           "sidebar": "Adds a \"Fritteuse\" entry to the sidebar (full-page view with the ticker and the zone card). Off by default.",
           "maskottchen": "Shows the little air fryer with a face in the sidebar view (on dashboard cards you switch it in the card editor). Off by default.",
-          "schuettel_erinnerung": "Fires the event airfryer_control_schuetteln at half time (for a phone message or announcement). Off by default.",
+          "schuettel_erinnerung": "Fires the event airfryer_control_schuetteln at half time (or every X minutes, see below) and shows a blinking 🥄 in the card and the ticker for 3 minutes. Off by default.",
           "melden_an": "The air fryer sends a message itself when it is done – no automation needed. Pick one or more notify services (e.g. mobile_app_your_phone). Empty = off (default).",
-          "melden_schuetteln": "Also sends “🥄 Shake now!” at half time to the phones above. Off by default."
+          "melden_schuetteln": "Also sends “🥄 Shake now!” at half time to the phones above. Off by default.",
+          "schuettel_takt": "0 = once at half time (default). 5 = every 5 minutes while cooking, and so on. Not in the last minute.",
+          "start_vergessen": "Minutes a zone may wait for start on the device before the card, the ticker and the event airfryer_control_start_vergessen remind you. 0 = off. Default: 10.",
+          "melden_vergessen": "Only with phones above. On by default."
         }
       }
     }
@@ -411,6 +417,14 @@
         "bestaetigen": {
           "name": "Confirm",
           "description": "On = after sending, check up to 3 times (about 6 s) whether the zone really shows the values. The answer then contains “bestaetigt”."
+        },
+        "inhalt": {
+          "name": "Contents",
+          "description": "Optional: what goes in (e.g. Fries) – shows in the ticker and in the done message."
+        },
+        "schuetteln": {
+          "name": "Shake reminder",
+          "description": "Optional: off = no shake reminder for this cook."
         }
       }
     },
@@ -447,6 +461,10 @@
         "minuten": {
           "name": "Minutes",
           "description": "Cooking time."
+        },
+        "schuetteln": {
+          "name": "Shake reminder",
+          "description": "Off = never remind to shake with this favourite (e.g. cake)."
         }
       }
     },
@@ -479,6 +497,28 @@
         "minuten": {
           "name": "Minutes",
           "description": "How many minutes more (1–30)."
+        }
+      }
+    },
+    "inhalt_setzen": {
+      "name": "Set contents",
+      "description": "For all users: what is in the zone (e.g. “Fries”). Shows in the ticker and in the done message and is forgotten by itself after cooking. Empty = delete.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 or 3 (whole basket)."
+        },
+        "inhalt": {
+          "name": "Contents",
+          "description": "e.g. Fries (max. 40 characters). Empty = delete."
+        },
+        "schuetteln": {
+          "name": "Shake reminder",
+          "description": "Off = no shake reminder for this cook (e.g. cake)."
         }
       }
     }

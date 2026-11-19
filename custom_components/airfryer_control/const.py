@@ -18,6 +18,12 @@ OPT_SHAKE = "schuettel_erinnerung"  # 🥄 Ereignis zur Halbzeit (Standard: aus)
 OPT_NOTIFY = "melden_an"  # 📲 notify-Dienste ohne „notify.“ (z. B. mobile_app_marco) – leer = aus
 OPT_NOTIFY_SHAKE = "melden_schuetteln"  # 📲 auch zur Halbzeit „Jetzt schütteln!“ aufs Handy (Standard: aus)
 NOTIFY_MAX = 10  # höchstens so viele Handys
+OPT_SHAKE_EVERY = "schuettel_takt"  # 🥄 0 = einmal zur Halbzeit, sonst alle X Minuten (Standard: 0)
+SHAKE_EVERY_MAX = 30
+OPT_FORGOT = "start_vergessen"  # ⏰ Hinweis, wenn eine Zone so viele Minuten auf Start wartet (0 = aus, Standard 10)
+DEFAULT_FORGOT = 10
+FORGOT_MAX = 60
+OPT_NOTIFY_FORGOT = "melden_vergessen"  # 📲 „Vergessen zu starten?“ auch aufs Handy (Standard: an, nur mit Handys)
 
 DEFAULT_INTERVAL = 60  # Sekunden, wenn die Fritteuse nichts tut
 FAST_INTERVAL = 15  # Sekunden, solange sie arbeitet
@@ -36,6 +42,11 @@ EVENT_FINISHED = f"{DOMAIN}_fertig"
 # Ereignis zur Halbzeit: „jetzt schütteln“ (nur wenn die Schüttel-Erinnerung an ist)
 EVENT_SHAKE = f"{DOMAIN}_schuetteln"
 SHAKE_MIN_SECONDS = 120  # bei ganz kurzen Garzeiten (unter 2 Minuten) lohnt Schütteln nicht
+SHAKE_LAST_SECONDS = 60  # 🥄 in der letzten Minute wird nicht mehr erinnert (lohnt nicht mehr)
+SHAKE_SHOW_SECONDS = 180  # 🥄 so lange steht „Jetzt schütteln!“ in Karte und Laufband (Schublade auf = sofort weg)
+# Ereignis: Zone wartet schon lange auf Start am Gerät („Vergessen zu starten?“)
+EVENT_FORGOT = f"{DOMAIN}_start_vergessen"
+INHALT_MAX = 40  # 🏷️ „Was ist drin?“ – höchstens so viele Zeichen
 
 # Dienste
 SERVICE_SEND_TEST = "senden_testen"
@@ -48,6 +59,7 @@ SERVICE_CAPABILITIES = "faehigkeiten"
 SERVICE_FAV_SAVE = "liebling_speichern"
 SERVICE_FAV_DELETE = "liebling_loeschen"
 SERVICE_ADD_TIME = "garzeit_plus"
+SERVICE_CONTENT = "inhalt_setzen"
 
 # ⭐ Lieblings-Programme und 🕘 zuletzt gesendet (pro Fritteuse)
 MAX_FAVORITES = 12

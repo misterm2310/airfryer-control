@@ -2,7 +2,9 @@
 
 Für Doofe: Hier merkt sich Home Assistant pro Fritteuse
 - deine Lieblinge (z. B. „Pommes 200 °C, 18 min“) – höchstens 12,
-- die letzten 5 Programme, die an die Fritteuse gegangen sind.
+- die letzten 5 Programme, die an die Fritteuse gegangen sind,
+- 🏷️ was gerade in welcher Zone liegt („Zone 1: Pommes“) und ob dort geschüttelt
+  werden soll (kommt vom Liebling). Das wird nach dem Garen von selbst vergessen.
 Beides liegt in Home Assistant (Ordner .storage), nicht im Browser. So sieht das
 Küchen-Tablet dieselben Lieblinge wie dein Handy. Die Karte liest sie aus dem
 Sensor „Lieblings-Programme“ der Fritteuse.
@@ -39,6 +41,37 @@ class ProgramStore:
     def _fryer(self, cid: str) -> dict[str, list[dict[str, Any]]]:
         return self._data.setdefault(cid, {"lieblinge": [], "zuletzt": []})
 
+    def zone_info(self, cid: str, zone: int) -> dict[str, Any]:
+        """🏷️ Was liegt in der Zone? {"inhalt": "Pommes", "schuetteln": False, "gegart": True} – leer = nichts bekannt."""
+        return dict(self._data.get(cid, {}).get("zonen", {}).get(str(zone), {}))
+
+    def set_zone_info(self, cid: str, zone: int, **values: Any) -> bool:
+        """🏷️ Inhalt/Schütteln einer Zone setzen. None oder "" löscht den Wert. True = etwas hat sich geändert."""
+        zones = self._data.setdefault(cid, {"lieblinge": [], "zuletzt": []}).setdefault("zonen", {})
+        info = dict(zones.get(str(zone), {}))
+        for key, value in values.items():
+            if value is None or value == "":
+                info.pop(key, None)
+            else:
+                info[key] = value
+        if info == zones.get(str(zone), {}):
+            return False
+        if info:
+            zones[str(zone)] = info
+        else:
+            zones.pop(str(zone), None)
+        self._changed(cid)
+        return True
+
+    def clear_zone_info(self, cid: str, zone: int) -> bool:
+        """🧹 Nach dem Garen: Inhalt und Schütteln der Zone vergessen."""
+        zones = self._data.get(cid, {}).get("zonen", {})
+        if str(zone) not in zones:
+            return False
+        zones.pop(str(zone))
+        self._changed(cid)
+        return True
+
     def favorites(self, cid: str) -> list[dict[str, Any]]:
         return list(self._data.get(cid, {}).get("lieblinge", []))
 
@@ -56,10 +89,15 @@ class ProgramStore:
         for func in list(self._listeners):
             func(cid)
 
-    def save_favorite(self, cid: str, name: str, mode: str, temp: int, minutes: int) -> bool:
-        """Liebling speichern. Gleicher Name = überschreiben. False = schon 12 Stück."""
+    def save_favorite(
+        self, cid: str, name: str, mode: str, temp: int, minutes: int, shake: bool = True
+    ) -> bool:
+        """Liebling speichern. Gleicher Name = überschreiben. False = schon 12 Stück.
+
+        ``shake`` = False: 🥄 bei diesem Liebling nie ans Schütteln erinnern (z. B. Kuchen).
+        """
         favs = self._fryer(cid)["lieblinge"]
-        entry = {"name": name, "programm": mode, "temperatur": int(temp), "minuten": int(minutes)}
+        entry = {"name": name, "programm": mode, "temperatur": int(temp), "minuten": int(minutes), "schuetteln": bool(shake)}
         for i, fav in enumerate(favs):
             if str(fav.get("name", "")).casefold() == name.casefold():
                 favs[i] = entry

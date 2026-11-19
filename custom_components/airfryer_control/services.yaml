@@ -224,6 +224,15 @@ programm_senden:
       default: false
       selector:
         boolean:
+    inhalt:
+      required: false
+      example: "Pommes"
+      selector:
+        text:
+    schuetteln:
+      required: false
+      selector:
+        boolean:
 
 faehigkeiten:
   fields:
@@ -281,6 +290,10 @@ liebling_speichern:
           max: 2880
           mode: box
           unit_of_measurement: "min"
+    schuetteln:
+      default: true
+      selector:
+        boolean:
 
 liebling_loeschen:
   fields:
@@ -294,6 +307,31 @@ liebling_loeschen:
       example: "Pommes"
       selector:
         text:
+
+inhalt_setzen:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    zone:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "3"
+    inhalt:
+      required: false
+      example: "Pommes"
+      selector:
+        text:
+    schuetteln:
+      required: false
+      selector:
+        boolean:
 
 garzeit_plus:
   fields:

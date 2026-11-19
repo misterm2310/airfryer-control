@@ -13,6 +13,8 @@ Für Doofe:
   Gerät hat, und ob das bestätigt oder nur geschätzt ist.
 - liebling_speichern / liebling_loeschen: Für alle – ⭐ Lieblings-Programme pro
   Fritteuse merken oder löschen (die Karte zeigt sie als Knöpfe).
+- inhalt_setzen: Für alle – 🏷️ „Was ist drin?“ pro Zone (z. B. „Pommes“). Steht dann
+  im Laufband und in der Fertig-Meldung und wird nach dem Garen von selbst vergessen.
 - garzeit_plus: Für alle – ⏱️ 1–30 Minuten dazu: gart die Zone, wird die laufende
   Zeit länger; ist sie fertig, wird dasselbe Programm nochmal bereitgestellt.
 - befehl_senden: Für Bastler (nur Admins) – einen beliebigen App-Befehl
@@ -35,6 +37,8 @@ from .const import (
     DOMAIN,
     SERVICE_ADD_TIME,
     SERVICE_CAPABILITIES,
+    SERVICE_CONTENT,
+    INHALT_MAX,
     SERVICE_FAV_DELETE,
     SERVICE_FAV_SAVE,
     STATE_FINISHED,
@@ -87,6 +91,8 @@ ATTR_ZONE2 = "zone2"
 ATTR_SOURCE = "quelle"
 ATTR_RESET = "zuruecksetzen"
 ATTR_NAME = "name"
+ATTR_CONTENT = "inhalt"
+ATTR_SHAKE = "schuetteln"
 
 # „bestätigen“: so oft und so lange nachsehen, ob die Werte an der Zone angekommen sind
 CONFIRM_TRIES = 3
@@ -117,6 +123,9 @@ PROGRAM_SCHEMA = vol.Schema(
         vol.Optional(ATTR_ONCE, default=False): cv.boolean,
         vol.Optional(ATTR_STRICT, default=False): cv.boolean,
         vol.Optional(ATTR_CONFIRM, default=False): cv.boolean,
+        # 🏷️ was drin ist + 🥄 schütteln ja/nein (schickt die Karte beim Tippen auf einen Liebling mit)
+        vol.Optional(ATTR_CONTENT): vol.All(cv.string, vol.Strip, vol.Length(max=INHALT_MAX)),
+        vol.Optional(ATTR_SHAKE): cv.boolean,
     }
 )
 ZONE_VALUES = vol.Schema(
@@ -146,6 +155,15 @@ FAV_SAVE_SCHEMA = vol.Schema(
         vol.Required(ATTR_MODE): vol.In(list(ALL_MODES)),
         vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
         vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=5000)),
+        vol.Optional(ATTR_SHAKE, default=True): cv.boolean,  # 🥄 aus = bei diesem Liebling nie erinnern
+    }
+)
+CONTENT_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
+        vol.Optional(ATTR_CONTENT, default=""): vol.Any(None, vol.All(cv.string, vol.Strip, vol.Length(max=INHALT_MAX))),
+        vol.Optional(ATTR_SHAKE): cv.boolean,
     }
 )
 FAV_DELETE_SCHEMA = vol.Schema(
@@ -337,9 +355,33 @@ async def _program(call: ServiceCall) -> ServiceResponse:
     }
     if not last["ok"]:
         answer.update(fehler=last.get("fehler", "abgelehnt"), code=last.get("code"))
-    elif call.data[ATTR_CONFIRM]:
+    elif ATTR_CONTENT in call.data or ATTR_SHAKE in call.data:
+        _remember_zone(coordinator, fryer, zone, call.data.get(ATTR_CONTENT), call.data.get(ATTR_SHAKE))
+    if last["ok"] and call.data[ATTR_CONFIRM]:
         answer.update(await _confirm(coordinator, fryer, zone, temp, minutes, mode))
     return answer
+
+
+def _remember_zone(
+    coordinator: AirfryerCoordinator, fryer: FryerData, zone: int, content: str | None, shake: bool | None
+) -> None:
+    """🏷️ Inhalt und 🥄 Schütteln für diese Zone merken (neu = „noch nicht gegart“)."""
+    store = get_store(coordinator.hass)
+    if store is None:
+        return
+    values: dict[str, Any] = {"gegart": None}
+    if content is not None:
+        values["inhalt"] = content
+    if shake is not None:
+        values["schuetteln"] = None if shake else False  # nur „aus“ wird gespeichert
+    if store.set_zone_info(fryer.cid, zone, **values):
+        coordinator.async_update_listeners()
+
+
+async def _content(call: ServiceCall) -> None:
+    """🏷️ „Was ist drin?“ für eine Zone setzen (leer = löschen)."""
+    coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    _remember_zone(coordinator, fryer, call.data[ATTR_ZONE], call.data.get(ATTR_CONTENT) or "", call.data.get(ATTR_SHAKE))
 
 
 async def _confirm(
@@ -400,7 +442,9 @@ async def _fav_save(call: ServiceCall) -> None:
         raise ServiceValidationError(f"Das Programm „{mode}“ gibt es an diesem Modell nicht.")
     temp = clamp_temp(mode, call.data[ATTR_TEMP], fryer.model)
     minutes = clamp_minutes(mode, call.data[ATTR_MINUTES], fryer.model)
-    if not _program_store(call).save_favorite(fryer.cid, call.data[ATTR_NAME], mode, temp, minutes):
+    if not _program_store(call).save_favorite(
+        fryer.cid, call.data[ATTR_NAME], mode, temp, minutes, call.data[ATTR_SHAKE]
+    ):
         raise ServiceValidationError("Schon 12 Lieblinge – lösch erst einen, dann passt der neue rein.")
 
 
@@ -546,6 +590,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(DOMAIN, SERVICE_FAV_SAVE, _fav_save, schema=FAV_SAVE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_FAV_DELETE, _fav_delete, schema=FAV_DELETE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_CONTENT, _content, schema=CONTENT_SCHEMA)
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_TIME, _add_time, schema=ADD_TIME_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )

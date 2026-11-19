@@ -16,6 +16,11 @@ const AC_REPO = "https://github.com/misterm2310/airfryer-control";
 // Reihenfolge egal: angezeigt wird immer nach Version, Neueste oben. In einer Beta landen die Einträge dieser Beta-Reihe im orangen Kasten.
 // ⚠️ Die Texte sind HTML (nur <b>) und werden NICHT maskiert – also nur eigene, feste Texte hier eintragen.
 const AC_NEWS = [
+  ["1.0.5-beta.3", "⏰ <b>Vergessen zu starten?</b> Wartet eine Zone 10 Minuten auf Start am Gerät, steht in Karte und Laufband „⏰ Start am Gerät vergessen?“ – mit Handys unter „Fertig melden an“ kommt auch eine Nachricht. Zeit unter ⚙️ › Integration einstellbar, 0 = aus", "⏰ <b>Forgot to start?</b> If a zone waits 10 minutes for start on the device, the card and the ticker show “⏰ Forgot to press Start?” – with phones under “Report done to” you get a message too. Time set under ⚙️ › Integration, 0 = off"],
+  ["1.0.5-beta.3", "🏷️ <b>Was ist drin?</b> Pro Zone eintippen, z. B. „Pommes“ – steht im Laufband und in der Fertig-Meldung. Ein ⭐ Liebling trägt seinen Namen selbst ein, nach dem Garen wird es vergessen", "🏷️ <b>What's inside?</b> Type it per zone, e.g. “Fries” – it shows in the ticker and in the done message. A ⭐ favourite fills in its name itself, after cooking it is forgotten"],
+  ["1.0.5-beta.3", "🥄 <b>Schütteln pro Liebling:</b> Pommes ja, Kuchen nein – beim Speichern 🥄 an/aus, später unter ✏️ Bearbeiten umschalten", "🥄 <b>Shaking per favourite:</b> fries yes, cake no – 🥄 on/off when saving, switch it later under ✏️ Edit"],
+  ["1.0.5-beta.3", "🔁 <b>Öfter schütteln:</b> wahlweise zur Halbzeit oder alle 3, 5 oder 8 Minuten (⚙️ › Integration › Schüttel-Erinnerung)", "🔁 <b>Shake more often:</b> at half time or every 3, 5 or 8 minutes (⚙️ › Integration › Shake reminder)"],
+  ["1.0.5-beta.3", "📺 <b>🥄 im Laufband:</b> Zur Schüttel-Zeit blinkt in Karte und Laufband 3 Minuten lang ein 🥄 – fürs Küchen-Tablet und den Fire TV, auch ohne Handy in der Tasche. Schublade auf = weg", "📺 <b>🥄 in the ticker:</b> at shake time a 🥄 blinks in the card and the ticker for 3 minutes – for the kitchen tablet and Fire TV, even without a phone in your pocket. Drawer open = gone"],
   ["1.0.5-beta.2", "📶 <b>Wieder online = gleich aktuell:</b> War die Verbindung weg (Funkloch, Handy in der Tasche, Fire TV im Standby) und ist sie wieder da, holt die Karte die Werte der Fritteuse sofort im Hintergrund – wie bei der Einkaufsliste. Oben steht kurz „🔄 aktualisiere …“, ohne Verbindung „📴 keine Verbindung – letzter Stand“. Befehle werden bewusst nicht nachgeschickt", "📶 <b>Back online = up to date right away:</b> if the connection was gone (dead zone, phone in your pocket, Fire TV in standby) and is back, the card fetches the air fryer values in the background right away – like the shopping list. The top shows “🔄 updating …” briefly, without a connection “📴 no connection – last known state”. Commands are deliberately not sent later"],
   ["1.0.5-beta.1", "📲 <b>Fertig-Meldung aufs Handy – ohne Automation:</b> unter ⚙️ › Integration › „Fertig melden an“ Häkchen bei deinem Handy setzen. Die Fritteuse schreibt dann selbst „🍟 Fritteuse fertig!“ (bei zwei Zonen in einer Nachricht). Auf Wunsch auch zur Halbzeit „🥄 Jetzt schütteln!“. Standard: aus", "📲 <b>Done message to your phone – no automation:</b> under ⚙️ › Integration › “Report done to” tick your phone. The air fryer then sends “🍟 Air fryer done!” itself (two zones in one message). Optionally also “🥄 Shake now!” at half time. Default: off"],
   ["1.0.5-beta.1", "🔄 <b>Neue Version da:</b> Hat Home Assistant schon eine neuere Version als die Karte im Browser, steht oben ein Hinweis mit dem Knopf <b>„Neu laden“</b> – wie bei der Einkaufsliste. Gilt für Karte, Seitenleiste und Offline-App", "🔄 <b>New version available:</b> if Home Assistant already has a newer version than the card in your browser, a hint with the <b>“Reload”</b> button appears at the top – like the shopping list. Works in the card, the sidebar and the offline app"],
@@ -82,6 +87,7 @@ const COLORS = {
 // Platzhalter im Laufband-Text: wird beim Zeichnen durch das Fritteusen-Icon ersetzt
 const FRY = "\u0001";
 const TMR = "\u0002"; // Platzhalter für das Timer-Symbol (Kochmütze mit Wecker, wie in der Einkaufsliste)
+const SPN = "\u0003"; // Platzhalter für den blinkenden 🥄 („Jetzt schütteln!“)
 const RUNNING = ["gart", "vorheizen", "pausiert", "warmhalten", "wartet_auf_sync"];
 const STATE_TEXT = {
   aus: ["Aus", "Off"], bereit: ["Bereit", "Ready"], vorheizen: ["Heizt vor", "Preheating"],
@@ -214,6 +220,18 @@ function zoneName(hass, key, st) {
   return n ? tr(hass, `Zone ${n[1]}`, `Zone ${n[1]}`) : (st?.attributes?.friendly_name || key);
 }
 
+// 🏷️ Inhalt, 🥄 „Jetzt schütteln!“, ⏰ „Vergessen zu starten?“ – kommen von der Integration (Attribute der Zone)
+const zoneExtra = (hass, z) => {
+  const a = hass.states[z.state]?.attributes || {};
+  const since = Date.parse(a.wartet_seit || "");
+  return {
+    inhalt: typeof a.inhalt === "string" && a.inhalt.trim() ? a.inhalt.trim() : "",
+    shake: a.jetzt_schuetteln === true,
+    noShake: a.schuetteln_aus === true,
+    forgot: a.start_vergessen === true,
+    waitMin: Number.isFinite(since) ? Math.max(0, Math.floor((Date.now() - since) / 60000)) : null,
+  };
+};
 // 🔢 Nummer der Zone für die Dienste: Zone 1 = 1, Zone 2 = 2, Grandzone = 3
 const zoneNum = (z) => (/grandzone$/.test(z.key) ? 3 : Number((/zone_(\d+)$/.exec(z.key) || [0, 1])[1]));
 // „Heißluft · 200 °C · 18 Min“ – für Lieblinge und „Zuletzt gesendet“
@@ -318,6 +336,15 @@ const BASE_CSS = `
   .ac-name { font-weight:600; }
   .ac-state { color:var(--c, var(--secondary-text-color)); font-size:.95em; }
   .ac-sub { opacity:.75; font-size:.85em; }
+  .ac-inh { font-weight:500; opacity:.8; } /* 🏷️ „· Pommes“ hinter dem Zonen-Namen */
+  .ac-alert { display:inline-block; margin-top:4px; padding:2px 8px; border-radius:8px; font-size:.85em; font-weight:600; background:rgba(251,140,0,.16); color:#e65100; }
+  .ac-blink { display:inline-block; animation:ac_blink 1s steps(2, start) infinite; } /* 🥄 blinkt – nur an/aus, ganz wenig Arbeit für den Fire TV */
+  @keyframes ac_blink { to { visibility:hidden; } }
+  @media (prefers-reduced-motion: reduce) { .ac-blink { animation:none; } }
+  .ac-tag { margin-left:6px; font-size:.85em; opacity:.8; }
+  .ac-favedit { display:inline-flex; gap:4px; }
+  .ac-chip.sh { border-style:dashed; min-width:64px; } .ac-chip.sh.on { border-style:solid; border-color:#f4511e; }
+  .ac-favform button.on { background:rgba(244,81,30,.18); }
   .ac-go { width:46px; height:46px; border-radius:12px; border:none; cursor:pointer; background:var(--b, #43A047); color:#fff; display:flex; align-items:center; justify-content:center; flex:none; }
   .ac-go:disabled { opacity:.4; cursor:default; }
   .ac-go ha-icon { --mdc-icon-size:22px; }
@@ -458,8 +485,8 @@ const BASE_CSS = `
   .ac-chip.del::after { content:"✕"; position:absolute; top:-8px; right:-8px; width:20px; height:20px; border-radius:50%; background:#e53935; color:#fff; font-size:12px; line-height:20px; text-align:center; }
   .ac-chip:disabled { opacity:.4; cursor:default; }
   .ac-flab .ac-edbtn { margin-left:auto; border:0; background:none; color:var(--primary-color); font:inherit; font-size:.95em; cursor:pointer; padding:2px 4px; }
-  .ac-favform { display:flex; gap:8px; margin:8px 0 0; } .ac-favform input { flex:1; width:auto; }
-  .ac-favform button { border:0; border-radius:10px; padding:0 14px; font:inherit; cursor:pointer; background:var(--secondary-background-color, rgba(127,127,127,.15)); color:inherit; }
+  .ac-favform { display:flex; gap:8px; margin:8px 0 0; } .ac-favform input { flex:1; width:auto; min-width:0; }
+  .ac-favform button { white-space:nowrap; flex:none; border:0; border-radius:10px; padding:0 14px; font:inherit; cursor:pointer; background:var(--secondary-background-color, rgba(127,127,127,.15)); color:inherit; }
   .ac-favform button.pri { background:#43a047; color:#fff; }
   /* ⏱️ +1 / +3 min */
   .ac-quick { display:flex; align-items:center; gap:8px; margin:6px 0 0; }
@@ -526,10 +553,12 @@ function acGuideHtml(hass) {
     <div class="ac-search"><input type="search" class="ac-q" data-q placeholder="${esc(t("🔎 In dieser Anleitung suchen, z. B. Sync", "🔎 Search this guide, e.g. sync"))}" aria-label="${esc(t("In dieser Anleitung suchen", "Search this guide"))}" autocomplete="off" enterkeyhint="search"><p class="ac-none" data-none hidden>${t("Nichts gefunden 🤷 – versuch ein anderes Wort.", "Nothing found 🤷 – try another word.")}</p></div>
     ${acSec("🍟", t("Zonen", "Zones"), `<p>${t("Jede Zeile ist eine Zone deiner Fritteuse. Farbe und Text zeigen, was sie gerade macht: <b>grün</b> = gart, <b>orange</b> = wartet auf Start, <b>rot</b> = fertig, <b>grau</b> = bereit oder aus.", "Each row is one zone of your air fryer. Colour and text show what it is doing: <b>green</b> = cooking, <b>orange</b> = waiting for start, <b>red</b> = done, <b>grey</b> = ready or off.")}</p>`, "#43a047", t("Was die Farben bedeuten", "What the colours mean"))}
     ${acSec("🎛️", t("Programm einstellen", "Set a program"), `<p>${t("Zeile antippen → darunter klappen Programm, Temperatur und Zeit auf (nochmal antippen = zu) → <b>Senden</b>. Das kleine <b>ⓘ</b> neben einem Feld erklärt es kurz.", "Tap a row → program, temperature and time unfold below it (tap again to close) → <b>Send</b>. The small <b>ⓘ</b> next to a field explains it briefly.")}</p><p>${t("Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>. Sicher ist sicher. 🔥", "The fryer is then prepared – <b>you always start it on the device</b>. Better safe than sorry. 🔥")}</p>`, "#fb8c00", t("Programm, Temperatur, Zeit", "Program, temperature, time"))}
-    ${acSec("⭐", t("Lieblinge & zuletzt gesendet", "Favourites & recently sent"), `<p>${t("Zeile antippen → ganz oben stehen deine <b>⭐ Lieblinge</b>. Antippen = sofort an diese Zone senden. <b>＋</b> speichert, was unten gerade eingestellt ist (Name frei wählbar, z. B. „Pommes“). <b>✏️ Löschen</b> = Lieblinge mit ✕ wegtippen.", "Tap a row → your <b>⭐ favourites</b> are at the top. Tap = send to this zone right away. <b>＋</b> saves what is set below (any name, e.g. “Fries”). <b>✏️ Delete</b> = tap favourites with ✕ away.")}</p><p>${t("Darunter <b>🕘 Zuletzt gesendet</b>: die letzten 5 Programme. Lieblinge und Verlauf liegen in Home Assistant – Handy und Küchen-Tablet sehen dasselbe.", "Below that <b>🕘 Recently sent</b>: the last 5 programs. Favourites and history live in Home Assistant – phone and kitchen tablet see the same.")}</p>`, "#fdd835", t("Ein Tipp statt drei Felder", "One tap instead of three fields"))}
+    ${acSec("⭐", t("Lieblinge & zuletzt gesendet", "Favourites & recently sent"), `<p>${t("Zeile antippen → ganz oben stehen deine <b>⭐ Lieblinge</b>. Antippen = sofort an diese Zone senden. <b>＋</b> speichert, was unten gerade eingestellt ist (Name frei wählbar, z. B. „Pommes“). <b>🥄</b> daneben = ans Schütteln erinnern (für Kuchen einfach ausschalten). <b>✏️ Bearbeiten</b> = Lieblinge mit ✕ wegtippen oder 🥄 an/aus schalten.", "Tap a row → your <b>⭐ favourites</b> are at the top. Tap = send to this zone right away. <b>＋</b> saves what is set below (any name, e.g. “Fries”). <b>🥄</b> next to it = remind to shake (just switch it off for cake). <b>✏️ Edit</b> = tap favourites with ✕ away or switch 🥄 on/off.")}</p><p>${t("Darunter <b>🕘 Zuletzt gesendet</b>: die letzten 5 Programme. Lieblinge und Verlauf liegen in Home Assistant – Handy und Küchen-Tablet sehen dasselbe.", "Below that <b>🕘 Recently sent</b>: the last 5 programs. Favourites and history live in Home Assistant – phone and kitchen tablet see the same.")}</p>`, "#fdd835", t("Ein Tipp statt drei Felder", "One tap instead of three fields"))}
     ${acSec("⏱️", t("+1 und +3 Minuten", "+1 and +3 minutes"), `<p>${t("<b>Gart</b> die Zone: die laufende Zeit wird länger (bei der <b>TwinFry</b> nicht – sie lehnt das beim Garen ab, darum sind die Knöpfe dann weg). <b>Wartet auf Start</b>: das Programm geht mit der neuen Zeit nochmal an die Fritteuse, gestartet wird am Gerät. <b>Fertig</b>, aber noch nicht knusprig? Dann wird dasselbe Programm für 1 oder 3 Minuten bereitgestellt – am Gerät auf Start. Sonst wird nur das Zeit-Feld größer.", "<b>Cooking</b>: the running time gets longer (not on the <b>TwinFry</b> – it refuses that while cooking, so the buttons are gone then). <b>Waiting for start</b>: the program is sent to the fryer again with the new time, you start on the device. <b>Done</b> but not crispy yet? Then the same program is prepared for 1 or 3 minutes – press Start on the device. Otherwise only the time field grows.")}</p><p>${t("Bei „Wartet auf Start“, beim Garen und bei „Fertig“ stehen die Knöpfe auch direkt in der Zeile.", "When waiting for start, while cooking and when done, the buttons are also right in the row.")}</p>`, "#00897b", t("Noch ein bisschen", "A little more"))}
     ${acSec("📲", t("Fertig-Meldung aufs Handy", "Done message to your phone"), `<p>${t("Unter ⚙️ › Integration › <b>Fertig melden an</b> Häkchen bei deinem Handy setzen und speichern. Die Fritteuse schreibt dann selbst „🍟 Fritteuse fertig!“ – ohne eigene Automation. Auf Wunsch auch zur Halbzeit „🥄 Jetzt schütteln!“. Kein Häkchen = aus (Standard). Wer selbst auf Stopp drückt, bekommt keine Meldung.", "Under ⚙️ › Integration › <b>Report done to</b> tick your phone and save. The air fryer then sends “🍟 Air fryer done!” itself – no automation needed. Optionally also “🥄 Shake now!” at half time. No tick = off (default). Pressing stop yourself sends no message.")}</p>`, "#8e24aa", t("ohne Automation", "no automation"))}
-    ${acSec("🥄", t("Schüttel-Erinnerung", "Shake reminder"), `<p>${t("Unter ⚙️ › Integration einschalten (Standard: aus). Zur Halbzeit kommt dann das Ereignis <code>airfryer_control_schuetteln</code> – für eine Handy-Nachricht oder Durchsage per Automation.", "Switch it on under ⚙️ › Integration (default: off). At half time the event <code>airfryer_control_schuetteln</code> fires – for a phone message or announcement via an automation.")}</p>`, "#f4511e", t("Halbzeit = schütteln", "Half time = shake"))}
+    ${acSec("🏷️", t("Was ist drin?", "What's inside?"), `<p>${t("Zeile antippen → <b>🏷️ Was ist drin?</b> eintippen, z. B. „Pommes“. Dann steht im Laufband „Zone 1 · Pommes: fertig um 18:30 Uhr“ und in der Fertig-Meldung aufs Handy „Zone 1 (Pommes): fertig“. Tippst du einen ⭐ Liebling an, steht sein Name von selbst da.", "Tap a row → type <b>🏷️ What's inside?</b>, e.g. “Fries”. Then the ticker says “Zone 1 · Fries: done at 18:30” and the done message on your phone “Zone 1 (Fries): done”. Tap a ⭐ favourite and its name lands there by itself.")}</p><p>${t("Nach dem Garen (Zone wieder „Bereit“ oder „Aus“) wird es von selbst vergessen.", "After cooking (zone back to “Ready” or “Off”) it is forgotten by itself.")}</p>`, "#6d4c41", t("Pommes oder Kuchen?", "Fries or cake?"))}
+    ${acSec("🥄", t("Schüttel-Erinnerung", "Shake reminder"), `<p>${t("Unter ⚙️ › Integration einschalten (Standard: aus). Zur Halbzeit – oder <b>alle 3, 5 oder 8 Minuten</b> – kommt dann das Ereignis <code>airfryer_control_schuetteln</code> für eine Handy-Nachricht oder Durchsage per Automation.", "Switch it on under ⚙️ › Integration (default: off). At half time – or <b>every 3, 5 or 8 minutes</b> – the event <code>airfryer_control_schuetteln</code> fires for a phone message or announcement via an automation.")}</p><p>${t("Dazu blinkt 3 Minuten lang ein <b>🥄 in der Karte und im Laufband</b> – auch am Küchen-Tablet und Fire TV. Schublade auf = geschüttelt, dann ist es sofort weg. Lieblinge mit 🥄 aus (z. B. Kuchen) werden nie erinnert.", "Also a <b>🥄 blinks in the card and the ticker</b> for 3 minutes – on the kitchen tablet and Fire TV too. Drawer open = shaken, then it is gone right away. Favourites with 🥄 off (e.g. cake) are never reminded.")}</p>`, "#f4511e", t("Halbzeit oder öfter", "Half time or more often"))}
+    ${acSec("⏰", t("Vergessen zu starten?", "Forgot to start?"), `<p>${t("Nach „Senden“ muss man am Gerät auf Start drücken. Wartet eine Zone <b>10 Minuten</b> (einstellbar unter ⚙️ › Integration) auf Start, steht in der Karte und im Laufband „⏰ Start am Gerät vergessen?“ – mit Handys unter „Fertig melden an“ kommt auch eine Nachricht. Für Automationen: Ereignis <code>airfryer_control_start_vergessen</code>.", "After “Send” you have to press Start on the device. If a zone waits <b>10 minutes</b> (set under ⚙️ › Integration) for start, the card and the ticker show “⏰ Forgot to press Start?” – with phones under “Report done to” you also get a message. For automations: event <code>airfryer_control_start_vergessen</code>.")}</p>`, "#fb8c00", t("Der Klassiker", "The classic"))}
     ${acSec("⏹️", t("Knopf rechts", "Button on the right"), `<p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>`, "#e53935", t("Senden, Abbrechen, Beenden", "Send, cancel, stop"))}
     ${acSec("🔗", "Match & Sync", `<p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. <b>Match senden</b> = beide Zonen bekommen dieselben Werte. <b>Sync senden</b> = beide werden zur selben Zeit fertig.", "With two zones: “Copy settings” copies the other zone. <b>Send Match</b> = both zones get the same values. <b>Send Sync</b> = both finish at the same time.")}</p><p>${t("Der Sync-Hinweis sagt dir außerdem, wann du die zweite Zone startest.", "The sync hint also tells you when to start the second zone.")}</p>`, "#1e88e5", t("Zwei Körbe, ein Abendessen", "Two baskets, one dinner"))}
     ${acSec("🔢", t("Oben in der Karte", "At the top of the card"), `<p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. 📴 = gerade keine Verbindung zu Home Assistant (die Karte zeigt den letzten Stand). Ist die Verbindung wieder da, holt die Karte die Werte sofort im Hintergrund (🔄). <b>ⓘ</b> = Infos & Credits. <b>⚙️</b> = Einstellungen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. 📴 = no connection to Home Assistant right now (the card shows the last known state). Once it is back, the card fetches the values in the background right away (🔄). <b>ⓘ</b> = info & credits. <b>⚙️</b> = settings.")}</p>`, "#8e24aa", t("Zahl, Punkt, Knöpfe", "Number, dot, buttons"))}
@@ -570,10 +599,12 @@ class AirfryerControlCard extends HTMLElement {
     const sig = zones.map((z) => [z.state, z.finish, z.mode, z.temp, z.time, z.sw]
       .map((e) => { const s = hass.states[e]; return s ? s.state + "|" + (s.attributes?.min ?? "") + (s.attributes?.max ?? "") : "-"; }).join(",")).join(";")
       + "#" + (findOnline(hass, zones)?.state || "") + (hass.connected === false ? "x" : "") + (AC_BACK.busy ? "b" : "") + this._open + (hass.language || "") + new Date().getHours()
-      + "#" + JSON.stringify(zones.map((z) => { const a = hass.states[z.progs]?.attributes || {}; return [a.lieblinge, a.zuletzt]; }));
+      + "#" + JSON.stringify(zones.map((z) => { const a = hass.states[z.progs]?.attributes || {}; return [a.lieblinge, a.zuletzt]; }))
+      + "#" + JSON.stringify(zones.map((z) => { const x = zoneExtra(hass, z); return [x.inhalt, x.shake, x.noShake, x.forgot, x.forgot ? x.waitMin : 0]; }));
     if (sig === this._sig) return;
     // ⌨️ Tippt gerade jemand den Namen eines Lieblings? Dann nicht dazwischenfunken (kommt gleich danach)
     if (this._favForm && this.shadowRoot.activeElement?.matches?.("[data-favname]")) return;
+    if (this.shadowRoot.activeElement?.matches?.("[data-inhalt]")) return; // 🏷️ tippt gerade „Was ist drin?“
     this._sig = sig;
     this._zones = zones;
     this._render();
@@ -661,11 +692,15 @@ class AirfryerControlCard extends HTMLElement {
         const fin = hass.states[z.finish];
         const b = this._btn(z);
         const sub = valid(fin) ? tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`) : "";
+        const x = zoneExtra(hass, z);
+        // 🥄 blinkt zur Schüttel-Zeit, ⏰ wenn der Start am Gerät vergessen wurde
+        const alert = x.shake ? `<div class="ac-alert ac-shake" role="status"><span class="ac-blink">🥄</span> ${esc(tr(hass, "Jetzt schütteln!", "Shake now!"))}</div>`
+          : x.forgot ? `<div class="ac-alert" role="status">⏰ ${esc(tr(hass, `Wartet seit ${x.waitMin ?? "?"} Min – Start am Gerät vergessen?`, `Waiting ${x.waitMin ?? "?"} min – forgot to press Start?`))}</div>` : "";
         return `<div class="ac-row ${this._open === z.key ? "open" : ""}" data-z="${esc(z.key)}" style="--c:${this._color(z)}" title="${esc(tr(hass, "Antippen = Programm, Temperatur und Zeit", "Tap = program, temperature and time"))}">
           <ha-icon icon="mdi:toaster-oven"></ha-icon>
-          <div class="ac-txt"><div class="ac-name">${esc(z.name)}</div>
+          <div class="ac-txt"><div class="ac-name">${esc(z.name)}${x.inhalt ? ` <span class="ac-inh">· ${esc(x.inhalt)}</span>` : ""}</div>
             <div class="ac-state">${esc(stateText(hass, st?.state))}</div>
-            ${sub ? `<div class="ac-sub">${esc(sub)}</div>` : ""}
+            ${sub ? `<div class="ac-sub">${esc(sub)}</div>` : ""}${alert}
             ${this._rowPlusHtml(z)}</div>
           <button class="ac-go" data-go="${esc(z.key)}" style="--b:${b.color}" title="${esc(b.text)}" ${z.sw ? "" : "disabled"}><ha-icon icon="${b.icon}"></ha-icon></button>
         </div>${this._msg?.key === z.key ? `<div class="ac-flash" role="status">${esc(this._msg.text)}</div>` : ""}${this._open === z.key ? this._zoneHtml(z, zones) : ""}`;
@@ -756,8 +791,9 @@ class AirfryerControlCard extends HTMLElement {
       const rows = [
         { key: "interval", icon: "mdi:update", color: "#26a69a", title: t("Abfrage-Takt", "Polling interval"), info: wait || t(`Alle ${io.intervall ?? 60} s, wenn nichts gart`, `Every ${io.intervall ?? 60} s while idle`), kw: "abfrage takt intervall sekunden cloud polling interval seconds" },
         { key: "sidebar", icon: "mdi:dock-left", color: "#1e88e5", title: t("In der Seitenleiste", "In the sidebar"), info: wait || t("Eintrag „Fritteuse“ links im Menü · gilt für alle", "“Fritteuse” entry in the left menu · for everyone"), kw: "seitenleiste menu sidebar panel", on: io ? !!io.sidebar : null },
-        { key: "shake", icon: "mdi:bell-ring-outline", color: "#f4511e", title: t("Schüttel-Erinnerung", "Shake reminder"), info: wait || t("Ereignis zur Halbzeit (Handy, Durchsage) · gilt für alle", "Event at half time (phone, announcement) · for everyone"), kw: "schuetteln schütteln erinnerung halbzeit ereignis shake reminder half event", on: io ? !!io.schuettel_erinnerung : null },
-        { key: "notify", icon: "mdi:cellphone-message", color: "#8e24aa", title: t("Fertig melden an", "Report done to"), info: wait || ((io.melden_an || []).length ? `📲 ${(io.melden_an || []).join(", ")}${io.melden_schuetteln ? t(" · auch Schütteln", " · also shaking") : ""}` : t("Aus · Handy-Nachricht ohne Automation", "Off · phone message without automation")), kw: "handy melden nachricht fertig benachrichtigung notify mobile app phone notification push" },
+        { key: "shake", icon: "mdi:bell-ring-outline", color: "#f4511e", title: t("Schüttel-Erinnerung", "Shake reminder"), info: wait || `${+io.schuettel_takt ? t(`Alle ${+io.schuettel_takt} Min`, `Every ${+io.schuettel_takt} min`) : t("Zur Halbzeit", "At half time")} · ${t("🥄 in Karte und Laufband · gilt für alle", "🥄 in card and ticker · for everyone")}`, kw: "schuetteln schütteln erinnerung halbzeit ereignis takt oefter öfter minuten laufband shake reminder half event often minutes ticker", on: io ? !!io.schuettel_erinnerung : null },
+        { key: "forgot", icon: "mdi:timer-alert-outline", color: "#fb8c00", title: t("Vergessen zu starten?", "Forgot to start?"), info: wait || (+io.start_vergessen ? t(`Hinweis nach ${+io.start_vergessen} Min ohne Start · gilt für alle`, `Hint after ${+io.start_vergessen} min without start · for everyone`) : t("Aus", "Off")), kw: "vergessen start starten wartet hinweis erinnerung forgot start waiting hint reminder" },
+        { key: "notify", icon: "mdi:cellphone-message", color: "#8e24aa", title: t("Fertig melden an", "Report done to"), info: wait || ((io.melden_an || []).length ? `📲 ${(io.melden_an || []).join(", ")}${io.melden_schuetteln ? t(" · auch Schütteln", " · also shaking") : ""}${io.melden_vergessen !== false ? t(" · auch ⏰", " · also ⏰") : ""}` : t("Aus · Handy-Nachricht ohne Automation", "Off · phone message without automation")), kw: "handy melden nachricht fertig benachrichtigung notify mobile app phone notification push" },
         { key: "smasc", icon: "mdi:emoticon-happy-outline", color: "#fb8c00", title: t("Maskottchen in der Seitenleiste", "Mascot in the sidebar"), info: wait || t("Nur die Seite in der Seitenleiste · gilt für alle", "Only the sidebar page · for everyone"), kw: "maskottchen seitenleiste mascot sidebar", on: io ? !!io.maskottchen : null },
         { key: "haopts", icon: "mdi:cog-outline", color: "#607d8b", title: t("Alle Optionen in Home Assistant", "All options in Home Assistant"), info: t("Öffnet die Integration (auch Zeiteinheit)", "Opens the integration (also time unit)"), kw: "optionen integration zeiteinheit options time unit", act: "haopts" },
       ];
@@ -808,6 +844,8 @@ class AirfryerControlCard extends HTMLElement {
   _subHtml(key) {
     const hass = this._hass, t = (d, e) => tr(hass, d, e), v = this._view(), eff = this._eff(), io = this._integ?.data || {};
     const seg = (k, cur, opts) => `<div class="ac-seg" role="group">${opts.map(([val, label]) => `<button type="button" data-view="${k}" data-val="${val}" class="${cur === val ? "on" : ""}" aria-pressed="${cur === val}">${esc(label)}</button>`).join("")}</div>`;
+    // 🔌 Auswahl für einen Wert der Integration (wird sofort gespeichert)
+    const segIo = (k, cur, opts) => `<div class="ac-seg" role="group">${opts.map(([val, label]) => `<button type="button" data-ioval="${k}" data-val="${val}" class="${cur === val ? "on" : ""}" aria-pressed="${cur === val}">${esc(label)}</button>`).join("")}</div>`;
     const sw = (k, on, label, sub) => `<div class="ac-lrow ac-swline"><span class="ac-grow" style="padding:10px 0 10px 12px"><b>${esc(label)}</b><small>${esc(sub)}</small></span><button type="button" class="ac-tgl" data-tgl="${k}" aria-pressed="${!!on}" aria-label="${esc(label)}"><span></span></button></div>`;
     const local = t("Gilt nur auf diesem Gerät (gespeichert im Browser).", "Only applies to this device (saved in the browser).");
     const reset = `<button type="button" class="ac-lbtn" data-vreset="${key}">↩️ ${esc(t("Wie im Karten-Editor", "Like in the card editor"))}</button>`;
@@ -820,7 +858,18 @@ class AirfryerControlCard extends HTMLElement {
       case "guide": return `<p>${esc(t("Der Knopf „📖 Anleitung“ unter der Karte. Die Anleitung findest du auch ohne ihn: ⚙️ › Über › Anleitung.", "The “📖 Guide” button below the card. You also find the guide without it: ⚙️ › About › Guide."))}</p>${sw("guide", eff.guide, t("Anleitung-Knopf zeigen", "Show guide button"), local)}${reset}`;
       case "sidebar": return `<p>${esc(t("Fügt links im Menü den Eintrag „Fritteuse“ hinzu: eine ganze Seite mit Laufband und Zonen.", "Adds a “Fritteuse” entry to the left menu: a full page with the ticker and the zones."))}</p>${sw("sidebar", !!io.sidebar, t("In der Seitenleiste zeigen", "Show in the sidebar"), t("gilt für alle", "for everyone"))}${reload}`;
       case "smasc": return `<p>${esc(t("Das Maskottchen auf der Seite in der Seitenleiste. Auf Dashboard-Karten schaltest du es unter 🍟 Karte.", "The mascot on the sidebar page. On dashboard cards you switch it under 🍟 Card."))}</p>${sw("smasc", !!io.maskottchen, t("Maskottchen in der Seitenleiste", "Mascot in the sidebar"), t("gilt für alle", "for everyone"))}${reload}`;
-      case "shake": return `<p>${esc(t("Zur Halbzeit (z. B. nach 9 von 18 Minuten) schickt Home Assistant das Ereignis „airfryer_control_schuetteln“ – einmal pro Garvorgang und Zone. Damit baust du dir eine Automation: Handy-Nachricht „Jetzt schütteln! 🥄“ oder eine Durchsage. Ein Beispiel steht in der README. Ohne Automation geht es auch: ⚙️ › Fertig melden an › „Auch zur Halbzeit“.", "At half time (e.g. after 9 of 18 minutes) Home Assistant fires the event “airfryer_control_schuetteln” – once per cook and zone. Use it in an automation: a phone message “Shake now! 🥄” or an announcement. There is an example in the README. Without an automation: ⚙️ › Report done to › “Also at half time”."))}</p>${sw("shake", !!io.schuettel_erinnerung, t("Schüttel-Erinnerung", "Shake reminder"), t("Standard: aus · gilt für alle", "Default: off · for everyone"))}${reload}`;
+      case "shake": {
+        const takt = +io.schuettel_takt || 0;
+        return `<p>${esc(t("Zur Halbzeit (z. B. nach 9 von 18 Minuten) schickt Home Assistant das Ereignis „airfryer_control_schuetteln“ – oder, wenn du magst, alle paar Minuten. In der Karte und im Laufband blinkt dann 3 Minuten lang ein 🥄 (Schublade auf = weg) – auch für alle ohne Handy in der Tasche, z. B. am Küchen-Tablet oder Fire TV. Mit dem Ereignis baust du dir eine Automation (Handy, Durchsage, Beispiel in der README). Ohne Automation: ⚙️ › Fertig melden an › „Auch zur Halbzeit“. Lieblinge mit 🥄 aus (z. B. Kuchen) werden nie erinnert.", "At half time (e.g. after 9 of 18 minutes) Home Assistant fires the event “airfryer_control_schuetteln” – or every few minutes if you like. The card and the ticker show a blinking 🥄 for 3 minutes (drawer open = gone) – also for everyone without a phone in their pocket, e.g. on the kitchen tablet or Fire TV. Use the event in an automation (phone, announcement, example in the README). Without an automation: ⚙️ › Report done to › “Also at half time”. Favourites with 🥄 off (e.g. cake) are never reminded."))}</p>${sw("shake", !!io.schuettel_erinnerung, t("Schüttel-Erinnerung", "Shake reminder"), t("Standard: aus · gilt für alle", "Default: off · for everyone"))}
+          <div class="ac-flab"><span>${esc(t("Wie oft?", "How often?"))}</span></div>${segIo("schuettel_takt", takt, [[0, t("Halbzeit", "Half time")], [3, t("alle 3 Min", "every 3 min")], [5, t("alle 5 Min", "every 5 min")], [8, t("alle 8 Min", "every 8 min")]])}
+          <p class="ac-pgsub">${esc(t("„Halbzeit“ = einmal pro Garen (Standard). Sonst beim Garen alle X Minuten, in der letzten Minute nicht mehr. Andere Werte (bis 30) unter „Alle Optionen in Home Assistant“.", "“Half time” = once per cook (default). Otherwise every X minutes while cooking, not in the last minute. Other values (up to 30) under “All options in Home Assistant”."))}</p>${reload}`;
+      }
+      case "forgot": {
+        const min = io.start_vergessen == null ? 10 : +io.start_vergessen;
+        return `<p>${esc(t("Nach „Senden“ muss man am Gerät noch auf Start drücken – das vergisst man gern. Wartet eine Zone zu lange auf Start, steht in der Karte und im Laufband „⏰ Start am Gerät vergessen?“. Dazu kommt einmal das Ereignis „airfryer_control_start_vergessen“, und mit Handys unter „Fertig melden an“ auch eine Nachricht.", "After “Send” you still have to press Start on the device – easy to forget. If a zone waits too long for start, the card and the ticker show “⏰ Forgot to press Start?”. Plus the event “airfryer_control_start_vergessen” fires once, and with phones under “Report done to” you get a message too."))}</p>
+          <div class="ac-flab"><span>${esc(t("Hinweis nach", "Hint after"))}</span></div>${segIo("start_vergessen", min, [[0, t("Aus", "Off")], [5, "5 Min"], [10, "10 Min"], [15, "15 Min"], [20, "20 Min"]])}
+          <p class="ac-pgsub">${esc(t("Standard: 10 Minuten · gilt für alle", "Default: 10 minutes · for everyone"))}</p>${reload}`;
+      }
       case "notify": {
         const chosen = new Set(io.melden_an || []);
         const all = Object.keys(hass.services?.notify || {}).filter((x) => x !== "send_message");
@@ -831,6 +880,7 @@ class AirfryerControlCard extends HTMLElement {
         return `<p>${esc(t("Die Fritteuse schreibt dir selbst aufs Handy, wenn sie fertig ist – ganz ohne eigene Automation. Häkchen bei einem oder mehreren Handys setzen und speichern. Kein Häkchen = aus (Standard). Hat jemand selbst auf Stopp gedrückt, kommt keine Meldung.", "The air fryer messages your phone itself when it is done – no automation needed. Tick one or more phones and save. No tick = off (default). If someone pressed stop themselves, no message is sent."))}</p>
           ${list}
           ${sw("nshake", !!io.melden_schuetteln, t("Auch zur Halbzeit „🥄 Jetzt schütteln!“", "Also “🥄 Shake now!” at half time"), t("Standard: aus · nur an die Handys oben", "Default: off · only to the phones above"))}
+          ${sw("nforgot", io.melden_vergessen !== false, t("Auch „⏰ Vergessen zu starten?“", "Also “⏰ Forgot to start?”"), t("Standard: an · nur an die Handys oben", "Default: on · only to the phones above"))}
           <button type="button" class="ac-big" data-nsave style="--b:#43a047">💾 ${esc(t("Speichern", "Save"))}</button>${reload}`;
       }
       case "interval": return `<p>${esc(t("So oft fragt Home Assistant die Cosori-Cloud, wenn nichts gart (30–600 Sekunden). Beim Garen wird immer alle 15 Sekunden gefragt.", "How often Home Assistant asks the Cosori cloud while nothing is cooking (30–600 seconds). While cooking it always asks every 15 seconds."))}</p>
@@ -893,7 +943,7 @@ class AirfryerControlCard extends HTMLElement {
     }));
     scope.querySelectorAll("[data-tgl]").forEach((el) => el.addEventListener("click", async () => {
       const k = el.dataset.tgl, on = el.getAttribute("aria-pressed") !== "true";
-      if (k === "nshake") { el.setAttribute("aria-pressed", String(on)); return; } // 📲 wird mit „Speichern“ zusammen mit den Handys gespeichert
+      if (k === "nshake" || k === "nforgot") { el.setAttribute("aria-pressed", String(on)); return; } // 📲 wird mit „Speichern“ zusammen mit den Handys gespeichert
       if (k === "sidebar" || k === "smasc" || k === "shake") { // 🔌 gilt für alle → Integration speichern
         el.disabled = true; el.setAttribute("aria-pressed", String(on));
         const ok = await this._integSave(k === "sidebar" ? { sidebar: on } : k === "shake" ? { schuettel_erinnerung: on } : { maskottchen: on });
@@ -918,11 +968,21 @@ class AirfryerControlCard extends HTMLElement {
       const btn = e.currentTarget, msg = this.shadowRoot.querySelector("[data-iomsg]");
       const svcs = [...this.shadowRoot.querySelectorAll("[data-nsvc]")].filter((x) => x.checked).map((x) => x.dataset.nsvc).slice(0, 10);
       const shake = this.shadowRoot.querySelector('[data-tgl="nshake"]')?.getAttribute("aria-pressed") === "true";
+      const forgot = this.shadowRoot.querySelector('[data-tgl="nforgot"]')?.getAttribute("aria-pressed") !== "false";
       btn.disabled = true;
-      const ok = await this._integSave({ melden_an: svcs, melden_schuetteln: shake });
+      const ok = await this._integSave({ melden_an: svcs, melden_schuetteln: shake, melden_vergessen: forgot });
       btn.disabled = false;
       if (msg) msg.textContent = ok ? "✅ " + (svcs.length ? t("Gespeichert! Ab jetzt meldet sich die Fritteuse auf dem Handy.", "Saved! From now on the air fryer messages your phone.") : t("Gespeichert – Handy-Meldung ist aus.", "Saved – phone message is off.")) : "😕 " + t("Speichern ging nicht. Versuch es über „Alle Optionen in Home Assistant“.", "Saving failed. Try “All options in Home Assistant”.");
     });
+    // 🥄 Schüttel-Takt / ⏰ Start vergessen: Knopf antippen = sofort speichern (gilt für alle)
+    scope.querySelectorAll("[data-ioval]").forEach((el) => el.addEventListener("click", async () => {
+      const k = el.dataset.ioval, val = Number(el.dataset.val), msg = this.shadowRoot.querySelector("[data-iomsg]");
+      const btns = [...scope.querySelectorAll(`[data-ioval="${k}"]`)];
+      btns.forEach((b) => { b.disabled = true; b.classList.toggle("on", b === el); b.setAttribute("aria-pressed", String(b === el)); });
+      const ok = await this._integSave({ [k]: val });
+      btns.forEach((b) => { b.disabled = false; });
+      if (msg) msg.textContent = ok ? "✅ " + t("Gespeichert! Die Integration lädt kurz neu.", "Saved! The integration reloads briefly.") : "😕 " + t("Speichern ging nicht. Versuch es über „Alle Optionen in Home Assistant“.", "Saving failed. Try “All options in Home Assistant”.");
+    }));
     scope.querySelector("[data-iosave]")?.addEventListener("click", async (e) => {
       const btn = e.currentTarget, msg = this.shadowRoot.querySelector("[data-iomsg]");
       const n = Math.round(Number(this.shadowRoot.querySelector('[data-io="intervall"]').value) / 10) * 10;
@@ -1046,6 +1106,7 @@ class AirfryerControlCard extends HTMLElement {
     const copyKey = `${z.key}:copy`, goKey = `${z.key}:go`, modeKey = `${z.key}:mode`;
     return `<div class="ac-edit" style="--c:${this._color(z)}">
       ${this._favHtml(z, opts)}
+      ${this._inhaltHtml(z)}
       ${opts.length ? `<div class="ac-flab"><span>${t("Programm", "Program")}</span>${this._info(modeKey, tr(hass, "Programm", "Program"))}</div>${this._hint(modeKey, t("Tippe ein Programm an. Temperatur und Zeit springen dann auf den Vorschlag der Fritteuse für dieses Programm.", "Tap a program. Temperature and time then jump to the fryer's suggestion for that program."))}<div class="ac-modes">${modes}</div>` : ""}
       ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C", tHelp)}
       ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min", mHelp)}
@@ -1068,16 +1129,35 @@ class AirfryerControlCard extends HTMLElement {
     const { favs, recent } = this._progs(z);
     const busy = RUNNING.includes(hass.states[z.state]?.state) ? "disabled" : "";
     const edit = this._favEdit === z.key, favKey = `${z.key}:fav`, recKey = `${z.key}:recent`;
+    const noShake = (p) => p.schuetteln === false; // 🥄 bei diesem Liebling nicht ans Schütteln erinnern
     const favChips = favs.map((p, i) => [p, i]).filter(([p]) => fits(p)).map(([p, i]) => edit
-      ? `<button type="button" class="ac-chip del" data-favdel="${i}" aria-label="${t(`${p.name} löschen`, `Delete ${p.name}`)}"><b>⭐ ${esc(p.name)}</b><small>${esc(progLine(hass, p))}</small></button>`
-      : `<button type="button" class="ac-chip" data-fav="${i}" ${busy}><b>⭐ ${esc(p.name)}</b><small>${esc(progLine(hass, p))}</small></button>`).join("");
+      ? `<span class="ac-favedit"><button type="button" class="ac-chip del" data-favdel="${i}" aria-label="${t(`${p.name} löschen`, `Delete ${p.name}`)}"><b>⭐ ${esc(p.name)}</b><small>${esc(progLine(hass, p))}</small></button><button type="button" class="ac-chip sh ${noShake(p) ? "" : "on"}" data-favshake="${i}" aria-pressed="${!noShake(p)}" title="${t("Schüttel-Erinnerung bei diesem Liebling an / aus", "Shake reminder for this favourite on / off")}"><b>🥄 ${noShake(p) ? t("aus", "off") : t("an", "on")}</b><small>${t("schütteln", "shake")}</small></button></span>`
+      : `<button type="button" class="ac-chip" data-fav="${i}" ${busy}><b>⭐ ${esc(p.name)}</b><small>${esc(progLine(hass, p))}${noShake(p) ? " · 🥄✕" : ""}</small></button>`).join("");
     const mode = hass.states[z.mode]?.state, temp = hass.states[z.temp]?.state;
-    const form = this._favForm === z.key ? `<div class="ac-favform"><input class="ac-num" data-favname maxlength="40" value="${esc(this._favName ?? `${modeText(hass, mode)} ${temp}°`)}" aria-label="${t("Name des Lieblings", "Name of the favourite")}" enterkeyhint="done"><button type="button" class="pri" data-favsave>💾</button><button type="button" data-favcancel aria-label="${t("Abbrechen", "Cancel")}">✕</button></div>` : "";
+    const fsh = this._favShake !== false;
+    const form = this._favForm === z.key ? `<div class="ac-favform"><input class="ac-num" data-favname maxlength="40" value="${esc(this._favName ?? `${modeText(hass, mode)} ${temp}°`)}" aria-label="${t("Name des Lieblings", "Name of the favourite")}" enterkeyhint="done"><button type="button" class="${fsh ? "on" : ""}" data-favnewshake aria-pressed="${fsh}" title="${t("Schüttel-Erinnerung bei diesem Liebling", "Shake reminder for this favourite")}">🥄${fsh ? "" : "✕"}</button><button type="button" class="pri" data-favsave>💾</button><button type="button" data-favcancel aria-label="${t("Abbrechen", "Cancel")}">✕</button></div>` : "";
     const recChips = recent.filter(fits).slice(0, 5).map((p) => `<button type="button" class="ac-chip" data-recent="${esc(JSON.stringify([p.programm, p.temperatur, p.minuten]))}" ${busy}><b>🕘 ${esc(modeText(hass, p.programm))}</b><small>${esc(`${p.temperatur} °C · ${p.minuten} ${tr(hass, "Min", "min")}`)}</small></button>`).join("");
-    return `<div class="ac-flab"><span>⭐ ${t("Lieblinge", "Favourites")}</span>${this._info(favKey, tr(hass, "Lieblinge", "Favourites"))}${favChips ? `<button type="button" class="ac-edbtn" data-favedit>${edit ? t("✓ Fertig", "✓ Done") : t("✏️ Löschen", "✏️ Delete")}</button>` : ""}</div>
-      ${this._hint(favKey, t("Antippen = sofort an diese Zone senden (nur bereitstellen, Start am Gerät). ＋ merkt sich Programm, Temperatur und Zeit, die unten gerade eingestellt sind. Lieblinge gelten auf allen Geräten.", "Tap = send to this zone right away (prepare only, start on the device). ＋ saves the program, temperature and time set below. Favourites apply on all devices."))}
+    return `<div class="ac-flab"><span>⭐ ${t("Lieblinge", "Favourites")}</span>${this._info(favKey, tr(hass, "Lieblinge", "Favourites"))}${favChips ? `<button type="button" class="ac-edbtn" data-favedit>${edit ? t("✓ Fertig", "✓ Done") : t("✏️ Bearbeiten", "✏️ Edit")}</button>` : ""}</div>
+      ${this._hint(favKey, t("Antippen = sofort an diese Zone senden (nur bereitstellen, Start am Gerät). ＋ merkt sich Programm, Temperatur und Zeit, die unten gerade eingestellt sind – 🥄 daneben = ans Schütteln erinnern (für Kuchen ausschalten). ✏️ Bearbeiten: ⭐ antippen = löschen, 🥄 antippen = Schütteln an/aus. Lieblinge gelten auf allen Geräten.", "Tap = send to this zone right away (prepare only, start on the device). ＋ saves the program, temperature and time set below – 🥄 next to it = remind to shake (switch off for cake). ✏️ Edit: tap ⭐ = delete, tap 🥄 = shaking on/off. Favourites apply on all devices."))}
       <div class="ac-chips">${favChips}${edit ? "" : `<button type="button" class="ac-chip add" data-favadd title="${t("Jetzige Einstellung als Liebling speichern", "Save the current setting as a favourite")}">＋ ${favs.length ? t("Neu", "New") : t("Als Liebling speichern", "Save as favourite")}</button>`}</div>${form}
       ${recChips ? `<div class="ac-flab"><span>🕘 ${t("Zuletzt gesendet", "Recently sent")}</span>${this._info(recKey, tr(hass, "Zuletzt gesendet", "Recently sent"))}</div>${this._hint(recKey, t("Die letzten 5 Programme, die an die Fritteuse gingen. Antippen = nochmal an diese Zone senden.", "The last 5 programs sent to the fryer. Tap = send to this zone again."))}<div class="ac-chips">${recChips}</div>` : ""}`;
+  }
+  // 🏷️ „Was ist drin?“ – steht im Laufband und in der Fertig-Meldung, wird nach dem Garen von selbst vergessen
+  _inhaltHtml(z) {
+    const hass = this._hass, t = (d, e) => esc(tr(hass, d, e));
+    if (!hass.entities?.[z.state]?.device_id) return "";
+    const x = zoneExtra(hass, z), key = `${z.key}:inhalt`;
+    return `<div class="ac-flab"><span>🏷️ ${t("Was ist drin?", "What's inside?")}</span>${this._info(key, tr(hass, "Was ist drin?", "What's inside?"))}${x.noShake ? `<span class="ac-tag" title="${t("Der Liebling sagt: nicht schütteln", "The favourite says: no shaking")}">🥄✕</span>` : ""}</div>
+      ${this._hint(key, t("Z. B. „Pommes“. Steht dann im Laufband („Zone 1 · Pommes“) und in der Fertig-Meldung aufs Handy. Tippst du einen ⭐ Liebling an, steht sein Name von selbst hier. Nach dem Garen wird es wieder vergessen.", "E.g. “Fries”. Then it shows in the ticker (“Zone 1 · Fries”) and in the done message on your phone. Tap a ⭐ favourite and its name lands here by itself. After cooking it is forgotten again."))}
+      <div class="ac-favform"><input class="ac-num" data-inhalt="${esc(z.key)}" maxlength="40" value="${esc(x.inhalt)}" placeholder="${t("z. B. Pommes", "e.g. Fries")}" aria-label="${t("Was ist drin?", "What's inside?")}" enterkeyhint="done">${x.inhalt ? `<button type="button" data-inhaltdel="${esc(z.key)}" aria-label="${t("Inhalt löschen", "Delete contents")}">✕</button>` : ""}</div>`;
+  }
+  async _setInhalt(z, text) {
+    const hass = this._hass, dev = hass.entities?.[z.state]?.device_id;
+    if (!dev) return;
+    const val = String(text || "").trim().slice(0, 40);
+    if (val === zoneExtra(hass, z).inhalt) return;
+    try { await this._svc("inhalt_setzen", { geraet: dev, zone: zoneNum(z), inhalt: val }); }
+    catch (e) { this._flash(z, tr(hass, `😕 Ging nicht: ${e?.message || e}`, `😕 Did not work: ${e?.message || e}`)); }
   }
   // ⏱️ +1 / +3 min – was der Knopf macht, hängt davon ab, was die Zone gerade tut
   _plusKind(z) {
@@ -1115,12 +1195,17 @@ class AirfryerControlCard extends HTMLElement {
     await hass.callService(AC, service, data);
     return null;
   }
-  async _sendProg(z, p) { // ⭐/🕘 an die Zone schicken – nur bereitstellen, nie starten
+  async _sendProg(z, p, fav = false) { // ⭐/🕘 an die Zone schicken – nur bereitstellen, nie starten
     const hass = this._hass, dev = hass.entities?.[z.state]?.device_id;
     if (!dev || this._busySend) return;
     this._busySend = true;
     try {
-      const r = await this._svc("programm_senden", { geraet: dev, zone: zoneNum(z), programm: p.programm, temperatur: p.temperatur, minuten: p.minuten }, true);
+      const data = { geraet: dev, zone: zoneNum(z), programm: p.programm, temperatur: p.temperatur, minuten: p.minuten };
+      if (fav) { // ⭐ Liebling: 🥄 ja/nein mitschicken – und sein Name wird zum Inhalt, wenn noch nichts eingetippt ist
+        data.schuetteln = p.schuetteln !== false;
+        if (!zoneExtra(hass, z).inhalt && p.name) data.inhalt = String(p.name).slice(0, 40);
+      }
+      const r = await this._svc("programm_senden", data, true);
       this._flash(z, r && r.ok === false
         ? tr(hass, `😕 Hat nicht geklappt (${r.fehler || r.ergebnis}). Ist die Fritteuse an?`, `😕 Did not work (${r.fehler || r.ergebnis}). Is the fryer on?`)
         : tr(hass, `✅ ${progLine(hass, p)} ist bereit – jetzt am Gerät auf Start drücken.`, `✅ ${progLine(hass, p)} is ready – now press Start on the device.`));
@@ -1163,7 +1248,7 @@ class AirfryerControlCard extends HTMLElement {
     const openZ = () => zoneOf(this._open);
     root.querySelectorAll("[data-fav]").forEach((el) => el.addEventListener("click", () => {
       const z = openZ(), p = z && this._progs(z).favs[Number(el.dataset.fav)];
-      if (p) this._sendProg(z, p);
+      if (p) this._sendProg(z, p, true);
     }));
     root.querySelectorAll("[data-recent]").forEach((el) => el.addEventListener("click", () => {
       const z = openZ();
@@ -1171,12 +1256,31 @@ class AirfryerControlCard extends HTMLElement {
     }));
     root.querySelector("[data-favedit]")?.addEventListener("click", () => { this._favEdit = this._favEdit === this._open ? null : this._open; this._favForm = null; this._sig = ""; this.hass = this._hass; });
     root.querySelector("[data-favadd]")?.addEventListener("click", () => {
-      this._favForm = this._open; this._favName = null; this._sig = ""; this.hass = this._hass;
+      this._favForm = this._open; this._favName = null; this._favShake = true; this._sig = ""; this.hass = this._hass;
       const inp = root.querySelector("[data-favname]"); if (inp) { inp.focus(); inp.select(); }
     });
     root.querySelector("[data-favcancel]")?.addEventListener("click", () => { this._favForm = null; this._favName = null; this._sig = ""; this.hass = this._hass; });
     const favName = root.querySelector("[data-favname]");
     favName?.addEventListener("input", () => { this._favName = favName.value; });
+    root.querySelector("[data-favnewshake]")?.addEventListener("click", (e) => { // 🥄 beim neuen Liebling an/aus (ohne neu zu zeichnen)
+      this._favShake = this._favShake === false; const b = e.currentTarget, on = this._favShake;
+      b.setAttribute("aria-pressed", String(on)); b.classList.toggle("on", on); b.textContent = on ? "🥄" : "🥄✕";
+    });
+    root.querySelectorAll("[data-favshake]").forEach((el) => el.addEventListener("click", async () => { // 🥄 bei vorhandenem Liebling umschalten
+      const z = openZ(), p = z && this._progs(z).favs[Number(el.dataset.favshake)];
+      if (!p) return;
+      el.disabled = true;
+      try { await this._svc("liebling_speichern", { geraet: this._hass.entities?.[z.state]?.device_id, name: p.name, programm: p.programm, temperatur: p.temperatur, minuten: p.minuten, schuetteln: p.schuetteln === false }); }
+      catch (e) { this._flash(z, tr(this._hass, `😕 Ging nicht: ${e?.message || e}`, `😕 Did not work: ${e?.message || e}`)); }
+      finally { el.disabled = false; }
+    }));
+    // 🏷️ Was ist drin? – speichern beim Verlassen des Feldes oder mit Enter
+    root.querySelectorAll("[data-inhalt]").forEach((el) => {
+      const z = zoneOf(el.dataset.inhalt);
+      el.addEventListener("change", () => { if (z) this._setInhalt(z, el.value); });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
+    });
+    root.querySelectorAll("[data-inhaltdel]").forEach((el) => el.addEventListener("click", () => { const z = zoneOf(el.dataset.inhaltdel); if (z) this._setInhalt(z, ""); }));
     const saveFav = async () => {
       const z = openZ(), hass = this._hass, name = (favName?.value || "").trim();
       if (!z || !name) return;
@@ -1185,7 +1289,7 @@ class AirfryerControlCard extends HTMLElement {
       if (!p.programm || !Number.isFinite(p.temperatur) || !Number.isFinite(p.minuten)) return;
       this._favForm = null; this._favName = null;
       try {
-        await this._svc("liebling_speichern", { geraet: dev, name, ...p });
+        await this._svc("liebling_speichern", { geraet: dev, name, ...p, schuetteln: this._favShake !== false });
         this._flash(z, tr(hass, `⭐ „${name}“ gespeichert.`, `⭐ “${name}” saved.`));
       } catch (e) { this._flash(z, tr(hass, `😕 Speichern ging nicht: ${e?.message || e}`, `😕 Saving failed: ${e?.message || e}`)); }
     };
@@ -1313,7 +1417,7 @@ class AirfryerControlTicker extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     const parts = this._parts();
-    const sig = parts.items.join("|") + parts.done + (this._config?.language || "") + (this._config?.speed || "");
+    const sig = parts.items.join("|") + parts.done + parts.shake + (this._config?.language || "") + (this._config?.speed || "");
     if (sig === this._sig) { this._measure(); return; }
     this._sig = sig;
     this._render();
@@ -1329,17 +1433,24 @@ class AirfryerControlTicker extends HTMLElement {
   _parts() {
     const hass = this._lh();
     const items = [];
-    let done = false;
+    let done = false, shake = false;
     for (const z of findZones(hass)) {
       const s = hass.states[z.state]?.state;
       const fin = hass.states[z.finish];
-      const name = z.name;
-      if (s === "gart" || s === "vorheizen") {
+      const x = zoneExtra(hass, z);
+      const name = x.inhalt ? `${z.name} · ${x.inhalt}` : z.name; // 🏷️ „Zone 1 · Pommes“
+      if (x.shake && (s === "gart" || s === "pausiert")) { // 🥄 Schüttel-Zeit: blinkt vorne, Rahmen orange
+        shake = true;
+        items.push(`${SPN} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "Jetzt schütteln!", "Shake now!")}`);
+      } else if (s === "gart" || s === "vorheizen") {
         const when = s === "gart" && valid(fin) ? tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`)
           : (s === "vorheizen" ? tr(hass, "heizt vor", "preheating") : tr(hass, "gart", "cooking"));
         items.push(`${FRY} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${when}`);
       } else if (s === "wartet_auf_sync") {
         items.push(`${FRY} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Sync-Start", "waiting for sync start")}`);
+      } else if (s === "wartet_auf_start" && x.forgot) { // ⏰ Start am Gerät vergessen?
+        shake = true;
+        items.push(`⏰ ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, `wartet seit ${x.waitMin ?? "?"} Min auf Start – vergessen?`, `waiting ${x.waitMin ?? "?"} min for start – forgot?`)}`);
       } else if (s === "wartet_auf_start") {
         items.push(`${FRY} ${tr(hass, "Fritteuse", "Air fryer")} ${name}: ${tr(hass, "wartet auf Start", "waiting for start")}`);
       } else if (s === "fertig") {
@@ -1354,13 +1465,13 @@ class AirfryerControlTicker extends HTMLElement {
       timers.filter((x) => !x.fertig).sort((a, b) => Date.parse(a.ende) - Date.parse(b.ende))
         .forEach((x) => items.push(`${TMR}${x.name}: ${tr(hass, `fertig um ${clock(x.ende, hass)} Uhr`, `done at ${clock(x.ende, hass)}`)}`));
     }
-    return { items, done };
+    return { items, done, shake };
   }
 
   _render() {
     const hass = this._lh();
     if (!hass || !this._config) return;
-    const { items, done } = this._parts();
+    const { items, done, shake } = this._parts();
     const hide = this._config.hide_when_idle && !items.length;
     this.hidden = hide;
     this.style.display = hide ? "none" : "";
@@ -1371,13 +1482,15 @@ class AirfryerControlTicker extends HTMLElement {
     const n = Math.max(5, Math.ceil(320 / plain));
     const text = piece.repeat(n);
     const dur = Math.max(8, Math.round(((plain * n * 11) / 100) * (60 / (Number(this._config.speed) || 60))));
-    const color = done ? "#E53935" : "#26A69A";
+    const color = done ? "#E53935" : shake ? "#FB8C00" : "#26A69A"; // rot = fertig, orange = 🥄 schütteln / ⏰ Start vergessen
     const img = `<img class="fry" src="${AC_BASE}/icon.png?v=${esc(AC_VERSION)}" alt="" width="20" height="20">`;
     const timg = `<img class="fry" src="${AC_BASE}/timer-icon.png?v=${esc(AC_VERSION)}" alt="" width="24" height="24" style="width:24px;height:24px;margin:-4px 6px 0 0">`;
-    const html = esc(text).split(FRY).join(img).split(TMR).join(timg);
+    const html = esc(text).split(FRY).join(img).split(TMR).join(timg).split(SPN).join('<span class="spoon">🥄</span>');
     this.shadowRoot.innerHTML = `<style>
       :host { display:block; }
       .fry { width:20px; height:20px; vertical-align:middle; margin:-3px 4px 0 0; border-radius:4px; }
+      .spoon { display:inline-block; animation:ac_blink 1s steps(2, start) infinite; }
+      @keyframes ac_blink { to { visibility:hidden; } }
       ha-card { display:block; height:40px; padding:0; background:var(--card-background-color); border-radius:8px; border:none; box-shadow:0 5px 3px rgba(0,0,0,.1); overflow:hidden; }
       .box { display:flex; align-items:center; width:100%; height:100%; border:2px solid ${color}; border-radius:8px; box-sizing:border-box; }
       .box ha-icon { flex:none; --mdc-icon-size:22px; margin:0 10px; color:${color}; ${done ? "animation:ac_pulse 1s ease-in-out infinite;" : ""} }
@@ -1387,7 +1500,7 @@ class AirfryerControlTicker extends HTMLElement {
       .txt { font-family:Roboto,sans-serif; font-size:16px; font-weight:500; line-height:20px; padding-right:20px; color:var(--primary-text-color); }
       @keyframes ac_pulse { 0% { opacity:1 } 50% { opacity:.3 } 100% { opacity:1 } }
       @keyframes ac_tick { from { transform:translateX(0) } to { transform:translateX(-50%) } }
-      @media (prefers-reduced-motion: reduce) { .wrap { animation:none; } .box ha-icon { animation:none; } }
+      @media (prefers-reduced-motion: reduce) { .wrap { animation:none; } .box ha-icon, .spoon { animation:none; } }
     </style>
     <ha-card><div class="box"><ha-icon icon="mdi:chef-hat"></ha-icon><div class="win"><div class="wrap"><span class="txt">${html}</span><span class="txt">${html}</span></div></div><ha-icon icon="mdi:chef-hat"></ha-icon></div></ha-card>`;
     this._measured = false;

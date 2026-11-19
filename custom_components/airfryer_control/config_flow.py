@@ -46,6 +46,12 @@ from .const import (
     OPT_NOTIFY,
     OPT_NOTIFY_SHAKE,
     OPT_SHAKE,
+    OPT_SHAKE_EVERY,
+    SHAKE_EVERY_MAX,
+    OPT_FORGOT,
+    DEFAULT_FORGOT,
+    FORGOT_MAX,
+    OPT_NOTIFY_FORGOT,
     OPT_SIDEBAR,
     OPT_TIME_UNIT,
     REGIONS,
@@ -188,6 +194,10 @@ class AirfryerOptionsFlow(OptionsFlow):
             user_input[OPT_SHAKE] = bool(user_input.get(OPT_SHAKE, False))
             user_input[OPT_NOTIFY] = clean_notify(user_input.get(OPT_NOTIFY))  # 📲 leer = aus
             user_input[OPT_NOTIFY_SHAKE] = bool(user_input.get(OPT_NOTIFY_SHAKE, False))
+            # 🥄 / ⏰ ganze Minuten in den erlaubten Grenzen
+            user_input[OPT_SHAKE_EVERY] = max(0, min(SHAKE_EVERY_MAX, int(user_input.get(OPT_SHAKE_EVERY, 0) or 0)))
+            user_input[OPT_FORGOT] = max(0, min(FORGOT_MAX, int(user_input.get(OPT_FORGOT, DEFAULT_FORGOT) or 0)))
+            user_input[OPT_NOTIFY_FORGOT] = bool(user_input.get(OPT_NOTIFY_FORGOT, True))
             return self.async_create_entry(data=user_input)
         opts = self.config_entry.options
         chosen = clean_notify(opts.get(OPT_NOTIFY))
@@ -221,6 +231,16 @@ class AirfryerOptionsFlow(OptionsFlow):
                 vol.Optional(OPT_SIDEBAR, default=bool(opts.get(OPT_SIDEBAR, False))): BooleanSelector(),
                 vol.Optional(OPT_MASCOT, default=bool(opts.get(OPT_MASCOT, False))): BooleanSelector(),
                 vol.Optional(OPT_SHAKE, default=bool(opts.get(OPT_SHAKE, False))): BooleanSelector(),
+                vol.Optional(OPT_SHAKE_EVERY, default=int(opts.get(OPT_SHAKE_EVERY, 0) or 0)): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=SHAKE_EVERY_MAX, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Optional(OPT_FORGOT, default=int(opts.get(OPT_FORGOT, DEFAULT_FORGOT))): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=FORGOT_MAX, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Optional(OPT_NOTIFY, default=chosen): SelectSelector(
                     SelectSelectorConfig(
                         options=sorted(set(services) | set(chosen), key=lambda s: (not s.startswith("mobile_app_"), s)),
@@ -230,6 +250,7 @@ class AirfryerOptionsFlow(OptionsFlow):
                     )
                 ),
                 vol.Optional(OPT_NOTIFY_SHAKE, default=bool(opts.get(OPT_NOTIFY_SHAKE, False))): BooleanSelector(),
+                vol.Optional(OPT_NOTIFY_FORGOT, default=bool(opts.get(OPT_NOTIFY_FORGOT, True))): BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

@@ -241,7 +241,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
         result["flow_id"], {"intervall": 120, "zeiteinheit": "minuten"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False, "schuettel_erinnerung": False, "melden_an": [], "melden_schuetteln": False}
+    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False, "schuettel_erinnerung": False, "melden_an": [], "melden_schuetteln": False, "schuettel_takt": 0, "start_vergessen": 10, "melden_vergessen": True}
 
 
 async def test_reauth_when_login_fails(hass: HomeAssistant, fake_api) -> None:
@@ -1331,7 +1331,7 @@ async def test_favorites_and_recent(hass: HomeAssistant, fake_api) -> None:
     await hass.async_block_till_done()
     st = hass.states.get(sid)
     assert st.state == "1"
-    assert st.attributes["lieblinge"] == [{"name": "pommes", "programm": "airfry", "temperatur": 205, "minuten": 19}]
+    assert st.attributes["lieblinge"] == [{"name": "pommes", "programm": "airfry", "temperatur": 205, "minuten": 19, "schuetteln": True}]
     # Senden (für alle) → landet in „zuletzt gesendet“, doppelt rutscht nach vorn, höchstens 5
     for minutes in (10, 11, 12, 13, 14, 15, 10):
         await hass.services.async_call(
@@ -1517,3 +1517,162 @@ async def test_ws_info_reports_version(hass: HomeAssistant, hass_ws_client) -> N
     assert msg["success"]
     manifest = _json.loads((_Path(__file__).parent.parent / "custom_components/airfryer_control/manifest.json").read_text(encoding="utf-8"))
     assert msg["result"]["version"] == manifest["version"]
+
+
+# ------------------------------------- ⏰ Start vergessen, 🏷️ Inhalt pro Zone, 🥄 je Liebling / öfter
+def _zone1(hass: HomeAssistant):
+    return hass.states.get(eid(hass, "sensor", "zone1_status"))
+
+
+async def test_forgot_to_start_event_and_phone(hass: HomeAssistant, fake_api) -> None:
+    """⏰ Zone wartet 10 Minuten auf Start → einmal Ereignis + Handy, Karte sieht start_vergessen."""
+    from datetime import timedelta as _td
+    from pytest_homeassistant_custom_component.common import async_mock_service
+    from homeassistant.util import dt as _dt
+    from custom_components.airfryer_control.const import EVENT_FORGOT
+
+    calls = async_mock_service(hass, "notify", "mobile_app_marco")
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, melden_an=["mobile_app_marco"])
+    events = async_capture_events(hass, EVENT_FORGOT)
+    coordinator = entry.runtime_data
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Pommes"}, blocking=True)
+    fake_api.multi = real_twinfry("ready", remaining=900, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    st = _zone1(hass)
+    assert st.state == "wartet_auf_start" and st.attributes["wartet_seit"]
+    assert st.attributes["start_vergessen"] is False and events == []
+    # 11 Minuten später – immer noch nicht gestartet
+    key = next(iter(coordinator.waiting_since))
+    coordinator.waiting_since[key] = _dt.utcnow() - _td(minutes=11)
+    await coordinator.async_refresh()
+    await coordinator.async_refresh()  # zweimal → trotzdem nur EINE Erinnerung
+    await hass.async_block_till_done()
+    assert len(events) == 1
+    assert events[0].data["zone"] == 1 and events[0].data["wartet_minuten"] == 11
+    assert events[0].data["inhalt"] == "Pommes"
+    assert _zone1(hass).attributes["start_vergessen"] is True
+    assert len(calls) == 1 and "Zone 1 (Pommes)" in calls[0].data["message"]
+    # Gestartet → Hinweis weg
+    fake_api.multi = real_twinfry("cooking", remaining=880, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["start_vergessen"] is False
+    assert _zone1(hass).attributes["wartet_seit"] is None
+
+
+async def test_forgot_off_with_zero(hass: HomeAssistant, fake_api) -> None:
+    from datetime import timedelta as _td
+    from homeassistant.util import dt as _dt
+    from custom_components.airfryer_control.const import EVENT_FORGOT
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, start_vergessen=0)
+    events = async_capture_events(hass, EVENT_FORGOT)
+    coordinator = entry.runtime_data
+    fake_api.multi = real_twinfry("ready", remaining=900, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    for key in coordinator.waiting_since:
+        coordinator.waiting_since[key] = _dt.utcnow() - _td(minutes=60)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert events == [] and _zone1(hass).attributes["start_vergessen"] is False
+
+
+async def test_content_in_done_message_and_forgotten_after(hass: HomeAssistant, fake_api) -> None:
+    """🏷️ Inhalt steht in der Fertig-Meldung und ist nach dem Garen (Zone wieder still) weg."""
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    calls = async_mock_service(hass, "notify", "mobile_app_marco")
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, melden_an=["mobile_app_marco"])
+    coordinator = entry.runtime_data
+    done = async_capture_events(hass, EVENT_FINISHED)
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "  Pommes  "}, blocking=True)
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["inhalt"] == "Pommes"  # sofort sichtbar, Leerzeichen weg
+    await coordinator.async_refresh()  # Zone steht still, hat aber noch nicht gegart → Inhalt bleibt
+    assert _zone1(hass).attributes["inhalt"] == "Pommes"
+    fake_api.multi = real_twinfry("cooking", remaining=300, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    fake_api.multi = real_twinfry("cookEnd", remaining=0, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert calls and "Zone 1 (Pommes)" in calls[-1].data["message"]
+    assert [e.data.get("inhalt") for e in done if e.data["zone"] == 1] == ["Pommes"]
+    assert _zone1(hass).attributes["inhalt"] == "Pommes"  # „Fertig!“ – steht noch da
+    fake_api.multi = real_twinfry()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["inhalt"] is None  # wieder still → vergessen
+    # Leer = löschen
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Kuchen"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": ""}, blocking=True)
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["inhalt"] is None
+
+
+async def test_favorite_without_shake_never_reminds(hass: HomeAssistant, fake_api) -> None:
+    """🥄 Liebling „Kuchen“ mit Schütteln aus → keine Erinnerung, kein 🥄; Inhalt kommt vom Senden."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, schuettel_erinnerung=True)
+    events = async_capture_events(hass, EVENT_SHAKE)
+    await hass.services.async_call(
+        DOMAIN, "liebling_speichern",
+        {"name": "Kuchen", "programm": "bake", "temperatur": 160, "minuten": 15, "schuetteln": False}, blocking=True,
+    )
+    await hass.async_block_till_done()
+    fav = hass.states.get(eid(hass, "sensor", "programme")).attributes["lieblinge"][0]
+    assert fav["schuetteln"] is False
+    res = await hass.services.async_call(
+        DOMAIN, "programm_senden",
+        {"zone": 1, "programm": "bake", "temperatur": 160, "minuten": 15, "inhalt": "Kuchen", "schuetteln": False},
+        blocking=True, return_response=True,
+    )
+    assert res["ok"] is True
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["inhalt"] == "Kuchen"
+    assert _zone1(hass).attributes["schuetteln_aus"] is True
+    coordinator = entry.runtime_data
+    for rest in (800, 440, 300):
+        fake_api.multi = real_twinfry("cooking", remaining=rest, set_time=900, temp=200)
+        await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert events == []
+    assert _zone1(hass).attributes["jetzt_schuetteln"] is False
+
+
+async def test_shake_every_x_minutes_and_spoon(hass: HomeAssistant, fake_api) -> None:
+    """🥄 Alle 4 Minuten statt Halbzeit; 🥄 in Karte/Laufband, Schublade auf = weg; letzte Minute nicht."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, schuettel_erinnerung=True, schuettel_takt=4)
+    events = async_capture_events(hass, EVENT_SHAKE)
+    coordinator = entry.runtime_data
+    # 15 min Garzeit: nach 4, 8 und 12 min erinnern
+    fake_api.multi = real_twinfry("cooking", remaining=880, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    fake_api.multi = real_twinfry("cooking", remaining=650, set_time=900, temp=200)  # 4:10 vorbei
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert len(events) == 1 and events[0].data["mal"] == 1
+    assert _zone1(hass).attributes["jetzt_schuetteln"] is True
+    fake_api.multi = real_twinfry("pullOut", remaining=640, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["jetzt_schuetteln"] is False  # geschüttelt → 🥄 weg
+    for rest in (600, 410, 170, 100, 50):  # 8:10 und 12:10 vorbei → 2 weitere
+        fake_api.multi = real_twinfry("cooking", remaining=rest, set_time=900, temp=200)
+        await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert [e.data["mal"] for e in events] == [1, 2, 3]
