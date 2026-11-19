@@ -41,10 +41,8 @@
           "zeiteinheit": "Time values of the air fryer",
           "sidebar": "📌 Show in sidebar",
           "maskottchen": "🍟 Show mascot in the sidebar",
-          "schuettel_erinnerung": "🥄 Shake reminder",
           "melden_an": "📲 Report “done” to these phones",
-          "melden_schuetteln": "📲 Also at half time (“Shake now!”)",
-          "schuettel_takt": "🥄 Shake how often",
+          "melden_schuetteln": "📲 Also “↕️ Shake now!” to the phones",
           "start_vergessen": "⏰ “Forgot to start?” after",
           "melden_vergessen": "📲 Also “⏰ Forgot to start?” to the phones"
         },
@@ -53,10 +51,8 @@
           "zeiteinheit": "Only change if the remaining time is shown 60 times too large or too small.",
           "sidebar": "Adds a \"Fritteuse\" entry to the sidebar (full-page view with the ticker and the zone card). Off by default.",
           "maskottchen": "Shows the little air fryer with a face in the sidebar view (on dashboard cards you switch it in the card editor). Off by default.",
-          "schuettel_erinnerung": "Fires the event airfryer_control_schuetteln at half time (or every X minutes, see below) and shows a blinking 🥄 in the card and the ticker for 3 minutes. Off by default.",
           "melden_an": "The air fryer sends a message itself when it is done – no automation needed. Pick one or more notify services (e.g. mobile_app_your_phone). Empty = off (default).",
-          "melden_schuetteln": "Also sends “🥄 Shake now!” at half time to the phones above. Off by default.",
-          "schuettel_takt": "0 = once at half time (default). 5 = every 5 minutes while cooking, and so on. Not in the last minute.",
+          "melden_schuetteln": "When to shake is set per drawer in the card (“↕️ Shake” button at the program selection). Off by default.",
           "start_vergessen": "Minutes a zone may wait for start on the device before the card, the ticker and the event airfryer_control_start_vergessen remind you. 0 = off. Default: 10.",
           "melden_vergessen": "Only with phones above. On by default."
         }
@@ -423,8 +419,8 @@
           "description": "Optional: what goes in (e.g. Fries) – shows in the ticker and in the done message."
         },
         "schuetteln": {
-          "name": "Shake reminder",
-          "description": "Optional: off = no shake reminder for this cook."
+          "name": "Shake",
+          "description": "Optional: off = switch the zone’s ↕️ button off, on = at least at half time."
         }
       }
     },
@@ -463,8 +459,8 @@
           "description": "Cooking time."
         },
         "schuetteln": {
-          "name": "Shake reminder",
-          "description": "Off = never remind to shake with this favourite (e.g. cake)."
+          "name": "Shake",
+          "description": "Off = sending this favourite switches the zone’s ↕️ button off (e.g. cake). On = at least at half time."
         }
       }
     },
@@ -517,8 +513,26 @@
           "description": "e.g. Fries (max. 40 characters). Empty = delete."
         },
         "schuetteln": {
-          "name": "Shake reminder",
-          "description": "Off = no shake reminder for this cook (e.g. cake)."
+          "name": "Shake",
+          "description": "Optional: off = switch the zone’s ↕️ button off, on = at least at half time."
+        }
+      }
+    },
+    "schuetteln_setzen": {
+      "name": "Set shaking",
+      "description": "For all users: ↕️ shake button of a drawer – off, at half time or every X minutes. At shake time the event airfryer_control_schuetteln fires, card and ticker show ↕️.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 or 3 (whole basket)."
+        },
+        "wie_oft": {
+          "name": "How often",
+          "description": "aus (off), halbzeit (half time) or minutes (1–30), e.g. 5."
         }
       }
     }

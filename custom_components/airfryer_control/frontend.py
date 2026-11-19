@@ -12,6 +12,7 @@ import json
 import logging
 from pathlib import Path
 
+import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
@@ -75,10 +76,74 @@ def _ws_info(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     connection.send_result(msg["id"], {"version": _VERSION or ""})
 
 
+def _entries_for(hass: HomeAssistant) -> list:
+    from .const import DOMAIN  # noqa: PLC0415
+
+    return hass.config_entries.async_entries(DOMAIN)
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "airfryer_control/optionen", vol.Optional("entry_id"): str}
+)
+@websocket_api.require_admin
+@callback
+def _ws_options(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """🔌 Einstellungen der Integration lesen – für ⚙️ in Karte, Seitenleiste UND Offline-App.
+
+    Für Doofe: Die Offline-App hat nur die Websocket-Verbindung, nicht den Optionen-Dialog
+    von Home Assistant. Darum gibt es diesen eigenen kleinen Weg (nur für Admins).
+    """
+    from .config_flow import clean_options  # noqa: PLC0415 (spät laden, vermeidet Kreis-Import)
+
+    entries = _entries_for(hass)
+    if not entries:
+        connection.send_error(msg["id"], "not_found", "Airfryer Control ist nicht eingerichtet")
+        return
+    entry = next((e for e in entries if e.entry_id == msg.get("entry_id")), entries[0])
+    services = sorted(
+        (s for s in hass.services.async_services().get("notify", {}) if s != "send_message"),
+        key=lambda s: (not s.startswith("mobile_app_"), s),
+    )
+    connection.send_result(
+        msg["id"],
+        {
+            "entry": entry.entry_id,
+            "entries": [{"entry_id": e.entry_id, "title": e.title} for e in entries],
+            "data": clean_options(entry.options),
+            "notify": services,  # 📲 zur Auswahl (die Offline-App kennt die Dienste sonst nicht)
+        },
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "airfryer_control/optionen_speichern",
+        vol.Required("entry_id"): str,
+        vol.Required("daten"): dict,
+    }
+)
+@websocket_api.require_admin
+@callback
+def _ws_options_save(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """🔌 Einstellungen speichern (nur Admins). Die Integration lädt danach kurz neu – die Seitenleiste bleibt."""
+    from .config_flow import clean_options  # noqa: PLC0415
+
+    entry = next((e for e in _entries_for(hass) if e.entry_id == msg["entry_id"]), None)
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "Unbekannte Fritteuse")
+        return
+    new = clean_options({**clean_options(entry.options), **msg["daten"]})
+    if new != dict(entry.options):
+        hass.config_entries.async_update_entry(entry, options=new)
+    connection.send_result(msg["id"], {"data": new})
+
+
 async def async_setup_frontend(hass: HomeAssistant) -> None:
     """Datei bereitstellen und als Dashboard-Ressource eintragen."""
     await async_version(hass)  # Version einmal lesen (für airfryer_control/info)
     websocket_api.async_register_command(hass, _ws_info)
+    websocket_api.async_register_command(hass, _ws_options)
+    websocket_api.async_register_command(hass, _ws_options_save)
     await hass.http.async_register_static_paths(
         [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "www"), False)]
     )
@@ -128,25 +193,45 @@ def sidebar_wanted(hass: HomeAssistant, skip_entry_id: str | None = None) -> boo
 
 
 async def async_set_sidebar(hass: HomeAssistant, enabled: bool, mascot: bool = False) -> None:
-    """📌 Fritteuse als eigener Eintrag in der Seitenleiste (Option, standardmäßig aus)."""
-    from homeassistant.components import frontend, panel_custom  # noqa: PLC0415
+    """📌 Fritteuse als eigener Eintrag in der Seitenleiste (Option, standardmäßig aus).
 
-    present = PANEL_URL_PATH in hass.data.get(frontend.DATA_PANELS, {})
-    if present:
-        frontend.async_remove_panel(hass, PANEL_URL_PATH)
+    Für Doofe: Ist der Eintrag schon da, wird er NICHT erst weggenommen und neu angelegt –
+    sonst merkt Home Assistant „Seite weg“ und wirft jeden raus, der gerade auf der Seite
+    ist (z. B. beim Speichern einer Einstellung, weil die Integration dann neu lädt).
+    Stattdessen werden nur die Angaben aktualisiert.
+    """
+    from homeassistant.components import frontend  # noqa: PLC0415
+
+    panels = hass.data.get(frontend.DATA_PANELS, {})
+    present = PANEL_URL_PATH in panels
     if not enabled:
+        if present:
+            frontend.async_remove_panel(hass, PANEL_URL_PATH)
         return
     try:
         version = await async_version(hass)
-        await panel_custom.async_register_panel(
+        config = {
+            "card_url": f"{CARD_URL}?v={version}",
+            "maskottchen": mascot,  # 🍟 Maskottchen auch in der Seitenleiste
+            # So legt panel_custom einen eigenen Eintrag an (gleiche Form wie panel_custom.async_register_panel)
+            "_panel_custom": {
+                "name": "airfryer-control-panel",
+                "embed_iframe": False,
+                "trust_external": False,
+                "module_url": f"{STATIC_URL}/{PANEL_FILENAME}?v={version}",
+            },
+        }
+        if present and getattr(panels[PANEL_URL_PATH], "config", None) == config:
+            return  # schon genau so da – nichts anfassen
+        frontend.async_register_built_in_panel(
             hass,
-            webcomponent_name="airfryer-control-panel",
-            frontend_url_path=PANEL_URL_PATH,
-            module_url=f"{STATIC_URL}/{PANEL_FILENAME}?v={version}",
+            component_name="custom",
             sidebar_title="Fritteuse",
             sidebar_icon="mdi:toaster-oven",
+            frontend_url_path=PANEL_URL_PATH,
+            config=config,
             require_admin=False,
-            config={"card_url": f"{CARD_URL}?v={version}", "maskottchen": mascot},  # 🍟 Maskottchen auch in der Seitenleiste
+            update=present,  # schon da → nur aktualisieren, nie wegnehmen
         )
     except Exception:  # noqa: BLE001
         _LOGGER.warning("Seitenleisten-Eintrag konnte nicht angelegt werden", exc_info=True)

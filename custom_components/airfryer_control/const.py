@@ -14,12 +14,15 @@ CONF_TERMINAL_ID = "terminal_id"
 # Optionen
 OPT_INTERVAL = "intervall"
 OPT_TIME_UNIT = "zeiteinheit"
-OPT_SHAKE = "schuettel_erinnerung"  # 🥄 Ereignis zur Halbzeit (Standard: aus)
+OPT_SHAKE = "schuettel_erinnerung"  # ALT (bis 1.0.5-beta.3): Schüttel-Erinnerung an/aus – wird beim Start auf die Knöpfe pro Zone übertragen
 OPT_NOTIFY = "melden_an"  # 📲 notify-Dienste ohne „notify.“ (z. B. mobile_app_marco) – leer = aus
-OPT_NOTIFY_SHAKE = "melden_schuetteln"  # 📲 auch zur Halbzeit „Jetzt schütteln!“ aufs Handy (Standard: aus)
+OPT_NOTIFY_SHAKE = "melden_schuetteln"  # 📲 „↕️ Jetzt schütteln!“ auch aufs Handy (Standard: aus)
 NOTIFY_MAX = 10  # höchstens so viele Handys
-OPT_SHAKE_EVERY = "schuettel_takt"  # 🥄 0 = einmal zur Halbzeit, sonst alle X Minuten (Standard: 0)
+OPT_SHAKE_EVERY = "schuettel_takt"  # ALT (bis 1.0.5-beta.3): 0 = Halbzeit, sonst alle X Minuten – wird übertragen
 SHAKE_EVERY_MAX = 30
+# ↕️ Schütteln pro Zone (Knopf bei der Programm-Auswahl): None = aus, 0 = zur Halbzeit, X = alle X Minuten
+SHAKE_HALF = 0
+SHAKE_CHOICES = (None, 0, 3, 5, 8)  # was der Knopf in der Karte anbietet
 OPT_FORGOT = "start_vergessen"  # ⏰ Hinweis, wenn eine Zone so viele Minuten auf Start wartet (0 = aus, Standard 10)
 DEFAULT_FORGOT = 10
 FORGOT_MAX = 60
@@ -42,8 +45,8 @@ EVENT_FINISHED = f"{DOMAIN}_fertig"
 # Ereignis zur Halbzeit: „jetzt schütteln“ (nur wenn die Schüttel-Erinnerung an ist)
 EVENT_SHAKE = f"{DOMAIN}_schuetteln"
 SHAKE_MIN_SECONDS = 120  # bei ganz kurzen Garzeiten (unter 2 Minuten) lohnt Schütteln nicht
-SHAKE_LAST_SECONDS = 60  # 🥄 in der letzten Minute wird nicht mehr erinnert (lohnt nicht mehr)
-SHAKE_SHOW_SECONDS = 180  # 🥄 so lange steht „Jetzt schütteln!“ in Karte und Laufband (Schublade auf = sofort weg)
+SHAKE_LAST_SECONDS = 60  # ↕️ in der letzten Minute wird nicht mehr erinnert (lohnt nicht mehr)
+SHAKE_SHOW_SECONDS = 180  # ↕️ so lange steht „Jetzt schütteln!“ in Karte und Laufband (Schublade auf = sofort weg)
 # Ereignis: Zone wartet schon lange auf Start am Gerät („Vergessen zu starten?“)
 EVENT_FORGOT = f"{DOMAIN}_start_vergessen"
 INHALT_MAX = 40  # 🏷️ „Was ist drin?“ – höchstens so viele Zeichen
@@ -60,6 +63,7 @@ SERVICE_FAV_SAVE = "liebling_speichern"
 SERVICE_FAV_DELETE = "liebling_loeschen"
 SERVICE_ADD_TIME = "garzeit_plus"
 SERVICE_CONTENT = "inhalt_setzen"
+SERVICE_SHAKE = "schuetteln_setzen"
 
 # ⭐ Lieblings-Programme und 🕘 zuletzt gesendet (pro Fritteuse)
 MAX_FAVORITES = 12

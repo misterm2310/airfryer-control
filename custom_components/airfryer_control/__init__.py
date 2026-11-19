@@ -6,12 +6,15 @@ sucht deine Fritteusen und legt für jede ein Gerät mit Sensoren und Knöpfen a
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
@@ -31,6 +34,8 @@ PLATFORMS = [
     Platform.NUMBER,
     Platform.SELECT,
 ]
+
+SIDEBAR_GRACE_SECONDS = 10  # 📌 so lange darf die Integration neu laden, ohne dass die Seitenleiste verschwindet
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -67,12 +72,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: AirfryerConfigEntry) -> 
     except UpdateFailed as err:
         raise ConfigEntryNotReady(str(err)) from err
     await coordinator.async_config_entry_first_refresh()
+    coordinator.migrate_shake()  # ↕️ alte Schüttel-Einstellung einmalig auf die Knöpfe pro Zone übertragen
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     if entry.options.get(OPT_SIDEBAR, False):
         await async_set_sidebar(hass, True, bool(entry.options.get(OPT_MASCOT, False)))  # 📌 nur wenn eingeschaltet
+    elif not sidebar_wanted(hass):
+        await async_set_sidebar(hass, False)  # 📌 ausgeschaltet → Eintrag weg
     return True
 
 
@@ -83,6 +91,13 @@ async def _async_reload(hass: HomeAssistant, entry: AirfryerConfigEntry) -> None
 
 async def async_unload_entry(hass: HomeAssistant, entry: AirfryerConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unloaded and not sidebar_wanted(hass, entry.entry_id):
-        await async_set_sidebar(hass, False)
+    if unloaded:
+        # 📌 Seitenleiste NICHT sofort wegnehmen: Beim Speichern einer Einstellung lädt die
+        # Integration nur neu – dann ist sie gleich wieder da, und niemand fliegt raus.
+        # Erst wenn nach ein paar Sekunden keine Fritteuse mehr die Seitenleiste will, kommt sie weg.
+        async def _later(_now: Any) -> None:
+            if not sidebar_wanted(hass):
+                await async_set_sidebar(hass, False)
+
+        async_call_later(hass, SIDEBAR_GRACE_SECONDS, _later)
     return unloaded

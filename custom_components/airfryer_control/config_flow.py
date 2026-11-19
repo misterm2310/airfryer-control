@@ -45,9 +45,6 @@ from .const import (
     OPT_MASCOT,
     OPT_NOTIFY,
     OPT_NOTIFY_SHAKE,
-    OPT_SHAKE,
-    OPT_SHAKE_EVERY,
-    SHAKE_EVERY_MAX,
     OPT_FORGOT,
     DEFAULT_FORGOT,
     FORGOT_MAX,
@@ -181,6 +178,33 @@ class AirfryerConfigFlow(ConfigFlow, domain=DOMAIN):
         return AirfryerOptionsFlow()
 
 
+def clean_options(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Optionen aufräumen – gleich für den Optionen-Dialog und die Einstellungen in Karte/App.
+
+    Für Doofe: Alles bekommt seinen Standard, Zahlen landen in den erlaubten Grenzen,
+    unbekannte Felder fliegen raus.
+    """
+    try:
+        interval = int(data.get(OPT_INTERVAL, DEFAULT_INTERVAL))
+    except (TypeError, ValueError):
+        interval = DEFAULT_INTERVAL
+    try:
+        forgot = int(data.get(OPT_FORGOT, DEFAULT_FORGOT) or 0)
+    except (TypeError, ValueError):
+        forgot = DEFAULT_FORGOT
+    unit = data.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
+    return {
+        OPT_INTERVAL: max(MIN_INTERVAL, min(MAX_INTERVAL, interval)),
+        OPT_TIME_UNIT: unit if unit in (TIME_UNIT_AUTO, TIME_UNIT_SECONDS, TIME_UNIT_MINUTES) else TIME_UNIT_AUTO,
+        OPT_SIDEBAR: bool(data.get(OPT_SIDEBAR, False)),
+        OPT_MASCOT: bool(data.get(OPT_MASCOT, False)),
+        OPT_NOTIFY: clean_notify(data.get(OPT_NOTIFY)),  # 📲 leer = aus
+        OPT_NOTIFY_SHAKE: bool(data.get(OPT_NOTIFY_SHAKE, False)),
+        OPT_FORGOT: max(0, min(FORGOT_MAX, forgot)),  # ⏰ ganze Minuten, 0 = aus
+        OPT_NOTIFY_FORGOT: bool(data.get(OPT_NOTIFY_FORGOT, True)),
+    }
+
+
 class AirfryerOptionsFlow(OptionsFlow):
     """Konfigurieren: Abfrage-Takt und Zeiteinheit."""
 
@@ -188,17 +212,7 @@ class AirfryerOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         if user_input is not None:
-            user_input[OPT_INTERVAL] = int(user_input[OPT_INTERVAL])
-            user_input[OPT_SIDEBAR] = bool(user_input.get(OPT_SIDEBAR, False))
-            user_input[OPT_MASCOT] = bool(user_input.get(OPT_MASCOT, False))
-            user_input[OPT_SHAKE] = bool(user_input.get(OPT_SHAKE, False))
-            user_input[OPT_NOTIFY] = clean_notify(user_input.get(OPT_NOTIFY))  # 📲 leer = aus
-            user_input[OPT_NOTIFY_SHAKE] = bool(user_input.get(OPT_NOTIFY_SHAKE, False))
-            # 🥄 / ⏰ ganze Minuten in den erlaubten Grenzen
-            user_input[OPT_SHAKE_EVERY] = max(0, min(SHAKE_EVERY_MAX, int(user_input.get(OPT_SHAKE_EVERY, 0) or 0)))
-            user_input[OPT_FORGOT] = max(0, min(FORGOT_MAX, int(user_input.get(OPT_FORGOT, DEFAULT_FORGOT) or 0)))
-            user_input[OPT_NOTIFY_FORGOT] = bool(user_input.get(OPT_NOTIFY_FORGOT, True))
-            return self.async_create_entry(data=user_input)
+            return self.async_create_entry(data=clean_options(user_input))
         opts = self.config_entry.options
         chosen = clean_notify(opts.get(OPT_NOTIFY))
         # 📲 alle notify-Dienste zur Auswahl, Handys (mobile_app_…) zuerst
@@ -230,12 +244,6 @@ class AirfryerOptionsFlow(OptionsFlow):
                 ),
                 vol.Optional(OPT_SIDEBAR, default=bool(opts.get(OPT_SIDEBAR, False))): BooleanSelector(),
                 vol.Optional(OPT_MASCOT, default=bool(opts.get(OPT_MASCOT, False))): BooleanSelector(),
-                vol.Optional(OPT_SHAKE, default=bool(opts.get(OPT_SHAKE, False))): BooleanSelector(),
-                vol.Optional(OPT_SHAKE_EVERY, default=int(opts.get(OPT_SHAKE_EVERY, 0) or 0)): NumberSelector(
-                    NumberSelectorConfig(
-                        min=0, max=SHAKE_EVERY_MAX, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX
-                    )
-                ),
                 vol.Optional(OPT_FORGOT, default=int(opts.get(OPT_FORGOT, DEFAULT_FORGOT))): NumberSelector(
                     NumberSelectorConfig(
                         min=0, max=FORGOT_MAX, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX

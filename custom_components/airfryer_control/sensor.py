@@ -241,7 +241,7 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
     entity_description: ZoneSensorDescription
     _unrecorded_attributes = frozenset({
         "letzte_meldung", "revision", "verbindung", "gemeldet", "zeit_aendern_beim_garen",
-        "inhalt", "schuetteln_aus", "jetzt_schuetteln", "wartet_seit", "start_vergessen",
+        "inhalt", "schuetteln_alle", "jetzt_schuetteln", "wartet_seit", "start_vergessen",
     })
 
     def __init__(
@@ -287,13 +287,14 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
         }
 
     def _extras(self) -> dict[str, Any]:
-        """🏷️ Inhalt, 🥄 „Jetzt schütteln!“ und ⏰ „Vergessen zu starten?“ – für Karte, Laufband und Automationen."""
+        """🏷️ Inhalt, ↕️ Schüttel-Knopf + „Jetzt schütteln!“ und ⏰ „Vergessen zu starten?“ – für Karte, Laufband und Automationen."""
         coord, cid, zone = self.coordinator, self._cid, self._zone
         info = coord.zone_info(cid, zone)
         since = coord.waiting_since.get((cid, zone))
         return {
             "inhalt": info.get("inhalt"),
-            "schuetteln_aus": info.get("schuetteln") is False,
+            # ↕️ Knopf der Zone: None = aus, 0 = zur Halbzeit, X = alle X Minuten
+            "schuetteln_alle": coord.shake_every(cid, zone),
             "jetzt_schuetteln": coord.shaking(cid, zone),
             "wartet_seit": since.isoformat() if since else None,
             "start_vergessen": coord.forgot(cid, zone),

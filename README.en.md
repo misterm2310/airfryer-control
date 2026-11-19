@@ -29,7 +29,7 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 - 🃏 **Two ready-made cards** (zone card + ticker) and a 📱 **phone app** – nothing extra to install.
 - 🟰 **Match & Sync** so both zones finish at the same time.
 - ⭐ **Favourite programs** and 🕘 **recently sent** – one tap instead of three fields.
-- ⏱️ **+1 / +3 min** to extend or cook a bit more, 🥄 **shake reminder** at half time or every few minutes – with a blinking 🥄 in the card and the ticker, switchable per favourite (off by default).
+- ⏱️ **+1 / +3 min** to extend or cook a bit more, ↕️ **shake button per drawer** (off · half time · every 3/5/8 minutes) – with a blinking ↕️ in the card and the ticker, a favourite sets it to match (off by default).
 - ⏰ **“Forgot to start?”** – if a zone waits 10 minutes for start on the device, the card tells you.
 - 🏷️ **What's inside?** – “Zone 1: Fries” shows in the ticker and in the done message.
 - 🛡️ **Privacy:** your password is not stored, only Home Assistant talks to VeSync.
@@ -44,9 +44,10 @@ One click opens it right in your Home Assistant: [![Open in HACS](https://my.hom
 | 🌡️ **Limits** | Temperature follows the program: Air Fry 120–205 °C, Roast 120–205 °C, Bake 80–205 °C, Grill 205–240 °C, Reheat 40–205 °C. If a value is not accepted, the integration tells you in plain words. |
 | 🌡️ **Temperature & program** | Target temperature, measured temperature (if reported) and program (AirFry, Roast …). |
 | 🔔 **“Done” event** | `airfryer_control_fertig` – for phone notifications, announcements or pausing the TV. |
-| 🥄 **“Shake” event** | `airfryer_control_schuetteln` – at half time (once per cook and zone) or, if you like, **every 3, 5 or 8 minutes** (⚙️ › Integration › Shake reminder › “How often?”, up to 30 minutes in the options). No reminder in the last minute. Only if the **shake reminder** is switched on (integration options or ⚙️ › Integration in the card, default: off). |
-| 📺 **🥄 in card and ticker** | At shake time **“🥄 Shake now!”** blinks for 3 minutes in the zone and in the ticker (orange frame) – for the kitchen tablet and Fire TV, also for everyone without a phone in their pocket. Drawer open (= shaken) and it is gone right away. Shows as soon as the shake reminder or “Also at half time” to the phone is on. Attribute `jetzt_schuetteln` on the zone status. |
-| 🥄 **Shaking per favourite** | Fries yes, cake no: switch 🥄 on or off when saving a favourite, change it later under ✏️ Edit. If a favourite with 🥄 off is sent, this cook gets no shake reminder (no event, no phone, no 🥄). |
+| ↕️ **Shake button per drawer** | Tap a row → at the program there is just **one button “↕️ Shake: Off”**. Tap it to open the times: **off · half time · every 3 · 5 · 8 min** – tap one = saved, the row closes again. Each drawer (zone 1, zone 2, grand zone) remembers its choice, also after a restart. The service `schuetteln_setzen` also takes 1–30 minutes. Default: off. |
+| ↕️ **“Shake” event** | `airfryer_control_schuetteln` – at half time (once per cook and zone) or **every X minutes**, whatever the drawer's ↕️ button says. No reminder in the last minute. Button off = no event. |
+| 📺 **↕️ in card and ticker** | At shake time **“↕️ Shake now!”** blinks for 3 minutes in the zone and in the ticker (orange frame) – for the kitchen tablet and Fire TV, also for everyone without a phone in their pocket. Drawer open (= shaken) and it is gone right away. Shows as soon as the drawer's ↕️ button is not off. Attributes `jetzt_schuetteln` and `schuetteln_alle` (empty = off, 0 = half time, otherwise minutes) on the zone status. |
+| ↕️ **Shaking per favourite** | Fries yes, cake no: switch ↕️ on or off when saving a favourite, change it later under ✏️ Edit. A favourite with ↕️ off sets the drawer's button to **off**, one with ↕️ on to **half time** (only if it was off – so “every 5 min” stays). |
 | ⏰ **Forgot to start?** | After “Send” the zone waits for start on the device. If it sits there for **10 minutes** (set 0–60, 0 = off), the card shows “⏰ Waiting 10 min – forgot to press Start?”, the ticker turns orange and the event `airfryer_control_start_vergessen` fires **once**. With phones under “Report done to” you also get “⏰ Forgot to start?” (switch “Also ⏰ …”, default on). Attributes `wartet_seit` and `start_vergessen` on the zone status. |
 | 🏷️ **What's inside?** | Tap a row → type “🏷️ What's inside?”, e.g. **Fries**. Then it shows in the ticker (“Zone 1 · Fries: done at 18:30”), in the row and in the done message (“Zone 1 (Fries): done”). A ⭐ favourite fills in its name itself if the field is empty. After cooking (zone back to “Ready”/“Off”) it is forgotten by itself. Stored in Home Assistant – every device sees the same. Action `inhalt_setzen`, attribute `inhalt` on the zone status. |
 | ⭐ **Favourite programs** | Save program, temperature and time under a name (e.g. “Fries 200 °C, 18 min”), up to 12 per fryer. In the card one tap = send to the zone (prepare only). Stored in Home Assistant, not in the browser – phone and kitchen tablet see the same ones. Sensor **“Favourite programs”** (value = count, attributes `lieblinge` and `zuletzt`). |
@@ -114,7 +115,7 @@ Nothing extra to install – the integration ships two cards and registers them 
 | Card | What it does |
 |---|---|
 | `custom:airfryer-control-card` | One row per zone (Zone 1, Zone 2, Grandzone) with status, “done at …” and a round **send / cancel / stop** button. When waiting for start, while cooking (not TwinFry) and when done, **+1 min / +3 min** sit right in the row. Tapping a row unfolds **⭐ favourites**, **🕘 recently sent**, program, temperature and time right below it (per-program limits respected). The (i) shows credits, donation link and privacy, the ⚙️ next to it the settings. |
-| `custom:airfryer-control-ticker` | The **ticker**: “Air fryer Zone 1 · Fries: done at 19:42 +++ Zone 2: waiting for start”. Frame **red and pulsing** when a zone is done, **orange** with a blinking 🥄 at shake time or for ⏰ “forgot to start?”, otherwise teal. Hides itself when idle. Optionally includes extra timers (e.g. `sensor.einkaufsliste_kochtimer`). |
+| `custom:airfryer-control-ticker` | The **ticker**: “Air fryer Zone 1 · Fries: done at 19:42 +++ Zone 2: waiting for start”. Frame **red and pulsing** when a zone is done, **orange** with a blinking ↕️ at shake time or for ⏰ “forgot to start?”, otherwise teal. Hides itself when idle. Optionally includes extra timers (e.g. `sensor.einkaufsliste_kochtimer`). |
 
 ```yaml
 type: custom:airfryer-control-card
@@ -135,14 +136,14 @@ The phone page and the sidebar (option “📌 Show in sidebar”, off by defaul
 **⚙️ Settings in the card:** the cog at the top of the card opens a page 1:1 like the shopping list settings: search field at the top, groups to unfold, switches right in the row, and tapping a row opens its own page with an explanation:
 - **👁️ View:** font size (smaller / standard / larger) and colours (auto / light / dark). Only on this device, e.g. larger on the kitchen tablet.
 - **🍟 Card:** mascot, top bar and guide button on/off, only on this device. “Like in the card editor” goes back to the editor values.
-- **🔌 Integration** (admins only, not in the phone app): polling interval, sidebar, mascot in the sidebar, 🥄 shake reminder (with “How often?”: half time or every 3/5/8 minutes), ⏰ forgot to start? (off/5/10/15/20 minutes) and 📲 report done to (tick phones). Applies to everyone. Saving reloads the integration briefly.
+- **🔌 Integration** (admins only, in the phone app too): polling interval, sidebar, mascot in the sidebar, ⏰ forgot to start? (off/5/10/15/20 minutes) and 📲 report done to (tick phones, plus “↕️ also to the phone” and “⏰ forgot to start?”). Applies to everyone. Saving reloads the integration briefly – you stay on the page, also on the “Fritteuse” sidebar page. Shaking is **not set here** but at the ↕️ button of each drawer.
 - **ℹ️ About:** guide, **📢 What's new** and credits.
 
 **📢 What's new** (like the shopping list): in a beta an orange box **🧪 You are in the beta …** sits on top with everything new in this beta series (highest beta first). Below it **“The latest new features up to version …”** – at most 15, newest first, every point with a bold keyword and a short explanation (like Kegelclub and Fixkosten). Without a beta there is only the normal list.
 
 **🔄 New version available:** if Home Assistant already has a newer version than the card your browser loaded, a hint **“New version … is available – Reload”** appears above the card. One tap reloads the page (in the phone app it also refreshes the cache). Works in the card, the sidebar and the phone app.
 
-**⭐ Favourites & 🕘 recently sent:** tap a row → your favourites are at the top. Tap = send to this zone right away (prepare only, start on the device). **＋** saves what is set below (any name, 🥄 next to it = remind to shake), **✏️ Edit** shows ✕ (delete) and 🥄 on/off on the favourites. Below that **🏷️ What's inside?** for the zone's contents. Below that the last 5 programs sent. While the zone is cooking the buttons are grey.
+**⭐ Favourites & 🕘 recently sent:** tap a row → your favourites are at the top. Tap = send to this zone right away (prepare only, start on the device). **＋** saves what is set below (any name, ↕️ next to it = remind to shake), **✏️ Edit** shows ✕ (delete) and ↕️ on/off on the favourites. Below that **🏷️ What's inside?** for the zone's contents. Below that the last 5 programs sent. While the zone is cooking the buttons are grey.
 
 **📖 Guide:** its own page with ← back, chapters to unfold and a search field. On first start the card shows a 💡 tip once.
 
@@ -184,7 +185,7 @@ The **🔅 Keep screen on** button keeps the display awake (handy for a kitchen 
 
 <details><summary>“Done” and “shake” events, ready-made examples and all actions – <i>expand</i></summary>
 
-**No automation needed for a phone message:** in the card under ⚙️ › Integration › **Report done to** (or in the integration options) tick one or more phones (`notify.mobile_app_…`, other notify services work too). The air fryer then sends **“🍟 Air fryer done!”** itself – two zones finishing together give **one** message, “preheated” gives “🔥 Preheated!”, pressing stop yourself gives nothing. Optionally also **“🥄 Shake now!”** at half time. No tick = off (default). If you already have your own automation, leave it off – otherwise you get the message twice.
+**No automation needed for a phone message:** in the card under ⚙️ › Integration › **Report done to** (or in the integration options) tick one or more phones (`notify.mobile_app_…`, other notify services work too). The air fryer then sends **“🍟 Air fryer done!”** itself – two zones finishing together give **one** message, “preheated” gives “🔥 Preheated!”, pressing stop yourself gives nothing. Optionally also **“↕️ Shake now!”** (switch “↕️ also to the phone” – when is set at the drawer's ↕️ button). No tick = off (default). If you already have your own automation, leave it off – otherwise you get the message twice.
 
 The event `airfryer_control_fertig` carries `geraet` (name), `modell`, `zone` (`1`, `2`, `3` or `alle` = whole fryer), `zustand`, `programm` and `inhalt` (🏷️ what was inside, if typed).
 
@@ -217,7 +218,7 @@ actions:
         tag: fritteuse_fertig_01
 ```
 
-The event `airfryer_control_schuetteln` (🥄 shake reminder, **only if switched on**, default off) fires at **half time** – once per cook and zone, for cooking times from 2 minutes (with “How often?” = every X minutes more often, not in the last minute; never for a favourite with 🥄 off). It carries `geraet`, `modell`, `zone` (`1`, `2`, `3`), `programm`, `rest_minuten`, `garzeit_minuten`, `mal` (which reminder of this cook) and `inhalt` (🏷️ what's inside, if typed). If Home Assistant restarts mid-cook past half time, no late reminder comes.
+The event `airfryer_control_schuetteln` (↕️ shake button of the drawer, **only if not off**, default off) fires at **half time** – once per cook and zone, for cooking times from 2 minutes (with “every X min” on the button more often, not in the last minute). It carries `geraet`, `modell`, `zone` (`1`, `2`, `3`), `programm`, `rest_minuten`, `garzeit_minuten`, `mal` (which reminder of this cook), `alle_minuten` (`0` = half time, otherwise every X minutes) and `inhalt` (🏷️ what's inside, if typed). If Home Assistant restarts mid-cook past half time, no late reminder comes.
 
 ```yaml
 alias: Air fryer – shake now
@@ -235,7 +236,7 @@ actions:
   - action: notify.mobile_app_your_phone
     continue_on_error: true
     data:
-      title: "🥄 Shake now!"
+      title: "↕️ Shake now!"
       message: "Zone {{ trigger.event.data.zone }}: half time – {{ trigger.event.data.rest_minuten }} minutes left."
       data:
         ttl: 0
@@ -273,8 +274,9 @@ actions:
 | `airfryer_control.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). |
 | `airfryer_control.garen_beenden` | Stop. |
 | `airfryer_control.programm_senden` | **For all users** (no admin rights needed, e.g. for the shopping list): sends `zone`, `temperatur`, `minuten`, `programm` to the fryer – **prepare only**, it never starts by itself. Temperature and time are limited to the program's range. Without `geraet` the only fryer is used. Response: `ok`, `ergebnis` and on failure `fehler`/`code`. Extras for other integrations below. |
-| `airfryer_control.liebling_speichern` | **For all users:** ⭐ saves `name`, `programm`, `temperatur`, `minuten` as a favourite (same name = overwrite, up to 12 per fryer, values are limited to the program's range). `schuetteln: false` = 🥄 never remind with this favourite (default: on). Without `geraet` the only fryer is used. |
+| `airfryer_control.liebling_speichern` | **For all users:** ⭐ saves `name`, `programm`, `temperatur`, `minuten` as a favourite (same name = overwrite, up to 12 per fryer, values are limited to the program's range). `schuetteln: false` = ↕️ off: sets the drawer's button to off when sending (default: on). Without `geraet` the only fryer is used. |
 | `airfryer_control.inhalt_setzen` | **For all users:** 🏷️ remembers `inhalt` (e.g. “Fries”, max. 40 characters) for `zone` – shows in the ticker and in the done message, forgotten after cooking. Empty = delete. Optional `schuetteln: false` = no shake reminder for this cook. |
+| `airfryer_control.schuetteln_setzen` | **For all users:** ↕️ sets the shake button of a `zone` (`1`, `2`, `3`): `wie_oft` = `aus` (off), `halbzeit` (half time) or a number 1–30 (every X minutes). Remembered for that drawer. Without `geraet` the only fryer is used. |
 | `airfryer_control.liebling_loeschen` | **For all users:** deletes a favourite by its `name`. |
 | `airfryer_control.garzeit_plus` | **For all users:** ⏱️ adds `minuten` (1–30, default 1) to `zone`. Cooking: the running time gets longer (TwinFry: error, it refuses that). Waiting for start: the program is prepared again with the new time. Done/keeping warm: the same program is prepared again (start on the device). Otherwise: only the time field. Optional response: `ergebnis` = `verlaengert`, `neu_bereitgestellt`, `bereitgestellt` or `gemerkt`, plus `minuten`. |
 | `airfryer_control.faehigkeiten` | **For all users, read only:** programs, temperature and time limits and zones of a fryer – each marked **confirmed** or only **estimated**. Plus `verbindung`, `letzte_meldung` and `revision`. |
@@ -297,7 +299,7 @@ Other integrations should **not** talk to the cloud themselves. They just use th
 | `streng: true` | Values outside the program limits are **rejected** (`fehler: ausserhalb_grenzen` with `grenzen`) instead of silently adjusted. |
 | `bestaetigen: true` | After sending, check up to 3 times (about 6 s) whether the zone really shows the values → `bestaetigt: true/false` and `am_geraet`. |
 | `inhalt` | 🏷️ What goes in (e.g. “Fries”) – remembered for the zone once accepted. |
-| `schuetteln: false` | 🥄 No shake reminder for this cook (e.g. cake). |
+| `schuetteln` | `false` = this drawer's ↕️ button off (e.g. cake), `true` = half time if it was off. |
 
 **Response:** `ok`, `ergebnis`, `variante`, `versuche`, `gesendet` (what was really sent), `revision_vorher`, on failure `fehler`/`code`.
 

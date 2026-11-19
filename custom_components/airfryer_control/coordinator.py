@@ -129,19 +129,15 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         self.api = api
         self._interval = int(entry.options.get(OPT_INTERVAL, DEFAULT_INTERVAL))
         self._unit_option = entry.options.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
-        # 🥄 Schüttel-Erinnerung (Standard aus) + welche Zonen in diesem Garvorgang schon erinnert wurden
-        self._shake = bool(entry.options.get(OPT_SHAKE, False))
         # 📲 Handy-Meldung ohne eigene Automation: notify-Dienste (leer = aus) + „auch beim Schütteln“
         self._notify: list[str] = clean_notify(entry.options.get(OPT_NOTIFY))
         self._notify_shake = bool(entry.options.get(OPT_NOTIFY_SHAKE, False)) and bool(self._notify)
-        # 🥄 0 = einmal zur Halbzeit, sonst alle X Minuten
-        self._shake_every = max(0, int(entry.options.get(OPT_SHAKE_EVERY, 0) or 0))
         # ⏰ „Vergessen zu starten?“ nach X Minuten „Wartet auf Start“ (0 = aus) + auch aufs Handy
         self._forgot_min = max(0, int(entry.options.get(OPT_FORGOT, DEFAULT_FORGOT) or 0))
         self._notify_forgot = bool(entry.options.get(OPT_NOTIFY_FORGOT, True)) and bool(self._notify)
         # Wie oft schon erinnert (pro Fritteuse+Zone und Garvorgang)
-        self._shaken: dict[tuple[str, int], int] = {}
-        # 🥄 Seit wann „Jetzt schütteln!“ gilt (für Karte und Laufband, verschwindet nach 3 Minuten)
+        self._shaken: dict[tuple[str, int], tuple[int, int]] = {}  # (Takt, so oft schon erinnert)
+        # ↕️ Seit wann „Jetzt schütteln!“ gilt (für Karte und Laufband, verschwindet nach 3 Minuten)
         self.shake_at: dict[tuple[str, int], datetime] = {}
         # ⏰ Seit wann eine Zone auf Start wartet – und ob schon daran erinnert wurde
         self.waiting_since: dict[tuple[str, int], datetime] = {}
@@ -380,8 +376,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             )
         if self._notify and done:
             self._notify_done(fryer, done)
-        if self._shake or self._notify_shake:
-            self._shake_events(fryer, old, new, base)
+        self._shake_events(fryer, old, new, base)
         self._forgot_events(fryer, new, base)
         self._track_content(fryer, new)  # erst NACH den Meldungen – die sollen „Pommes“ ja noch nennen
 
@@ -430,25 +425,32 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         return (dt_util.utcnow() - since).total_seconds() >= self._forgot_min * 60
 
     def shaking(self, cid: str, zone: int) -> bool:
-        """🥄 Gilt gerade „Jetzt schütteln!“? (3 Minuten lang, Schublade auf = vorbei)"""
+        """↕️ Gilt gerade „Jetzt schütteln!“? (3 Minuten lang, Schublade auf = vorbei)"""
         at = self.shake_at.get((cid, zone))
         return at is not None and (dt_util.utcnow() - at).total_seconds() < SHAKE_SHOW_SECONDS
 
-    def _shake_count(self, total: int, left: int) -> int:
+    def shake_every(self, cid: str, zone: int) -> int | None:
+        """↕️ Knopf der Zone: None = aus, 0 = zur Halbzeit, X = alle X Minuten."""
+        store = get_store(self.hass)
+        return store.shake(cid, zone) if store is not None else None
+
+    @staticmethod
+    def _shake_count(total: int, left: int, every: int) -> int:
         """Wie viele Schüttel-Zeitpunkte sind schon vorbei? Halbzeit: 0 oder 1, sonst alle X Minuten einer."""
-        if not self._shake_every:
+        if not every:
             return 1 if left <= total / 2 else 0
-        return int((total - left) // (self._shake_every * 60))
+        return int((total - left) // (every * 60))
 
     def _shake_events(self, fryer: FryerData, old: FryerState, new: FryerState, base: dict[str, Any]) -> None:
-        """🥄 Ereignis „schütteln“ – zur Halbzeit oder alle X Minuten, pro Zone.
+        """↕️ Ereignis „schütteln“ – je nach Knopf der Zone zur Halbzeit oder alle X Minuten.
 
-        Für Doofe: Ist die Hälfte der Garzeit um (oder wieder X Minuten vorbei), kommt das
-        Ereignis ``airfryer_control_schuetteln``. Damit kann eine Automation aufs Handy
-        schreiben oder eine Durchsage machen. Karte und Laufband zeigen 3 Minuten lang ein
-        blinkendes 🥄 – Schublade auf (= geschüttelt) und es ist sofort weg. In der letzten
-        Minute wird nicht mehr erinnert. Startet Home Assistant mitten im Garen neu, kommt
-        keine verspätete Erinnerung. Ein Liebling mit „🥄 aus“ (z. B. Kuchen) wird nie erinnert.
+        Für Doofe: Jede Schublade hat in der Karte ihren eigenen Knopf „↕️ Schütteln“
+        (aus, Halbzeit, alle 3/5/8 Minuten). Ist es so weit, kommt das Ereignis
+        ``airfryer_control_schuetteln`` (für Automationen), Karte und Laufband zeigen 3 Minuten
+        lang ein blinkendes ↕️ – Schublade auf (= geschüttelt) und es ist sofort weg. Mit
+        „Auch aufs Handy“ kommt zusätzlich eine Nachricht. In der letzten Minute wird nicht mehr
+        erinnert. Startet Home Assistant mitten im Garen neu oder wird der Knopf mitten im Garen
+        umgestellt, wird nichts Verpasstes nachgeholt.
         """
         now = dt_util.utcnow()
         for zone, zs in new.zones.items():
@@ -463,48 +465,63 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                     self.shake_at.pop(key, None)
                 continue
             total, left = zs.set_time_s, zs.remaining_s
+            every = self.shake_every(fryer.cid, zone)
+            if every is None:
+                self._shaken[key] = (-1, 0)  # Knopf aus – merken, damit beim Einschalten nichts nachgeholt wird
+                continue
             if not total or left is None or total < SHAKE_MIN_SECONDS:
                 continue
-            count = self._shake_count(total, left)
-            done = self._shaken.get(key)
-            if done is None:
-                before = old.zones.get(zone)
-                if before is None or not before.active:
-                    # gerade erst gesehen (z. B. nach Neustart) → Vergangenes nicht nachholen
-                    self._shaken[key] = count
-                    continue
-                done = 0
-            if count <= done or left < SHAKE_LAST_SECONDS:
+            count = self._shake_count(total, left, every)
+            seen = self._shaken.get(key)
+            if seen is None or seen[0] != every:
+                # Garen beginnt, HA neu gestartet oder Knopf umgestellt: ab jetzt zählen, nichts nachholen
+                seen = self._shaken[key] = (every, count)
+            if count <= seen[1] or left < SHAKE_LAST_SECONDS:
                 continue
-            self._shaken[key] = count
-            if self.zone_info(fryer.cid, zone).get("schuetteln") is False:
-                continue  # ⭐ Liebling sagt: hier nicht schütteln (z. B. Kuchen)
+            self._shaken[key] = (every, count)
             self.shake_at[key] = now
             rest = int(round(left / 60))
             content = self.content(fryer.cid, zone)
-            if self._shake:
-                self.hass.bus.async_fire(
-                    EVENT_SHAKE,
-                    {
-                        **base,
-                        "zone": zone,
-                        "programm": zs.mode,
-                        "rest_minuten": rest,
-                        "garzeit_minuten": int(round(total / 60)),
-                        "mal": count,
-                        "inhalt": content,
-                    },
-                )
+            self.hass.bus.async_fire(
+                EVENT_SHAKE,
+                {
+                    **base,
+                    "zone": zone,
+                    "programm": zs.mode,
+                    "rest_minuten": rest,
+                    "garzeit_minuten": int(round(total / 60)),
+                    "mal": count,
+                    "alle_minuten": every,
+                    "inhalt": content,
+                },
+            )
             if self._notify_shake:
                 de = self._de()
-                half = not self._shake_every
                 name = _zone_txt(fryer, zone, de, content)
                 self._notify_send(
-                    "🥄 Jetzt schütteln!" if de else "🥄 Shake now!",
-                    (f"{name}: {'Halbzeit – ' if half else ''}noch {rest} Min." if de
-                     else f"{name}: {'half time – ' if half else ''}{rest} min left."),
+                    "↕️ Jetzt schütteln!" if de else "↕️ Shake now!",
+                    (f"{name}: {'' if every else 'Halbzeit – '}noch {rest} Min." if de
+                     else f"{name}: {'' if every else 'half time – '}{rest} min left."),
                     f"airfryer_control_schuetteln_{fryer.cid}_{zone}",
                 )
+
+    def migrate_shake(self) -> None:
+        """↕️ Einmalig: alte Einstellung „Schüttel-Erinnerung“ (für alle) auf die Knöpfe pro Zone übertragen.
+
+        Für Doofe: Bis 1.0.5-beta.3 gab es den Schalter in den Einstellungen. Wer ihn an hatte,
+        bekommt jetzt jede Zone auf „Halbzeit“ (bzw. seinen alten Takt) – es fällt also nichts weg.
+        """
+        store = get_store(self.hass)
+        if store is None or store.migrated():
+            return
+        opts = self.config_entry.options
+        if opts.get(OPT_SHAKE) or (opts.get(OPT_NOTIFY_SHAKE) and opts.get(OPT_NOTIFY)):
+            every = max(0, int(opts.get(OPT_SHAKE_EVERY, 0) or 0))
+            for fryer in self.fryers.values():
+                for zone in fryer_zones(fryer) or [1]:
+                    if store.shake(fryer.cid, zone) is None:
+                        store.set_shake(fryer.cid, zone, every)
+        store.set_migrated()
 
     # ---------------------------------------------------------------- 📲 Handy-Meldung
     def _de(self) -> bool:

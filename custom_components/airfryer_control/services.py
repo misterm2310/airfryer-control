@@ -15,6 +15,7 @@ Für Doofe:
   Fritteuse merken oder löschen (die Karte zeigt sie als Knöpfe).
 - inhalt_setzen: Für alle – 🏷️ „Was ist drin?“ pro Zone (z. B. „Pommes“). Steht dann
   im Laufband und in der Fertig-Meldung und wird nach dem Garen von selbst vergessen.
+- schuetteln_setzen: Für alle – ↕️ Schüttel-Knopf einer Zone: aus, Halbzeit oder alle X Minuten.
 - garzeit_plus: Für alle – ⏱️ 1–30 Minuten dazu: gart die Zone, wird die laufende
   Zeit länger; ist sie fertig, wird dasselbe Programm nochmal bereitgestellt.
 - befehl_senden: Für Bastler (nur Admins) – einen beliebigen App-Befehl
@@ -38,6 +39,9 @@ from .const import (
     SERVICE_ADD_TIME,
     SERVICE_CAPABILITIES,
     SERVICE_CONTENT,
+    SERVICE_SHAKE,
+    SHAKE_EVERY_MAX,
+    SHAKE_HALF,
     INHALT_MAX,
     SERVICE_FAV_DELETE,
     SERVICE_FAV_SAVE,
@@ -93,6 +97,7 @@ ATTR_RESET = "zuruecksetzen"
 ATTR_NAME = "name"
 ATTR_CONTENT = "inhalt"
 ATTR_SHAKE = "schuetteln"
+ATTR_HOW_OFTEN = "wie_oft"
 
 # „bestätigen“: so oft und so lange nachsehen, ob die Werte an der Zone angekommen sind
 CONFIRM_TRIES = 3
@@ -123,7 +128,7 @@ PROGRAM_SCHEMA = vol.Schema(
         vol.Optional(ATTR_ONCE, default=False): cv.boolean,
         vol.Optional(ATTR_STRICT, default=False): cv.boolean,
         vol.Optional(ATTR_CONFIRM, default=False): cv.boolean,
-        # 🏷️ was drin ist + 🥄 schütteln ja/nein (schickt die Karte beim Tippen auf einen Liebling mit)
+        # 🏷️ was drin ist + ↕️ schütteln ja/nein (schickt die Karte beim Tippen auf einen Liebling mit)
         vol.Optional(ATTR_CONTENT): vol.All(cv.string, vol.Strip, vol.Length(max=INHALT_MAX)),
         vol.Optional(ATTR_SHAKE): cv.boolean,
     }
@@ -155,7 +160,7 @@ FAV_SAVE_SCHEMA = vol.Schema(
         vol.Required(ATTR_MODE): vol.In(list(ALL_MODES)),
         vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
         vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=5000)),
-        vol.Optional(ATTR_SHAKE, default=True): cv.boolean,  # 🥄 aus = bei diesem Liebling nie erinnern
+        vol.Optional(ATTR_SHAKE, default=True): cv.boolean,  # ↕️ aus = bei diesem Liebling nie erinnern
     }
 )
 CONTENT_SCHEMA = vol.Schema(
@@ -164,6 +169,16 @@ CONTENT_SCHEMA = vol.Schema(
         vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
         vol.Optional(ATTR_CONTENT, default=""): vol.Any(None, vol.All(cv.string, vol.Strip, vol.Length(max=INHALT_MAX))),
         vol.Optional(ATTR_SHAKE): cv.boolean,
+    }
+)
+SHAKE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
+        vol.Required(ATTR_HOW_OFTEN): vol.Any(
+            vol.All(cv.string, vol.Lower, vol.In(["aus", "halbzeit"])),
+            vol.All(vol.Coerce(int), vol.Range(min=1, max=SHAKE_EVERY_MAX)),
+        ),
     }
 )
 FAV_DELETE_SCHEMA = vol.Schema(
@@ -365,16 +380,22 @@ async def _program(call: ServiceCall) -> ServiceResponse:
 def _remember_zone(
     coordinator: AirfryerCoordinator, fryer: FryerData, zone: int, content: str | None, shake: bool | None
 ) -> None:
-    """🏷️ Inhalt und 🥄 Schütteln für diese Zone merken (neu = „noch nicht gegart“)."""
+    """🏷️ Inhalt merken (neu = „noch nicht gegart“) und ↕️ den Schüttel-Knopf der Zone anpassen.
+
+    Für Doofe zum Schütteln (kommt vom ⭐ Liebling): ``False`` = Knopf auf „aus“ (Kuchen),
+    ``True`` = schütteln – steht der Knopf auf „aus“, geht er auf „Halbzeit“, sonst bleibt er.
+    """
     store = get_store(coordinator.hass)
     if store is None:
         return
-    values: dict[str, Any] = {"gegart": None}
+    changed = False
     if content is not None:
-        values["inhalt"] = content
-    if shake is not None:
-        values["schuetteln"] = None if shake else False  # nur „aus“ wird gespeichert
-    if store.set_zone_info(fryer.cid, zone, **values):
+        changed |= store.set_zone_info(fryer.cid, zone, inhalt=content, gegart=None)
+    if shake is False:
+        changed |= store.set_shake(fryer.cid, zone, None)
+    elif shake is True and store.shake(fryer.cid, zone) is None:
+        changed |= store.set_shake(fryer.cid, zone, SHAKE_HALF)
+    if changed:
         coordinator.async_update_listeners()
 
 
@@ -382,6 +403,16 @@ async def _content(call: ServiceCall) -> None:
     """🏷️ „Was ist drin?“ für eine Zone setzen (leer = löschen)."""
     coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
     _remember_zone(coordinator, fryer, call.data[ATTR_ZONE], call.data.get(ATTR_CONTENT) or "", call.data.get(ATTR_SHAKE))
+
+
+async def _shake(call: ServiceCall) -> None:
+    """↕️ Schüttel-Knopf einer Zone: „aus“, „halbzeit“ oder alle X Minuten (1–30)."""
+    coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    store = _program_store(call)
+    value = str(call.data[ATTR_HOW_OFTEN]).strip().lower()
+    every = None if value == "aus" else SHAKE_HALF if value == "halbzeit" else int(value)
+    if store.set_shake(fryer.cid, call.data[ATTR_ZONE], every):
+        coordinator.async_update_listeners()
 
 
 async def _confirm(
@@ -591,6 +622,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(DOMAIN, SERVICE_FAV_SAVE, _fav_save, schema=FAV_SAVE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_FAV_DELETE, _fav_delete, schema=FAV_DELETE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_CONTENT, _content, schema=CONTENT_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SHAKE, _shake, schema=SHAKE_SCHEMA)
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_TIME, _add_time, schema=ADD_TIME_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )

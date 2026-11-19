@@ -333,6 +333,34 @@ inhalt_setzen:
       selector:
         boolean:
 
+schuetteln_setzen:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    zone:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "3"
+    wie_oft:
+      required: true
+      example: "halbzeit"
+      selector:
+        select:
+          custom_value: true
+          options:
+            - "aus"
+            - "halbzeit"
+            - "3"
+            - "5"
+            - "8"
+
 garzeit_plus:
   fields:
     geraet:

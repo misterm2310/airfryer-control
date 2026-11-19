@@ -41,10 +41,8 @@
           "zeiteinheit": "Zeitangaben der Fritteuse",
           "sidebar": "📌 In der Seitenleiste anzeigen",
           "maskottchen": "🍟 Maskottchen in der Seitenleiste zeigen",
-          "schuettel_erinnerung": "🥄 Schüttel-Erinnerung",
           "melden_an": "📲 „Fertig“ an diese Handys melden",
-          "melden_schuetteln": "📲 Auch zur Halbzeit („Jetzt schütteln!“)",
-          "schuettel_takt": "🥄 Wie oft schütteln",
+          "melden_schuetteln": "📲 Auch „↕️ Jetzt schütteln!“ aufs Handy",
           "start_vergessen": "⏰ „Vergessen zu starten?“ nach",
           "melden_vergessen": "📲 Auch „⏰ Vergessen zu starten?“ aufs Handy"
         },
@@ -53,10 +51,8 @@
           "zeiteinheit": "Nur ändern, wenn die Restzeit 60-mal zu groß oder zu klein angezeigt wird.",
           "sidebar": "Legt einen Eintrag „Fritteuse“ in der Seitenleiste an (Vollbild mit Laufband und Zonenkarte). Standardmäßig aus.",
           "maskottchen": "Zeigt den kleinen Airfryer mit Gesicht in der Seitenleisten-Ansicht (auf Dashboard-Karten schaltest du ihn im Karten-Editor). Standardmäßig aus.",
-          "schuettel_erinnerung": "Löst zur Halbzeit (oder alle X Minuten, siehe unten) das Ereignis airfryer_control_schuetteln aus und zeigt 3 Minuten lang ein blinkendes 🥄 in Karte und Laufband. Standard: aus.",
           "melden_an": "Die Fritteuse schickt selbst eine Nachricht, wenn sie fertig ist – ganz ohne Automation. Wähle einen oder mehrere notify-Dienste (z. B. mobile_app_dein_handy). Leer = aus (Standard).",
-          "melden_schuetteln": "Schickt zur Halbzeit zusätzlich „🥄 Jetzt schütteln!“ an die Handys oben. Standard: aus.",
-          "schuettel_takt": "0 = einmal zur Halbzeit (Standard). 5 = beim Garen alle 5 Minuten, usw. In der letzten Minute nicht mehr.",
+          "melden_schuetteln": "Wann geschüttelt wird, stellst du pro Schublade in der Karte ein (Knopf „↕️ Schütteln“ bei der Programm-Auswahl). Standard: aus.",
           "start_vergessen": "So viele Minuten darf eine Zone auf Start am Gerät warten, dann erinnern Karte, Laufband und das Ereignis airfryer_control_start_vergessen. 0 = aus. Standard: 10.",
           "melden_vergessen": "Nur mit Handys oben. Standard: an."
         }
@@ -423,8 +419,8 @@
           "description": "Optional: was reinkommt (z. B. Pommes) – steht im Laufband und in der Fertig-Meldung."
         },
         "schuetteln": {
-          "name": "Schüttel-Erinnerung",
-          "description": "Optional: aus = bei diesem Garen nicht ans Schütteln erinnern."
+          "name": "Schütteln",
+          "description": "Optional: aus = ↕️-Knopf der Zone ausschalten, an = mindestens zur Halbzeit."
         }
       }
     },
@@ -463,8 +459,8 @@
           "description": "Garzeit."
         },
         "schuetteln": {
-          "name": "Schüttel-Erinnerung",
-          "description": "Aus = bei diesem Liebling nie ans Schütteln erinnern (z. B. Kuchen)."
+          "name": "Schütteln",
+          "description": "Aus = beim Senden dieses Lieblings den ↕️-Knopf der Zone ausschalten (z. B. Kuchen). An = mindestens zur Halbzeit."
         }
       }
     },
@@ -517,8 +513,26 @@
           "description": "z. B. Pommes (höchstens 40 Zeichen). Leer = löschen."
         },
         "schuetteln": {
-          "name": "Schüttel-Erinnerung",
-          "description": "Aus = bei diesem Garen nicht ans Schütteln erinnern (z. B. Kuchen)."
+          "name": "Schütteln",
+          "description": "Optional: aus = ↕️-Knopf der Zone ausschalten, an = mindestens zur Halbzeit."
+        }
+      }
+    },
+    "schuetteln_setzen": {
+      "name": "Schütteln einstellen",
+      "description": "Für alle: ↕️ Schüttel-Knopf einer Schublade – aus, zur Halbzeit oder alle X Minuten. Zur Schüttel-Zeit kommt das Ereignis airfryer_control_schuetteln, Karte und Laufband zeigen ↕️.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 oder 3 (Grandzone)."
+        },
+        "wie_oft": {
+          "name": "Wie oft",
+          "description": "aus, halbzeit oder Minuten (1–30), z. B. 5."
         }
       }
     }

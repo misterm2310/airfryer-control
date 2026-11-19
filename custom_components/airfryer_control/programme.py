@@ -3,6 +3,7 @@
 Für Doofe: Hier merkt sich Home Assistant pro Fritteuse
 - deine Lieblinge (z. B. „Pommes 200 °C, 18 min“) – höchstens 12,
 - die letzten 5 Programme, die an die Fritteuse gegangen sind,
+- ↕️ wie oft in welcher Zone ans Schütteln erinnert wird (Knopf pro Schublade),
 - 🏷️ was gerade in welcher Zone liegt („Zone 1: Pommes“) und ob dort geschüttelt
   werden soll (kommt vom Liebling). Das wird nach dem Garen von selbst vergessen.
 Beides liegt in Home Assistant (Ordner .storage), nicht im Browser. So sieht das
@@ -42,8 +43,9 @@ class ProgramStore:
         return self._data.setdefault(cid, {"lieblinge": [], "zuletzt": []})
 
     def zone_info(self, cid: str, zone: int) -> dict[str, Any]:
-        """🏷️ Was liegt in der Zone? {"inhalt": "Pommes", "schuetteln": False, "gegart": True} – leer = nichts bekannt."""
-        return dict(self._data.get(cid, {}).get("zonen", {}).get(str(zone), {}))
+        """🏷️ Was liegt in der Zone? {"inhalt": "Pommes", "gegart": True} – leer = nichts bekannt."""
+        data = self._data.get(cid, {})
+        return dict(data.get("zonen", {}).get(str(zone), {})) if isinstance(data, dict) else {}
 
     def set_zone_info(self, cid: str, zone: int, **values: Any) -> bool:
         """🏷️ Inhalt/Schütteln einer Zone setzen. None oder "" löscht den Wert. True = etwas hat sich geändert."""
@@ -72,6 +74,34 @@ class ProgramStore:
         self._changed(cid)
         return True
 
+    def shake(self, cid: str, zone: int) -> int | None:
+        """↕️ Knopf der Zone: None = aus, 0 = zur Halbzeit, X = alle X Minuten."""
+        value = self._data.get(cid, {}).get("schuetteln", {}).get(str(zone))
+        return int(value) if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+    def set_shake(self, cid: str, zone: int, every: int | None) -> bool:
+        """↕️ Knopf der Zone setzen (None = aus). True = etwas hat sich geändert."""
+        knobs = self._data.setdefault(cid, {"lieblinge": [], "zuletzt": []}).setdefault("schuetteln", {})
+        old = knobs.get(str(zone))
+        if every is None:
+            if old is None:
+                return False
+            knobs.pop(str(zone))
+        else:
+            if old == int(every):
+                return False
+            knobs[str(zone)] = int(every)
+        self._changed(cid)
+        return True
+
+    def migrated(self) -> bool:
+        """Wurden die alten Schüttel-Einstellungen schon auf die Knöpfe übertragen?"""
+        return bool(self._data.get("_schuetteln_uebertragen"))
+
+    def set_migrated(self) -> None:
+        self._data["_schuetteln_uebertragen"] = True
+        self._store.async_delay_save(lambda: self._data, 2)
+
     def favorites(self, cid: str) -> list[dict[str, Any]]:
         return list(self._data.get(cid, {}).get("lieblinge", []))
 
@@ -94,7 +124,7 @@ class ProgramStore:
     ) -> bool:
         """Liebling speichern. Gleicher Name = überschreiben. False = schon 12 Stück.
 
-        ``shake`` = False: 🥄 bei diesem Liebling nie ans Schütteln erinnern (z. B. Kuchen).
+        ``shake`` = False: ↕️ beim Senden dieses Lieblings den Schüttel-Knopf der Zone auf „aus“ (z. B. Kuchen).
         """
         favs = self._fryer(cid)["lieblinge"]
         entry = {"name": name, "programm": mode, "temperatur": int(temp), "minuten": int(minutes), "schuetteln": bool(shake)}
