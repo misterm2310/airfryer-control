@@ -271,7 +271,7 @@ actions:
 
 | Action | What it does |
 |---|---|
-| `airfryer_control.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). |
+| `airfryer_control.senden_testen` | **For tinkerers, admins only:** sends `zone`, `temperatur`, `minuten`, `programm` to the fryer (without starting) and shows which variant it accepted. Without `variante` the safe variants are tried in turn until one works (never with start). 🍗 On the Dual Blaze (CAF-P583S) extra test variants are tried as well, each with one field changed (`single_accountid`, `single_ohne_konto`, `single_ohne_zusatz`, `single_modus_klein`, `single_ohne_rezept`, `single_schritte`, `single_ohne_vorheizen`, `single_linkage`, `single_als_multi`) – none of them starts anything. The accepted one is remembered and used first by “Send”. |
 | `airfryer_control.garen_beenden` | Stop. |
 | `airfryer_control.programm_senden` | **For all users** (no admin rights needed, e.g. for the shopping list): sends `zone`, `temperatur`, `minuten`, `programm` to the fryer – **prepare only**, it never starts by itself. Temperature and time are limited to the program's range. Without `geraet` the only fryer is used. Response: `ok`, `ergebnis` and on failure `fehler`/`code`. Extras for other integrations below. |
 | `airfryer_control.liebling_speichern` | **For all users:** ⭐ saves `name`, `programm`, `temperatur`, `minuten` as a favourite (same name = overwrite, up to 12 per fryer, values are limited to the program's range). `schuetteln: false` = ↕️ off: sets the drawer's button to off when sending (default: on). Without `geraet` the only fryer is used. |
@@ -294,7 +294,7 @@ Other integrations should **not** talk to the cloud themselves. They just use th
 
 | Field | What it does |
 |---|---|
-| `variante` | Exactly this safe variant (`multi_app`, `multi_app_celsius`, `multi_app_zone0`). The starting form is never allowed here. |
+| `variante` | Exactly this safe variant (`multi_app`, `multi_app_celsius`, `multi_app_zone0`, Dual Blaze: `single_app`, `single_app_celsius` and the test variants). The starting form is never allowed here. |
 | `einmal: true` | **Exactly one command.** No second variant, no automatic repeat after a new login. If the token expired you get `abgelehnt` (nothing sent) – the next attempt logs in first. |
 | `streng: true` | Values outside the program limits are **rejected** (`fehler: ausserhalb_grenzen` with `grenzen`) instead of silently adjusted. |
 | `bestaetigen: true` | After sending, check up to 3 times (about 6 s) whether the zone really shows the values → `bestaetigt: true/false` and `am_geraet`. |

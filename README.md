@@ -366,7 +366,7 @@ actions:
 
 | Dienst | Was er tut |
 |---|---|
-| `airfryer_control.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). |
+| `airfryer_control.senden_testen` | **Für Bastler, nur Admins:** schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse (ohne zu starten) und zeigt, welche Schreibweise sie angenommen hat. Ohne `variante` werden die sicheren Schreibweisen der Reihe nach probiert, bis eine klappt (nie mit Start). 🍗 Bei der Dual Blaze (CAF-P583S) kommen dabei zusätzlich Test-Schreibweisen dran, bei denen je ein Feld anders ist (`single_accountid`, `single_ohne_konto`, `single_ohne_zusatz`, `single_modus_klein`, `single_ohne_rezept`, `single_schritte`, `single_ohne_vorheizen`, `single_linkage`, `single_als_multi`) – auch die starten nichts. Die angenommene wird gemerkt und von „Senden“ zuerst benutzt. |
 | `airfryer_control.garen_beenden` | Stopp. |
 | `airfryer_control.programm_senden` | **Für alle Nutzer** (auch ohne Admin-Rechte, z. B. für die Einkaufsliste): schickt `zone`, `temperatur`, `minuten`, `programm` an die Fritteuse – **nur zum Bereitstellen**, sie startet nie von selbst. Temperatur und Zeit werden auf den Bereich des Programms gesetzt. Ohne `geraet` wird die einzige Fritteuse genommen. Antwort: `ok`, `ergebnis` und bei Fehler `fehler`/`code`. Extras für andere Integrationen siehe unten. |
 | `airfryer_control.liebling_speichern` | **Für alle Nutzer:** ⭐ speichert `name`, `programm`, `temperatur`, `minuten` als Liebling (gleicher Name = überschreiben, höchstens 12 pro Fritteuse, Werte werden auf die Grenzen des Programms gesetzt). `schuetteln: false` = ↕️ aus: stellt den Knopf der Schublade beim Senden auf Aus (Standard: an). Ohne `geraet` wird die einzige Fritteuse genommen. |
@@ -389,7 +389,7 @@ Andere Integrationen sollen **nicht** an der Cloud vorbei bauen. Sie benutzen ei
 
 | Feld | Was es tut |
 |---|---|
-| `variante` | Genau diese sichere Schreibweise (`multi_app`, `multi_app_celsius`, `multi_app_zone0`). Die startende Form ist hier nie erlaubt. |
+| `variante` | Genau diese sichere Schreibweise (`multi_app`, `multi_app_celsius`, `multi_app_zone0`, Dual Blaze: `single_app`, `single_app_celsius` und die Test-Schreibweisen). Die startende Form ist hier nie erlaubt. |
 | `einmal: true` | **Genau ein Befehl.** Keine zweite Schreibweise, keine automatische Wiederholung nach neuer Anmeldung. Ist das Token abgelaufen, kommt `abgelehnt` (nichts gesendet) – beim nächsten Versuch wird vorher angemeldet. |
 | `streng: true` | Werte außerhalb der Programm-Grenzen werden **abgelehnt** (`fehler: ausserhalb_grenzen` mit `grenzen`) statt still angepasst. |
 | `bestaetigen: true` | Nach dem Senden bis zu 3-mal (ca. 6 s) nachsehen, ob die Zone die Werte wirklich zeigt → `bestaetigt: true/false` und `am_geraet`. |

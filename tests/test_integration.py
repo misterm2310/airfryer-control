@@ -1314,6 +1314,64 @@ async def test_p583s_sends_start_cook(hass: HomeAssistant, fake_api) -> None:
     assert not [c for c in api.calls if c[0] == "startMultiCook"]
 
 
+async def test_p583s_test_variants(hass: HomeAssistant, fake_api) -> None:
+    """🧪 Issue #10: Senden testen probiert bei der Dual Blaze die Test-Schreibweisen – nie mit Start."""
+    from custom_components.airfryer_control.senden import SINGLE_TEST_VARIANTS
+
+    FakeApi.devices = [P583S, LAMP]
+    fake_api.status = {"cookStatus": "standby", "stepArray": []}
+    fake_api.multi = {}
+    FakeApi.reject = {"getAirfryerMultiStatus", "startCook"}
+    await setup(hass)
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
+    res = await hass.services.async_call(
+        DOMAIN, "senden_testen", {"geraet": device.id, "programm": "airfry"},
+        blocking=True, return_response=True,
+    )
+    names = [v["variante"] for v in res["versuche"]]
+    assert names == ["single_app", "single_app_celsius", *SINGLE_TEST_VARIANTS]
+    # Nur die letzte (startMultiCook) wird hier angenommen und gemerkt
+    assert res["ok"] is True and res["gemerkte_variante"] == "single_als_multi"
+    api = FakeApi.instances[-1]
+    sent = [(n, c) for n, c in enumerate(api.calls) if c[0] in ("startCook", "startMultiCook")]
+    assert all(c[1]["readyStart"] is True for _, c in sent)  # nichts startet
+    by_name = dict(zip(names, sent))
+    i, (_, ohne) = by_name["single_ohne_zusatz"]
+    assert api.extras[i] is None
+    i, (_, acc) = by_name["single_accountid"]
+    assert acc["accountId"] == "konto-42" and "accountID" not in acc
+    assert api.extras[i] == {"subDeviceNo": 0, "subDeviceType": ""}
+    assert "accountID" not in by_name["single_ohne_konto"][1][1]
+    assert by_name["single_modus_klein"][1][1]["mode"] == "airfry"
+    assert "recipeId" not in by_name["single_ohne_rezept"][1][1]
+    assert "startAct" not in by_name["single_schritte"][1][1]
+    assert by_name["single_ohne_vorheizen"][1][1]["startAct"] == {"cookSetTime": 600, "cookTemp": 180}
+    assert by_name["single_linkage"][1][1]["hasLinkage"] is True
+    # Danach nimmt „Senden“ die gemerkte Schreibweise zuerst
+    n = len(api.calls)
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True
+    )
+    first = next(c for c in api.calls[n:] if c[0] in ("startCook", "startMultiCook"))
+    assert first[0] == "startMultiCook"
+
+
+async def test_p583s_raw_command_has_extras(hass: HomeAssistant, fake_api) -> None:
+    FakeApi.devices = [P583S, LAMP]
+    fake_api.status = {"cookStatus": "standby", "stepArray": []}
+    fake_api.multi = {}
+    FakeApi.reject = {"getAirfryerMultiStatus"}
+    await setup(hass)
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, CID)})
+    api = FakeApi.instances[-1]
+    n = len(api.calls)
+    await hass.services.async_call(
+        DOMAIN, "befehl_senden", {"geraet": device.id, "methode": "getAirfryerStatus"},
+        blocking=True, return_response=True,
+    )
+    assert api.extras[n] == {"subDeviceNo": 0, "subDeviceType": ""}
+
+
 def test_recipe_numbers_from_pyvesync() -> None:
     from custom_components.airfryer_control import senden
 

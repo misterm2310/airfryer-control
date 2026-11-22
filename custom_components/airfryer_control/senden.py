@@ -84,6 +84,8 @@ class SendVariant:
     name: str
     method: str
     payload: dict[str, Any]
+    # 🍗 Dual Blaze: False = ohne die App-Zusatzfelder subDeviceNo/subDeviceType senden (Test)
+    with_extra: bool = True
 
 
 def build_variants(
@@ -139,6 +141,8 @@ def build_variants(
     return safe
 
 
+_DROP = object()  # Markierung: dieses Feld weglassen
+
 # 🍗 Dual Blaze CAF-P583S: Diese Felder schickt die App bei JEDEM Befehl mit (pyvesync)
 SUB_DEVICE = {"subDeviceNo": 0, "subDeviceType": ""}
 
@@ -150,6 +154,7 @@ def build_single_variants(
     mode: str,
     *,
     include_start: bool = False,
+    include_tests: bool = False,
 ) -> list[SendVariant]:
     """„Senden“ für die Dual Blaze CAF-P583S (ein Korb): Befehl ``startCook``.
 
@@ -184,9 +189,92 @@ def build_single_variants(
         SendVariant("single_app", "startCook", single("c")),
         SendVariant("single_app_celsius", "startCook", single("celsius")),
     ]
+    if include_tests:
+        variants += build_single_test_variants(single)
     if include_start:
         variants.append(SendVariant("single_app_startet", "startCook", single("c", ready=False)))
     return variants
+
+
+# 🧪 Dual Blaze EU (CAF-P583S-KEU, Issue #10): Test-Schreibweisen, je EIN Feld anders als
+# „single_app“. Alle nur bereitstellen (readyStart true) – nichts startet. Wer angenommen
+# wird, verrät uns, welches Feld die EU-Fritteuse anders haben will.
+SINGLE_TEST_VARIANTS = (
+    "single_accountid",
+    "single_ohne_konto",
+    "single_ohne_zusatz",
+    "single_modus_klein",
+    "single_ohne_rezept",
+    "single_schritte",
+    "single_ohne_vorheizen",
+    "single_linkage",
+    "single_als_multi",
+)
+
+
+def build_single_test_variants(single: Any) -> list[SendVariant]:
+    """Die Test-Schreibweisen für die Dual Blaze (nur „Senden testen“ bzw. wenn gemerkt)."""
+    base: dict[str, Any] = single("c")
+
+    def changed(**upd: Any) -> dict[str, Any]:
+        out = {k: (dict(v) if isinstance(v, dict) else v) for k, v in base.items()}
+        for key, val in upd.items():
+            if val is _DROP:
+                out.pop(key, None)
+            else:
+                out[key] = val
+        return out
+
+    act = base["startAct"]
+    acc = base["accountID"]
+    multi = {
+        "syncType": 0,
+        "workChamber": 1,
+        "tempUnit": "c",
+        "accountId": acc,
+        "readyStart": True,
+        "cookConfigs": [
+            {
+                "cookSetTime": act["cookSetTime"],
+                "cookTemp": act["cookTemp"],
+                "mode": base["mode"],
+                "chamber": 1,
+                "recipeId": base["recipeId"],
+                "recipeName": base["recipeName"],
+                "recipeType": 3,
+                "shakeTime": 0,
+            }
+        ],
+    }
+    return [
+        # Konto-Nummer klein geschrieben (wie bei TurboBlaze/TwinFry)
+        SendVariant("single_accountid", "startCook", changed(accountID=_DROP, accountId=acc)),
+        # ganz ohne Konto-Nummer
+        SendVariant("single_ohne_konto", "startCook", changed(accountID=_DROP)),
+        # ohne subDeviceNo/subDeviceType im Umschlag
+        SendVariant("single_ohne_zusatz", "startCook", changed(), with_extra=False),
+        # Programmname klein (z. B. „airfry“ statt „AirFry“)
+        SendVariant("single_modus_klein", "startCook", changed(mode=str(base["mode"]).lower().replace(" ", ""))),
+        # ohne Rezept-Nummer/-Name/-Typ
+        SendVariant(
+            "single_ohne_rezept", "startCook", changed(recipeId=_DROP, recipeName=_DROP, recipeType=_DROP)
+        ),
+        # Schritte als Liste (der Status meldet „stepArray“)
+        SendVariant("single_schritte", "startCook", changed(startAct=_DROP, stepArray=[dict(act)])),
+        # ohne Vorheizen/Schütteln (nur Zeit + Temperatur)
+        SendVariant(
+            "single_ohne_vorheizen",
+            "startCook",
+            changed(
+                hasPreheat=_DROP,
+                startAct={"cookSetTime": act["cookSetTime"], "cookTemp": act["cookTemp"]},
+            ),
+        ),
+        # Stichthermometer gekoppelt? (Status kennt „linkageStatus“)
+        SendVariant("single_linkage", "startCook", changed(hasLinkage=True)),
+        # Befehl der TwinFry, Korb 1
+        SendVariant("single_als_multi", "startMultiCook", multi),
+    ]
 
 
 def build_sync_payload(
@@ -371,7 +459,14 @@ async def async_send_sync(
 RESULT_ACCEPTED = "angenommen"  # die Cloud hat den Befehl angenommen
 RESULT_REJECTED = "abgelehnt"  # sicher nicht ausgeführt (Fehlercode, Anmeldung abgelaufen)
 RESULT_UNKNOWN = "unbekannt"  # Verbindung weg/Zeitüberschreitung: vielleicht angekommen
-SAFE_VARIANTS = ("multi_app", "multi_app_celsius", "multi_app_zone0", "single_app", "single_app_celsius")
+SAFE_VARIANTS = (
+    "multi_app",
+    "multi_app_celsius",
+    "multi_app_zone0",
+    "single_app",
+    "single_app_celsius",
+    *SINGLE_TEST_VARIANTS,
+)
 
 
 def _other_side(zone: int) -> tuple[int, ...]:
@@ -446,6 +541,7 @@ async def async_send(
     try_all: bool = False,
     once: bool = False,
     allow_start: bool = True,
+    tests: bool = False,
 ) -> list[dict[str, Any]]:
     """Varianten durchprobieren. Merkt sich die erste, die angenommen wird.
 
@@ -460,8 +556,14 @@ async def async_send(
     """
     single = modelle.single_basket(fryer.model)
     if single:
+        # 🧪 Test-Schreibweisen: bei „Senden testen“, bei „nur diese“ und wenn eine davon gemerkt ist
         variants = build_single_variants(
-            coordinator.api.account_id, temp, minutes, mode, include_start=bool(only) and allow_start
+            coordinator.api.account_id,
+            temp,
+            minutes,
+            mode,
+            include_start=bool(only) and allow_start,
+            include_tests=tests or bool(only) or coordinator.send_variant in SINGLE_TEST_VARIANTS,
         )
         extra_payload: dict[str, Any] = {"payload_extra": dict(SUB_DEVICE)}
     else:
@@ -489,9 +591,10 @@ async def async_send(
         if i:
             await asyncio.sleep(PAUSE_SECONDS)
         entry: dict[str, Any] = {"variante": variant.name, "methode": variant.method}
+        call_extra = extra if variant.with_extra else {k: v for k, v in extra.items() if k != "payload_extra"}
         try:
             answer = await coordinator.api.bypass_v2(
-                fryer.info, variant.method, variant.payload, **extra
+                fryer.info, variant.method, variant.payload, **call_extra
             )
         except AirfryerDeviceOffline:
             raise

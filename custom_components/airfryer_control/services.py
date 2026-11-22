@@ -59,12 +59,13 @@ from .const import (
 from .coordinator import AirfryerCoordinator, FryerData
 from .core.parser import zone_view
 from .faehigkeiten import capabilities, outside_limits
-from .modelle import ALL_MODES, change_while_cooking, modes_for
+from .modelle import ALL_MODES, change_while_cooking, modes_for, single_basket
 from .senden import (
     RESULT_ACCEPTED,
     RESULT_REJECTED,
     RESULT_UNKNOWN,
     SAFE_VARIANTS,
+    SUB_DEVICE,
     SyncBlocked,
     async_end,
     async_send,
@@ -571,6 +572,7 @@ async def _send_test(call: ServiceCall) -> ServiceResponse:
             call.data[ATTR_MODE],
             only=call.data.get(ATTR_VARIANT),
             try_all=call.data[ATTR_ALL],
+            tests=True,
         )
     except AirfryerError as err:
         return {"ok": False, "fehler": str(err), "code": err.code}
@@ -585,8 +587,10 @@ async def _raw(call: ServiceCall) -> ServiceResponse:
     await _require_admin(call)
     coordinator, fryer = _find(call.hass, call.data[ATTR_DEVICE])
     try:
+        # 🍗 Dual Blaze: die App-Zusatzfelder gehören bei jedem Befehl dazu (wie bei Senden/Beenden)
+        extra = {"payload_extra": dict(SUB_DEVICE)} if single_basket(fryer.model) else {}
         result = await coordinator.api.bypass_v2(
-            fryer.info, call.data[ATTR_METHOD], call.data[ATTR_DATA]
+            fryer.info, call.data[ATTR_METHOD], call.data[ATTR_DATA], **extra
         )
     except AirfryerError as err:
         return {"ok": False, "fehler": str(err), "code": err.code}
