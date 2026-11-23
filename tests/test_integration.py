@@ -1308,7 +1308,8 @@ async def test_p583s_sends_start_cook(hass: HomeAssistant, fake_api) -> None:
     api = FakeApi.instances[-1]
     i, (method, data) = next((n, c) for n, c in enumerate(api.calls) if c[0] == "startCook")
     assert data["readyStart"] is True and data["mode"] == "French fries"
-    assert data["recipeId"] == 6 and data["accountID"] == "konto-42" and data["hasLinkage"] is False
+    assert data["recipeId"] == 6 and data["accountId"] == "konto-42" and data["hasLinkage"] is False
+    assert "accountID" not in data  # EU will kleines d (Issue #10)
     assert data["startAct"]["cookTemp"] == 195 and data["startAct"]["cookSetTime"] == 20 * 60
     assert api.extras[i] == {"subDeviceNo": 0, "subDeviceType": ""}
     assert not [c for c in api.calls if c[0] == "startMultiCook"]
@@ -1329,7 +1330,7 @@ async def test_p583s_test_variants(hass: HomeAssistant, fake_api) -> None:
         blocking=True, return_response=True,
     )
     names = [v["variante"] for v in res["versuche"]]
-    assert names == ["single_app", "single_app_celsius", *SINGLE_TEST_VARIANTS]
+    assert names == ["single_app", "single_app_gross", "single_app_celsius", *SINGLE_TEST_VARIANTS]
     # Nur die letzte (startMultiCook) wird hier angenommen und gemerkt
     assert res["ok"] is True and res["gemerkte_variante"] == "single_als_multi"
     api = FakeApi.instances[-1]
@@ -1338,10 +1339,10 @@ async def test_p583s_test_variants(hass: HomeAssistant, fake_api) -> None:
     by_name = dict(zip(names, sent))
     i, (_, ohne) = by_name["single_ohne_zusatz"]
     assert api.extras[i] is None
-    i, (_, acc) = by_name["single_accountid"]
-    assert acc["accountId"] == "konto-42" and "accountID" not in acc
+    i, (_, gross) = by_name["single_app_gross"]
+    assert gross["accountID"] == "konto-42" and "accountId" not in gross
     assert api.extras[i] == {"subDeviceNo": 0, "subDeviceType": ""}
-    assert "accountID" not in by_name["single_ohne_konto"][1][1]
+    assert "accountId" not in by_name["single_ohne_konto"][1][1]
     assert by_name["single_modus_klein"][1][1]["mode"] == "airfry"
     assert "recipeId" not in by_name["single_ohne_rezept"][1][1]
     assert "startAct" not in by_name["single_schritte"][1][1]

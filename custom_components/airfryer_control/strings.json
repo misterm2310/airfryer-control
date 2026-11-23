@@ -270,7 +270,7 @@
         },
         "variante": {
           "name": "Schreibweise",
-          "description": "Leer = die sicheren Schreibweisen der Reihe nach probieren, bis eine klappt (TwinFry: multi_app, multi_app_celsius, multi_app_zone0 · Dual Blaze: single_app, single_app_celsius und die Test-Schreibweisen single_accountid, single_ohne_konto, single_ohne_zusatz, single_modus_klein, single_ohne_rezept, single_schritte, single_ohne_vorheizen, single_linkage, single_als_multi). „multi_app_startet“ bzw. „single_app_startet“ STARTEN die Fritteuse sofort wirklich – nur wenn du das willst."
+          "description": "Leer = die sicheren Schreibweisen der Reihe nach probieren, bis eine klappt (TwinFry: multi_app, multi_app_celsius, multi_app_zone0 · Dual Blaze: single_app, single_app_gross, single_app_celsius und die Test-Schreibweisen single_ohne_konto, single_ohne_zusatz, single_modus_klein, single_ohne_rezept, single_schritte, single_ohne_vorheizen, single_linkage, single_als_multi). „multi_app_startet“ bzw. „single_app_startet“ STARTEN die Fritteuse sofort wirklich – nur wenn du das willst."
         },
         "alle": {
           "name": "Alle probieren",

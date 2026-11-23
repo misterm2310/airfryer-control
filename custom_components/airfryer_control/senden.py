@@ -165,9 +165,12 @@ def build_single_variants(
     """
     rid, rname = modelle.recipe(mode)
 
-    def single(unit: str, *, ready: bool = True) -> dict[str, Any]:
+    def single(unit: str, *, ready: bool = True, big_d: bool = False) -> dict[str, Any]:
+        # 🔑 Konto-Nummer: die EU-Fritteuse (CAF-P583S-KEU) will „accountId“ mit kleinem d
+        # (getestet von mexx111, Issue #10). „accountID“ mit großem D steht im US-Mitschnitt
+        # (pyvesync) – bleibt als Ausweich-Schreibweise dabei.
         return {
-            "accountID": account_id or "",
+            ("accountID" if big_d else "accountId"): account_id or "",
             "hasLinkage": False,
             "hasPreheat": 0,
             "hasWarm": False,
@@ -187,6 +190,7 @@ def build_single_variants(
 
     variants = [
         SendVariant("single_app", "startCook", single("c")),
+        SendVariant("single_app_gross", "startCook", single("c", big_d=True)),
         SendVariant("single_app_celsius", "startCook", single("celsius")),
     ]
     if include_tests:
@@ -200,7 +204,6 @@ def build_single_variants(
 # „single_app“. Alle nur bereitstellen (readyStart true) – nichts startet. Wer angenommen
 # wird, verrät uns, welches Feld die EU-Fritteuse anders haben will.
 SINGLE_TEST_VARIANTS = (
-    "single_accountid",
     "single_ohne_konto",
     "single_ohne_zusatz",
     "single_modus_klein",
@@ -226,7 +229,7 @@ def build_single_test_variants(single: Any) -> list[SendVariant]:
         return out
 
     act = base["startAct"]
-    acc = base["accountID"]
+    acc = base["accountId"]
     multi = {
         "syncType": 0,
         "workChamber": 1,
@@ -247,10 +250,8 @@ def build_single_test_variants(single: Any) -> list[SendVariant]:
         ],
     }
     return [
-        # Konto-Nummer klein geschrieben (wie bei TurboBlaze/TwinFry)
-        SendVariant("single_accountid", "startCook", changed(accountID=_DROP, accountId=acc)),
         # ganz ohne Konto-Nummer
-        SendVariant("single_ohne_konto", "startCook", changed(accountID=_DROP)),
+        SendVariant("single_ohne_konto", "startCook", changed(accountId=_DROP)),
         # ohne subDeviceNo/subDeviceType im Umschlag
         SendVariant("single_ohne_zusatz", "startCook", changed(), with_extra=False),
         # Programmname klein (z. B. „airfry“ statt „AirFry“)
@@ -464,6 +465,7 @@ SAFE_VARIANTS = (
     "multi_app_celsius",
     "multi_app_zone0",
     "single_app",
+    "single_app_gross",
     "single_app_celsius",
     *SINGLE_TEST_VARIANTS,
 )
