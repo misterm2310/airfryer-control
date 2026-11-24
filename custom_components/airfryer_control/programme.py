@@ -65,6 +65,11 @@ class ProgramStore:
         self._changed(cid)
         return True
 
+    def zones_with_info(self, cid: str) -> list[int]:
+        """🏷️ Welche Zonen haben gerade Inhalt/Merker gespeichert?"""
+        zones = self._data.get(cid, {}).get("zonen", {}) if isinstance(self._data.get(cid), dict) else {}
+        return [int(z) for z in zones if str(z).isdigit()]
+
     def clear_zone_info(self, cid: str, zone: int) -> bool:
         """🧹 Nach dem Garen: Inhalt und Schütteln der Zone vergessen."""
         zones = self._data.get(cid, {}).get("zonen", {})
@@ -120,14 +125,25 @@ class ProgramStore:
             func(cid)
 
     def save_favorite(
-        self, cid: str, name: str, mode: str, temp: int, minutes: int, shake: bool = True
+        self, cid: str, name: str, mode: str, temp: int, minutes: int, shake: bool = True,
+        old_name: str | None = None,
     ) -> bool:
         """Liebling speichern. Gleicher Name = überschreiben. False = schon 12 Stück.
 
         ``shake`` = False: ↕️ beim Senden dieses Lieblings den Schüttel-Knopf der Zone auf „aus“ (z. B. Kuchen).
+        ``old_name``: ✏️ Liebling umbenennen – der alte Eintrag wird an seinem Platz ersetzt
+        (gibt es den neuen Namen schon als anderen Liebling, fällt der doppelte weg).
         """
         favs = self._fryer(cid)["lieblinge"]
         entry = {"name": name, "programm": mode, "temperatur": int(temp), "minuten": int(minutes), "schuetteln": bool(shake)}
+        if old_name and old_name.casefold() != name.casefold():
+            pos = next((i for i, f in enumerate(favs) if str(f.get("name", "")).casefold() == old_name.casefold()), None)
+            if pos is not None:
+                favs[pos] = entry
+                self._fryer(cid)["lieblinge"] = [f for i, f in enumerate(favs)
+                                                 if i == pos or str(f.get("name", "")).casefold() != name.casefold()]
+                self._changed(cid)
+                return True
         for i, fav in enumerate(favs):
             if str(fav.get("name", "")).casefold() == name.casefold():
                 favs[i] = entry

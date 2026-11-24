@@ -98,6 +98,7 @@ ATTR_RESET = "zuruecksetzen"
 ATTR_NAME = "name"
 ATTR_CONTENT = "inhalt"
 ATTR_SHAKE = "schuetteln"
+ATTR_OLD_NAME = "alter_name"  # ✏️ Liebling umbenennen: so hieß er bisher
 ATTR_HOW_OFTEN = "wie_oft"
 
 # „bestätigen“: so oft und so lange nachsehen, ob die Werte an der Zone angekommen sind
@@ -162,6 +163,7 @@ FAV_SAVE_SCHEMA = vol.Schema(
         vol.Required(ATTR_TEMP): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
         vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=5000)),
         vol.Optional(ATTR_SHAKE, default=True): cv.boolean,  # ↕️ aus = bei diesem Liebling nie erinnern
+        vol.Optional(ATTR_OLD_NAME): vol.All(cv.string, vol.Strip, vol.Length(max=40)),  # ✏️ umbenennen
     }
 )
 CONTENT_SCHEMA = vol.Schema(
@@ -475,7 +477,8 @@ async def _fav_save(call: ServiceCall) -> None:
     temp = clamp_temp(mode, call.data[ATTR_TEMP], fryer.model)
     minutes = clamp_minutes(mode, call.data[ATTR_MINUTES], fryer.model)
     if not _program_store(call).save_favorite(
-        fryer.cid, call.data[ATTR_NAME], mode, temp, minutes, call.data[ATTR_SHAKE]
+        fryer.cid, call.data[ATTR_NAME], mode, temp, minutes, call.data[ATTR_SHAKE],
+        old_name=call.data.get(ATTR_OLD_NAME) or None,
     ):
         raise ServiceValidationError("Schon 12 Lieblinge – lösch erst einen, dann passt der neue rein.")
 

@@ -356,6 +356,12 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                     store.set_zone_info(fryer.cid, zone, gegart=True)
             elif zs.status in IDLE_STATES and info.get("gegart"):
                 store.clear_zone_info(fryer.cid, zone)
+        # 🐞 Grandzone: im Ruhezustand meldet die Fritteuse sie gar nicht (fehlt in new.zones).
+        # Nicht gemeldet + hat gegart = steht still → Inhalt auch hier vergessen.
+        if new.zones:
+            for zone in store.zones_with_info(fryer.cid):
+                if zone not in new.zones and store.zone_info(fryer.cid, zone).get("gegart"):
+                    store.clear_zone_info(fryer.cid, zone)
 
     def _fire_events(self, fryer: FryerData, old: FryerState, new: FryerState) -> None:
         """Ereignis „fertig“, wenn etwas aufhört zu garen."""
@@ -416,6 +422,16 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                      if de else f"{_zone_txt(fryer, zone, de, content)} has been waiting {minutes} min for start – press Start on the device."),
                     f"airfryer_control_vergessen_{fryer.cid}_{zone}",
                 )
+        # 🐞 Grandzone abgebrochen/bereit: Sie fehlt dann ganz in new.zones (wird nicht gemeldet).
+        # Für Doofe: Wer nicht mehr gemeldet wird, wartet auch nicht mehr → „wartet seit“ und ⏰ weg.
+        if new.zones:
+            gone = {k for k in (*self.waiting_since, *self._forgot_sent, *self.shake_at, *self._shaken)
+                    if k[0] == fryer.cid and k[1] not in new.zones}
+            for key in gone:
+                self.waiting_since.pop(key, None)
+                self._forgot_sent.discard(key)
+                self.shake_at.pop(key, None)  # ↕️ gart nicht mehr → auch kein „Jetzt schütteln!“
+                self._shaken.pop(key, None)
 
     def forgot(self, cid: str, zone: int) -> bool:
         """⏰ Wartet die Zone schon länger als eingestellt auf Start? (für Karte und Laufband)"""

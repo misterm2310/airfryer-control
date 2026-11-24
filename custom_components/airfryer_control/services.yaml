@@ -294,6 +294,11 @@ liebling_speichern:
       default: true
       selector:
         boolean:
+    alter_name:
+      required: false
+      example: "Pommes alt"
+      selector:
+        text:
 
 liebling_loeschen:
   fields:

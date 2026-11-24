@@ -1812,3 +1812,63 @@ async def test_shake_every_x_minutes_and_arrows(hass: HomeAssistant, fake_api) -
         await coordinator.async_refresh()
     await hass.async_block_till_done()
     assert [e.data["mal"] for e in events] == [1, 2, 3]
+
+
+async def test_grandzone_forgets_waiting_when_cancelled(hass: HomeAssistant, fake_api) -> None:
+    """🐞 Grandzone wartet, wird abgebrochen (danach gar nicht mehr gemeldet) → wartet_seit + start_vergessen weg."""
+    from datetime import timedelta as _td
+    from homeassistant.util import dt as _dt
+
+    fake_api.status_rejected = True
+    fake_api.multi = _twinfry_with(z3="ready")
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 3, "inhalt": "Frikadellen"}, blocking=True)
+    await coordinator.async_refresh()
+    key = next(k for k in coordinator.waiting_since if k[1] == 3)
+    coordinator.waiting_since[key] = _dt.utcnow() - _td(minutes=11)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    grand = lambda: hass.states.get(eid(hass, "sensor", "zone3_status"))  # noqa: E731
+    assert grand().attributes["start_vergessen"] is True
+    # Abgebrochen: Fritteuse meldet nur noch Zone 1/2 im Ruhezustand
+    fake_api.multi = real_twinfry("standby")
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert grand().attributes["start_vergessen"] is False
+    assert grand().attributes["wartet_seit"] is None
+    assert grand().attributes["inhalt"] == "Frikadellen"  # noch nicht gegart → bleibt (wie bei Zone 1)
+
+
+async def test_grandzone_forgets_content_after_cooking(hass: HomeAssistant, fake_api) -> None:
+    """🐞 Grandzone hat gegart und wird danach nicht mehr gemeldet → Inhalt weg."""
+    fake_api.status_rejected = True
+    fake_api.multi = _twinfry_with(z3="cooking")
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 3, "inhalt": "Frikadellen"}, blocking=True)
+    await coordinator.async_refresh()
+    fake_api.multi = real_twinfry("standby")
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(eid(hass, "sensor", "zone3_status")).attributes["inhalt"] is None
+
+
+async def test_favorite_rename_keeps_place(hass: HomeAssistant, fake_api) -> None:
+    """✏️ Liebling umbenennen (alter_name): bleibt an seinem Platz, alle Werte neu."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    await setup(hass)
+    for name in ("Pommes", "Nuggets"):
+        await hass.services.async_call(
+            DOMAIN, "liebling_speichern", {"name": name, "programm": "airfry", "temperatur": 200, "minuten": 18}, blocking=True,
+        )
+    await hass.services.async_call(
+        DOMAIN, "liebling_speichern",
+        {"name": "Süßkartoffel-Pommes", "alter_name": "Pommes", "programm": "airfry", "temperatur": 190, "minuten": 20, "schuetteln": False},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    favs = hass.states.get(eid(hass, "sensor", "programme")).attributes["lieblinge"]
+    assert [f["name"] for f in favs] == ["Süßkartoffel-Pommes", "Nuggets"]
+    assert favs[0]["temperatur"] == 190 and favs[0]["minuten"] == 20 and favs[0]["schuetteln"] is False

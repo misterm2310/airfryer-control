@@ -461,6 +461,10 @@
         "schuetteln": {
           "name": "Schütteln",
           "description": "Aus = beim Senden dieses Lieblings den ↕️-Knopf der Zone ausschalten (z. B. Kuchen). An = mindestens zur Halbzeit."
+        },
+        "alter_name": {
+          "name": "Alter Name",
+          "description": "Nur zum Umbenennen: so hieß der Liebling bisher. Er wird an seinem Platz ersetzt."
         }
       }
     },

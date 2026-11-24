@@ -461,6 +461,10 @@
         "schuetteln": {
           "name": "Shake",
           "description": "Off = sending this favourite switches the zone’s ↕️ button off (e.g. cake). On = at least at half time."
+        },
+        "alter_name": {
+          "name": "Old name",
+          "description": "Only for renaming: the favourite's current name. It is replaced in its place."
         }
       }
     },
