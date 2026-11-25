@@ -32,6 +32,8 @@ from .const import (
     EVENT_FINISHED,
     EVENT_SHAKE,
     EVENT_FORGOT,
+    EVENT_START_NOW,
+    PLAN_KEEP_SECONDS,
     OPT_SHAKE,
     OPT_SHAKE_EVERY,
     OPT_FORGOT,
@@ -60,7 +62,7 @@ from .const import (
     STATE_STANDBY,
     TIME_UNIT_AUTO,
 )
-from .core.parser import FryerState, guess_unit, parse, zones_for_device
+from .core.parser import FryerState, guess_unit, parse, zone_view, zones_for_device
 from . import modelle
 from .programme import get_store
 
@@ -142,6 +144,12 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         # ⏰ Seit wann eine Zone auf Start wartet – und ob schon daran erinnert wurde
         self.waiting_since: dict[tuple[str, int], datetime] = {}
         self._forgot_sent: set[tuple[str, int]] = set()
+        # 🕒 „Fertig um …“: an welche Wunsch-Zeit schon mit „Jetzt starten“ erinnert wurde
+        self._start_sent: dict[tuple[str, int], str] = {}
+        # 😴 Die Fritteuse wirft ein gesendetes, nicht gestartetes Programm nach ein paar Minuten
+        # selbst weg (Cosori-Firmware). Seit wann ist das passiert – und wann hat jemand selbst abgebrochen?
+        self.dropped_at: dict[tuple[str, int], datetime] = {}
+        self._cancel_at: dict[str, datetime] = {}
         self._unsupported: dict[str, set[str]] = {}
         self.fryers: dict[str, FryerData] = {}
         # Eingaben pro (Fritteuse, Zone): {"temp": °C, "minuten": min, "mode": "airfry"}
@@ -198,6 +206,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         if not any_ok and last_conn_error is not None:
             raise UpdateFailed(str(last_conn_error))
 
+        self._plan_check()
         # Arbeitet eine Fritteuse? Dann öfter nachfragen.
         busy = any(f.online and f.state.active for f in self.fryers.values())
         # Wartet eine Zone auf den Start am Gerät? Dann noch schneller, damit „Fertig um“ gleich kommt.
@@ -395,6 +404,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         „Fertig melden an“ auch eine Nachricht. Karte und Laufband zeigen ⏰.
         """
         now = dt_util.utcnow()
+        self._drop_check(fryer, new, now)
         for zone, zs in new.zones.items():
             key = (fryer.cid, zone)
             if zs.status != STATE_WAITING:
@@ -404,6 +414,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             since = self.waiting_since.setdefault(key, now)
             if not self._forgot_min or key in self._forgot_sent:
                 continue
+            since = self._forgot_from(fryer.cid, zone, since)  # 🕒 mit „Fertig um“ zählt erst ab der Startzeit
             waited = (now - since).total_seconds()
             if waited < self._forgot_min * 60:
                 continue
@@ -433,12 +444,136 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                 self.shake_at.pop(key, None)  # ↕️ gart nicht mehr → auch kein „Jetzt schütteln!“
                 self._shaken.pop(key, None)
 
+    def note_cancel(self, cid: str) -> None:
+        """😴 Jemand hat selbst „Abbrechen“/„Beenden“ gedrückt (Karte, Knopf, Dienst)."""
+        self._cancel_at[cid] = dt_util.utcnow()
+
+    def _drop_check(self, fryer: FryerData, new: FryerState, now: datetime) -> None:
+        """😴 Hat die Fritteuse das gesendete Programm von selbst verworfen?
+
+        Für Doofe: Nach „Senden“ steht die Zone auf „Wartet auf Start“. Drückt keiner
+        Start, wirft die Fritteuse das Programm nach ca. 5 Minuten weg und steht wieder
+        auf „Bereit“. Dann merken wir uns das, und die Karte zeigt „📤 Nochmal senden“.
+        Die Werte (Programm, Temperatur, Zeit, Inhalt) bleiben in Home Assistant stehen.
+        Hat jemand selbst abgebrochen (letzte 2 Minuten), ist es kein „verworfen“.
+        """
+        cancelled = self._cancel_at.get(fryer.cid)
+        by_hand = cancelled is not None and (now - cancelled).total_seconds() < 120
+        for zone, zs in new.zones.items():
+            key = (fryer.cid, zone)
+            if zs.status == STATE_STANDBY and key in self.waiting_since and not by_hand:
+                self.dropped_at[key] = now
+            elif zs.status != STATE_STANDBY:
+                self.dropped_at.pop(key, None)  # neu gesendet, gart, Schublade auf … → Hinweis weg
+        for key in [k for k in self.dropped_at if k[0] == fryer.cid]:
+            if (now - self.dropped_at[key]).total_seconds() > PLAN_KEEP_SECONDS:
+                self.dropped_at.pop(key, None)  # nach 30 Minuten interessiert es keinen mehr
+
+    def dropped(self, cid: str, zone: int) -> bool:
+        """😴 Hat die Fritteuse das Programm dieser Zone selbst verworfen? (für Karte und Laufband)"""
+        return (cid, zone) in self.dropped_at
+
     def forgot(self, cid: str, zone: int) -> bool:
         """⏰ Wartet die Zone schon länger als eingestellt auf Start? (für Karte und Laufband)"""
         since = self.waiting_since.get((cid, zone))
         if since is None or not self._forgot_min:
             return False
+        since = self._forgot_from(cid, zone, since)
         return (dt_util.utcnow() - since).total_seconds() >= self._forgot_min * 60
+
+    def _forgot_from(self, cid: str, zone: int, since: datetime) -> datetime:
+        """⏰ Ab wann zählt „wartet auf Start“? Mit 🕒 „Fertig um“ erst ab der geplanten Startzeit.
+
+        Für Doofe: Du schickst um 17:00 die Pommes, willst aber erst um 18:30 essen.
+        Dann soll nicht schon um 17:10 „Start vergessen?“ kommen – sondern erst
+        10 Minuten nach der geplanten Startzeit.
+        """
+        start = self.start_at(cid, zone)
+        return max(since, start) if start is not None else since
+
+    # ---------------------------------------------------------------- 🕒 „Fertig um …“
+    def plan_target(self, cid: str, zone: int) -> datetime | None:
+        """🕒 Wann soll die Zone fertig sein? None = kein Wunsch eingetragen."""
+        raw = self.zone_info(cid, zone).get("fertig_wunsch")
+        when = dt_util.parse_datetime(raw) if isinstance(raw, str) else None
+        return dt_util.as_utc(when) if when is not None else None
+
+    def plan_minutes(self, cid: str, zone: int) -> int:
+        """🕒 Mit welcher Garzeit wird gerechnet? Schon gesendet = die Zeit an der Fritteuse, sonst die Eingabe der Karte."""
+        fryer = self.fryers.get(cid)
+        zs = zone_view(fryer.state, zone) if fryer is not None else None
+        if zs is not None and zs.status in (STATE_WAITING, STATE_PREHEATED) and zs.set_time_s:
+            return max(1, round(zs.set_time_s / 60))
+        plan = self.plans.get((cid, zone)) or {}
+        try:
+            return max(1, int(plan.get("minuten") or 0))
+        except (TypeError, ValueError):
+            return 1
+
+    def start_at(self, cid: str, zone: int) -> datetime | None:
+        """🕒 Startzeit = Wunsch-Zeit minus Garzeit (None = kein Wunsch)."""
+        target = self.plan_target(cid, zone)
+        if target is None:
+            return None
+        return target - timedelta(minutes=self.plan_minutes(cid, zone))
+
+    def start_now(self, cid: str, zone: int) -> bool:
+        """🕒 Ist die Startzeit da (und gart die Zone noch nicht)? Dann „⏰ Jetzt starten!“."""
+        start = self.start_at(cid, zone)
+        if start is None or dt_util.utcnow() < start:
+            return False
+        fryer = self.fryers.get(cid)
+        zs = zone_view(fryer.state, zone) if fryer is not None else None
+        return not (zs is not None and zs.active)
+
+    def _plan_check(self) -> None:
+        """🕒 „Fertig um …“ prüfen – einmal pro Abfrage.
+
+        Für Doofe:
+        - Gart die Zone, ist der Wunsch erledigt → weg damit.
+        - Ist die Startzeit da → einmal Ereignis ``airfryer_control_jetzt_starten``
+          und (mit Handys unter „Fertig melden an“) eine Nachricht „Jetzt starten!“.
+          Starten musst du trotzdem selbst am Gerät – von allein startet nichts.
+        - Ist die Wunsch-Zeit schon 30 Minuten vorbei und nie gestartet → vergessen.
+        """
+        store = get_store(self.hass)
+        if store is None:
+            return
+        now = dt_util.utcnow()
+        changed = False
+        for cid, fryer in self.fryers.items():
+            for zone in store.zones_with_info(cid):
+                key = (cid, zone)
+                target = self.plan_target(cid, zone)
+                if target is None:
+                    self._start_sent.pop(key, None)
+                    continue
+                zs = zone_view(fryer.state, zone)
+                if (zs is not None and zs.active) or (now - target).total_seconds() > PLAN_KEEP_SECONDS:
+                    changed |= store.set_zone_info(cid, zone, fertig_wunsch=None)
+                    self._start_sent.pop(key, None)
+                    continue
+                start = target - timedelta(minutes=self.plan_minutes(cid, zone))
+                if now < start or self._start_sent.get(key) == target.isoformat():
+                    continue
+                self._start_sent[key] = target.isoformat()
+                content = self.content(cid, zone)
+                clock = dt_util.as_local(target).strftime("%H:%M")
+                self.hass.bus.async_fire(
+                    EVENT_START_NOW,
+                    {"geraet": fryer.name, "modell": fryer.model, "zone": zone, "inhalt": content,
+                     "fertig_um": target.isoformat(), "minuten": self.plan_minutes(cid, zone)},
+                )
+                if self._notify:
+                    de = self._de()
+                    self._notify_send(
+                        "⏰ Jetzt starten!" if de else "⏰ Start now!",
+                        (f"{_zone_txt(fryer, zone, de, content)}: jetzt am Gerät auf Start drücken, dann ist es um {clock} Uhr fertig."
+                         if de else f"{_zone_txt(fryer, zone, de, content)}: press Start on the device now and it is done at {clock}."),
+                        f"airfryer_control_starten_{cid}_{zone}",
+                    )
+        if changed:
+            self.async_update_listeners()
 
     def shaking(self, cid: str, zone: int) -> bool:
         """↕️ Gilt gerade „Jetzt schütteln!“? (3 Minuten lang, Schublade auf = vorbei)"""

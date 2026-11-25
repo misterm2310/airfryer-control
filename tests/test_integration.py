@@ -1872,3 +1872,118 @@ async def test_favorite_rename_keeps_place(hass: HomeAssistant, fake_api) -> Non
     favs = hass.states.get(eid(hass, "sensor", "programme")).attributes["lieblinge"]
     assert [f["name"] for f in favs] == ["Süßkartoffel-Pommes", "Nuggets"]
     assert favs[0]["temperatur"] == 190 and favs[0]["minuten"] == 20 and favs[0]["schuetteln"] is False
+
+
+async def test_done_at_start_time_reminder_never_starts(hass: HomeAssistant, fake_api) -> None:
+    """🕒 „Fertig um“: Startzeit = Wunsch minus Garzeit, zur Startzeit einmal Ereignis + Handy, nie ein Start-Befehl."""
+    from datetime import timedelta as _td
+    from pytest_homeassistant_custom_component.common import async_mock_service
+    from custom_components.airfryer_control.const import EVENT_START_NOW, EVENT_FORGOT
+
+    calls = async_mock_service(hass, "notify", "mobile_app_marco")
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, melden_an=["mobile_app_marco"])
+    coordinator = entry.runtime_data
+    events = async_capture_events(hass, EVENT_START_NOW)
+    forgot = async_capture_events(hass, EVENT_FORGOT)
+    goal = dt_util.now() + _td(hours=2)
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Pommes"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "fertig_um_setzen", {"zone": 1, "uhrzeit": goal.strftime("%H:%M")}, blocking=True)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    a = _zone1(hass).attributes
+    minutes = coordinator.plan_minutes(next(iter(coordinator.fryers)), 1)
+    target = dt_util.parse_datetime(a["fertig_wunsch"])
+    assert target.strftime("%H:%M") == dt_util.as_utc(goal).strftime("%H:%M")
+    assert dt_util.parse_datetime(a["start_um"]) == target - _td(minutes=minutes)
+    assert a["jetzt_starten"] is False and events == []
+    sent_before = list(fake_api.calls) if hasattr(fake_api, "calls") else None
+    # Startzeit ist da (Wunsch rückt näher) → genau EINE Erinnerung
+    cid = next(iter(coordinator.fryers))
+    store_goal = (dt_util.utcnow() + _td(minutes=minutes - 1)).isoformat()
+    from custom_components.airfryer_control.programme import get_store
+    get_store(hass).set_zone_info(cid, 1, fertig_wunsch=store_goal)
+    await coordinator.async_refresh()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert len(events) == 1 and events[0].data["inhalt"] == "Pommes"
+    assert _zone1(hass).attributes["jetzt_starten"] is True
+    assert len(calls) == 1 and "⏰" in calls[0].data["title"] and "Zone 1 (Pommes)" in calls[0].data["message"]
+    if sent_before is not None:
+        assert fake_api.calls == sent_before  # 🚫 von selbst wurde nichts an die Fritteuse geschickt
+    assert _zone1(hass).state != "gart"
+    # Gart die Zone → Wunsch erledigt und weg
+    fake_api.multi = real_twinfry("cooking", remaining=880, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    a = _zone1(hass).attributes
+    assert a["fertig_wunsch"] is None and a["start_um"] is None and a["jetzt_starten"] is False
+    assert forgot == []
+
+
+async def test_done_at_delays_forgot_until_start_time(hass: HomeAssistant, fake_api) -> None:
+    """🕒 Früh gesendet, Wunsch in 2 Stunden → kein „Start vergessen?“ nach 10 Minuten."""
+    from datetime import timedelta as _td
+    from homeassistant.util import dt as _dt
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    goal = dt_util.now() + _td(hours=2)
+    await hass.services.async_call(DOMAIN, "fertig_um_setzen", {"zone": 1, "uhrzeit": goal.strftime("%H:%M")}, blocking=True)
+    fake_api.multi = real_twinfry("ready", remaining=900, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    for key in coordinator.waiting_since:
+        coordinator.waiting_since[key] = _dt.utcnow() - _td(minutes=30)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["start_vergessen"] is False
+    # Uhrzeit löschen → normales „Start vergessen?“ greift wieder
+    await hass.services.async_call(DOMAIN, "fertig_um_setzen", {"zone": 1, "uhrzeit": ""}, blocking=True)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["fertig_wunsch"] is None
+    assert _zone1(hass).attributes["start_vergessen"] is True
+
+
+async def test_done_at_rejects_bad_time(hass: HomeAssistant, fake_api) -> None:
+    from homeassistant.exceptions import ServiceValidationError
+    import voluptuous as vol
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    await setup(hass)
+    with pytest.raises((ServiceValidationError, vol.Invalid)):
+        await hass.services.async_call(DOMAIN, "fertig_um_setzen", {"zone": 1, "uhrzeit": "25:99"}, blocking=True)
+    with pytest.raises((ServiceValidationError, vol.Invalid)):
+        await hass.services.async_call(DOMAIN, "fertig_um_setzen", {"zone": 1, "uhrzeit": "halb sieben"}, blocking=True)
+
+
+async def test_dropped_program_after_waiting(hass: HomeAssistant, fake_api) -> None:
+    """😴 Fritteuse wirft ein gesendetes Programm ohne Start weg → „verworfen“; selbst abgebrochen → nicht."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Pommes"}, blocking=True)
+    fake_api.multi = real_twinfry("ready", remaining=900, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    fake_api.multi = real_twinfry()  # 5 Minuten später: wieder „bereit“, keiner hat abgebrochen
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    a = _zone1(hass).attributes
+    assert a["verworfen"] is True and a["inhalt"] == "Pommes"  # Inhalt bleibt stehen
+    # Neu gesendet → Hinweis weg
+    fake_api.multi = real_twinfry("ready", remaining=900, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["verworfen"] is False
+    # Selbst abgebrochen → kein „verworfen“
+    coordinator.note_cancel(next(iter(coordinator.fryers)))
+    fake_api.multi = real_twinfry()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["verworfen"] is False

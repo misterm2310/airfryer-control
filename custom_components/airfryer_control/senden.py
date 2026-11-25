@@ -636,6 +636,7 @@ async def async_end(
     Die TwinFry will bei ``endCook`` die Zone wissen. Hat eine Zone kein Programm,
     meldet sie Code 11923000 – das zählt als „schon aus“, nicht als Fehler.
     """
+    coordinator.note_cancel(fryer.cid)  # 😴 selbst abgebrochen ≠ „von der Fritteuse verworfen“
     if fryer.model.startswith("CS"):
         await coordinator.api.bypass_v2(fryer.info, "endCook", {})
         await coordinator.async_request_fast_refresh()

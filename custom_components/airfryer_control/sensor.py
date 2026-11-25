@@ -242,6 +242,7 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
     _unrecorded_attributes = frozenset({
         "letzte_meldung", "revision", "verbindung", "gemeldet", "zeit_aendern_beim_garen",
         "inhalt", "schuetteln_alle", "jetzt_schuetteln", "wartet_seit", "start_vergessen",
+        "fertig_wunsch", "start_um", "jetzt_starten", "verworfen",
     })
 
     def __init__(
@@ -298,6 +299,12 @@ class ZoneSensor(AirfryerEntity, SensorEntity):
             "jetzt_schuetteln": coord.shaking(cid, zone),
             "wartet_seit": since.isoformat() if since else None,
             "start_vergessen": coord.forgot(cid, zone),
+            # 🕒 „Fertig um …“: Wunsch-Zeit, daraus berechnete Startzeit und „jetzt starten!“
+            "fertig_wunsch": target.isoformat() if (target := coord.plan_target(cid, zone)) else None,
+            "start_um": start.isoformat() if (start := coord.start_at(cid, zone)) else None,
+            "jetzt_starten": coord.start_now(cid, zone),
+            # 😴 Fritteuse hat das gesendete Programm nach ein paar Minuten ohne Start selbst weggeworfen
+            "verworfen": coord.dropped(cid, zone),
         }
 
 

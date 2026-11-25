@@ -366,6 +366,27 @@ schuetteln_setzen:
             - "5"
             - "8"
 
+fertig_um_setzen:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    zone:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "3"
+    uhrzeit:
+      required: false
+      example: "18:30"
+      selector:
+        text:
+
 garzeit_plus:
   fields:
     geraet:

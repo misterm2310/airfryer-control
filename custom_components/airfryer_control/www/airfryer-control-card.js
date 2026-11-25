@@ -16,6 +16,12 @@ const AC_REPO = "https://github.com/misterm2310/airfryer-control";
 // Reihenfolge egal: angezeigt wird immer nach Version, Neueste oben. In einer Beta landen die Einträge dieser Beta-Reihe im orangen Kasten.
 // ⚠️ Die Texte sind HTML (nur <b>) und werden NICHT maskiert – also nur eigene, feste Texte hier eintragen.
 const AC_NEWS = [
+  ["1.0.6-beta.4", "⏱️ <b>Laufband mit Restzeit:</b> statt nur „fertig um 18:05“ steht jetzt „noch 12 Min · fertig 18:05 Uhr“ – die Minuten zählen still runter, das Laufband läuft dabei weiter", "⏱️ <b>Ticker with time left:</b> instead of just “done at 18:05” it now says “12 min left · done 18:05” – the minutes count down quietly while the ticker keeps running"],
+  ["1.0.6-beta.4", "🕒 <b>Fertig um …:</b> Zone antippen → Uhrzeit eintippen, wann das Essen fertig sein soll. Die Karte rechnet die Startzeit aus (Uhrzeit minus Garzeit) und zeigt sie in Zeile, Laufband und Küchen-Ticker der Einkaufsliste · Zur Startzeit blinkt „⏰ Jetzt starten!“ und mit Handys unter „Fertig melden an“ kommt eine Nachricht · Gestartet wird nie von allein – immer am Gerät", "🕒 <b>Done at …:</b> tap a zone → type the time the food should be done. The card works out the start time (time minus cooking time) and shows it in the row, the ticker and the shopping list's kitchen ticker · At start time “⏰ Start now!” blinks, and with phones under “Report done to” you get a message · It never starts by itself – always on the device"],
+  ["1.0.6-beta.4", "😴 <b>Fritteuse hat das Programm verworfen:</b> drückt keiner Start, wirft die Fritteuse ein gesendetes Programm nach ca. 5 Minuten selbst weg. Jetzt steht dann „😴 Verworfen“ in der Zeile mit dem Knopf <b>📤 Nochmal senden</b> – deine Werte und „Was ist drin?“ bleiben stehen", "😴 <b>Fryer dropped the program:</b> if nobody presses Start, the fryer throws away a sent program after about 5 minutes. Now the row says “😴 Dropped” with the button <b>📤 Send again</b> – your values and “What's inside?” stay"],
+  ["1.0.6-beta.4", "🔒 <b>Grandzone oder Zone 1/2:</b> Ist Zone 1 oder Zone 2 an (vorbereitet, heizt, gart …), ist die Grandzone grau und gesperrt – und andersherum. So landet nie ein Programm für die ganze Schublade neben schon belegten Zonen", "🔒 <b>Whole basket or zone 1/2:</b> while zone 1 or zone 2 is on (prepared, preheating, cooking …), the whole basket is grey and locked – and the other way round. So a program for the whole drawer never lands next to zones already in use"],
+  ["1.0.6-beta.4", "🐞 <b>Schalter unter ⚙️ wieder normal:</b> Seitenleiste, Maskottchen & Co. waren seit beta.3 lange gestrichelte Kästen statt kleiner Schiebeschalter (der neue ↕️-Knopf im Lieblings-Formular hat sie verbogen)", "🐞 <b>Switches under ⚙️ back to normal:</b> sidebar, mascot & co. had been long dashed boxes instead of small sliders since beta.3 (the new ↕️ button in the favourite form bent them)"],
+  ["1.0.6-beta.4", "🧹 <b>Aufgeräumt:</b> die Knöpfe „+1 / +3 Min“ und „Nachgaren“ sind raus – Zeit einfach mit − / + bei der Garzeit ändern", "🧹 <b>Tidied up:</b> the “+1 / +3 min” and “cook a bit more” buttons are gone – just change the time with − / + at the cooking time"],
   ["1.0.6-beta.3", "📺 <b>Laufband wie der Küchen-Ticker:</b> läuft nach der Uhrzeit nahtlos weiter, statt jede Minute vorne neu anzufangen (gut für den Fire TV). Beim ↕️ Schütteln und ⏰ Start vergessen blinkt der Rahmen orange und die Kochmützen werden zu pulsierenden ↕️ · Inhalt in Klammern: „Grandzone (Frikadellen)“ · „wartet seit 12 Min“ zählt still weiter", "📺 <b>Ticker like the kitchen ticker:</b> runs on seamlessly by the clock instead of starting over every minute (good for Fire TV). For ↕️ shaking and ⏰ forgot to start the frame blinks orange and the chef hats turn into pulsing ↕️ · Contents in brackets: “Grandzone (meatballs)” · “waiting 12 min” keeps counting quietly"],
   ["1.0.6-beta.3", "⭐ <b>Lieblinge neu:</b> ＋ Neu ist immer da und öffnet ein Formular mit Name, Programm, Temperatur, Zeit und ↕️ · ✏️ Bearbeiten → Liebling antippen = alles ändern, auch den Namen, 🗑️ = löschen · Nach dem letzten Löschen endet ✏️ von selbst (man steckte sonst fest)", "⭐ <b>Favourites reworked:</b> ＋ New is always there and opens a form with name, program, temperature, time and ↕️ · ✏️ Edit → tap a favourite = change everything, the name too, 🗑️ = delete · After deleting the last one ✏️ ends by itself (you used to get stuck)"],
   ["1.0.6-beta.3", "🐞 <b>Grandzone vergisst „Start vergessen?“:</b> nach Abbrechen oder „Bereit“ verschwinden „wartet seit“ und ⏰ wieder – vorher half nur Integration neu laden", "🐞 <b>Whole basket forgets “forgot to start?”:</b> after cancelling or “ready” the “waiting since” and ⏰ go away again – before only reloading the integration helped"],
@@ -94,6 +100,8 @@ const COLORS = {
 const FRY = "\u0001";
 const TMR = "\u0002"; // Platzhalter für das Timer-Symbol (Kochmütze mit Wecker, wie in der Einkaufsliste)
 const SPN = "\u0003"; // Platzhalter für den blinkenden ↕️ („Jetzt schütteln!“)
+// 🔒 „An“ für die Sperre Grandzone ↔ Zone 1/2: vorbereitet, heizt, gart, Pause, warmhalten (bereit/fertig/aus = frei)
+const ZONE_ON = ["wartet_auf_start", "wartet_auf_sync", "vorheizen", "vorgeheizt", "gart", "pausiert", "warmhalten"];
 const RUNNING = ["gart", "vorheizen", "pausiert", "warmhalten", "wartet_auf_sync"];
 const STATE_TEXT = {
   aus: ["Aus", "Off"], bereit: ["Bereit", "Ready"], vorheizen: ["Heizt vor", "Preheating"],
@@ -236,6 +244,11 @@ const zoneExtra = (hass, z) => {
     every: Number.isInteger(a.schuetteln_alle) && a.schuetteln_alle >= 0 ? a.schuetteln_alle : null, // ↕️ Knopf: null = aus, 0 = Halbzeit, X = alle X Min
     forgot: a.start_vergessen === true,
     waitMin: Number.isFinite(since) ? Math.max(0, Math.floor((Date.now() - since) / 60000)) : null,
+    // 🕒 „Fertig um …“: Wunsch-Zeit + Startzeit (rechnet die Integration aus) – „jetzt starten“ prüft die Karte selbst nach der Uhr
+    goal: typeof a.fertig_wunsch === "string" && Number.isFinite(Date.parse(a.fertig_wunsch)) ? a.fertig_wunsch : "",
+    start: typeof a.start_um === "string" && Number.isFinite(Date.parse(a.start_um)) ? a.start_um : "",
+    startNow: a.jetzt_starten === true || (typeof a.start_um === "string" && Date.parse(a.start_um) <= Date.now() && !["gart", "vorheizen", "pausiert"].includes(hass.states[z.state]?.state)),
+    dropped: a.verworfen === true, // 😴 Fritteuse hat das gesendete Programm selbst weggeworfen
   };
 };
 // 🔢 Nummer der Zone für die Dienste: Zone 1 = 1, Zone 2 = 2, Grandzone = 3
@@ -333,6 +346,7 @@ const BASE_CSS = `
   /* 🧺 Zeilen wie die Artikel der Einkaufsliste: abgerundet, Farbstreifen links */
   .ac-row { display:flex; align-items:center; gap:12px; padding:8px 10px 8px 10px; border-left:4px solid var(--c, #9e9e9e); border-radius:12px; margin:0; cursor:pointer; transition:background .2s; }
   .ac-row:hover { background:color-mix(in srgb, var(--primary-color) 6%, transparent); }
+  .ac-row.ac-locked { opacity:.55; cursor:default; } .ac-row.ac-locked .ac-state { font-size:.9em; }
   .ac-row.open { background:color-mix(in srgb, var(--primary-color) 10%, transparent); }
   .ac-edit { margin:2px 0 8px; padding:12px; border:1px solid var(--divider-color, rgba(127,127,127,.3)); border-left:4px solid var(--c, #9e9e9e); border-radius:12px; }
   .ac-edit .ac-modes { margin-top:0; }
@@ -344,6 +358,10 @@ const BASE_CSS = `
   .ac-sub { opacity:.75; font-size:.85em; }
   .ac-inh { font-weight:500; opacity:.8; } /* 🏷️ „· Pommes“ hinter dem Zonen-Namen */
   .ac-alert { display:inline-block; margin-top:4px; padding:2px 8px; border-radius:8px; font-size:.85em; font-weight:600; background:rgba(251,140,0,.16); color:#e65100; }
+  .ac-drop { background:rgba(30,136,229,.14); color:#1565c0; } .ac-plan { color:#6a1b9a; opacity:1; font-weight:600; }
+  .ac-resend { margin-left:6px; border:0; border-radius:999px; padding:2px 10px; font:inherit; font-weight:600; cursor:pointer; background:#43a047; color:#fff; }
+  .ac-planbox { margin:6px 0 0; } .ac-planbox .ac-favform input { max-width:9em; }
+  .ac-planline { margin-top:6px; font-size:.9em; font-weight:600; color:#6a1b9a; } .ac-planline.late { color:#e65100; }
   .ac-blink { display:inline-block; animation:ac_blink 1s steps(2, start) infinite; } /* ↕️ blinkt – nur an/aus, ganz wenig Arbeit für den Fire TV */
   @keyframes ac_blink { to { visibility:hidden; } }
   @media (prefers-reduced-motion: reduce) { .ac-blink { animation:none; } }
@@ -502,17 +520,13 @@ const BASE_CSS = `
   .ac-frow { display:flex; align-items:center; gap:10px; } .ac-frow > span { flex:0 0 120px; font-size:.9em; opacity:.85; }
   .ac-frow .ac-num { flex:1; width:auto; min-width:0; }
   .ac-favbox button { white-space:nowrap; display:inline-flex !important; flex-direction:row !important; align-items:center; justify-content:center; gap:6px; height:auto; min-height:38px; line-height:1.2; width:auto; }
-  .ac-tgl { flex:1; justify-content:flex-start !important; border:1.5px dashed var(--divider-color, rgba(127,127,127,.4)); border-radius:10px; padding:7px 10px; font:inherit; background:none; color:inherit; cursor:pointer; text-align:left; }
-  .ac-tgl.on { border-style:solid; border-color:#f4511e; background:rgba(244,81,30,.12); }
+  /* ↕️ Schütteln-Knopf im Lieblings-Formular – eigener Name, sonst überschreibt er die Schalter unter ⚙️ (Seitenleiste & Co.) */
+  .ac-ftgl { flex:1; justify-content:flex-start !important; border:1.5px dashed var(--divider-color, rgba(127,127,127,.4)); border-radius:10px; padding:7px 10px; font:inherit; background:none; color:inherit; cursor:pointer; text-align:left; }
+  .ac-ftgl.on { border-style:solid; border-color:#f4511e; background:rgba(244,81,30,.12); }
   .ac-favbtns { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; } .ac-favbtns span { flex:1; }
   .ac-favbtns button { border:0; border-radius:10px; padding:9px 11px; font:inherit; cursor:pointer; background:var(--card-background-color, rgba(127,127,127,.15)); color:inherit; }
   .ac-favbtns .pri { background:#43a047; color:#fff; } .ac-favbtns .del { background:none; color:#e53935; border:1.5px solid #e53935; }
   /* ⏱️ +1 / +3 min */
-  .ac-quick { display:flex; align-items:center; gap:8px; margin:6px 0 0; }
-  .ac-quick > span { flex:1; opacity:.8; font-size:.9em; }
-  .ac-plus { border:1.5px solid var(--primary-color); color:var(--primary-color); background:none; border-radius:999px; padding:6px 12px; font:inherit; font-weight:600; font-size:.9em; cursor:pointer; }
-  .ac-plus:disabled { opacity:.4; cursor:default; }
-  .ac-rowplus { display:flex; gap:6px; margin-top:4px; } .ac-rowplus .ac-plus { padding:3px 10px; font-size:.8em; }
   .ac-flash { margin:-2px 0 8px; padding:8px 12px; border-radius:10px; font-size:.88em; background:var(--secondary-background-color, rgba(127,127,127,.12)); }
 `;
 
@@ -573,11 +587,11 @@ function acGuideHtml(hass) {
     ${acSec("🍟", t("Zonen", "Zones"), `<p>${t("Jede Zeile ist eine Zone deiner Fritteuse. Farbe und Text zeigen, was sie gerade macht: <b>grün</b> = gart, <b>orange</b> = wartet auf Start, <b>rot</b> = fertig, <b>grau</b> = bereit oder aus.", "Each row is one zone of your air fryer. Colour and text show what it is doing: <b>green</b> = cooking, <b>orange</b> = waiting for start, <b>red</b> = done, <b>grey</b> = ready or off.")}</p>`, "#43a047", t("Was die Farben bedeuten", "What the colours mean"))}
     ${acSec("🎛️", t("Programm einstellen", "Set a program"), `<p>${t("Zeile antippen → darunter klappen Programm, Temperatur und Zeit auf (nochmal antippen = zu) → <b>Senden</b>. Das kleine <b>ⓘ</b> neben einem Feld erklärt es kurz.", "Tap a row → program, temperature and time unfold below it (tap again to close) → <b>Send</b>. The small <b>ⓘ</b> next to a field explains it briefly.")}</p><p>${t("Die Fritteuse ist dann vorbereitet – <b>gestartet wird immer am Gerät</b>. Sicher ist sicher. 🔥", "The fryer is then prepared – <b>you always start it on the device</b>. Better safe than sorry. 🔥")}</p>`, "#fb8c00", t("Programm, Temperatur, Zeit", "Program, temperature, time"))}
     ${acSec("⭐", t("Lieblinge & zuletzt gesendet", "Favourites & recently sent"), `<p>${t("Zeile antippen → ganz oben stehen deine <b>⭐ Lieblinge</b>. Antippen = sofort an diese Zone senden. <b>＋ Neu</b> öffnet ein kleines Formular: Name (z. B. „Pommes“), Programm, Temperatur, Zeit und <b>↕️ Schütteln</b> (für Kuchen aus) – vorbelegt mit dem, was unten gerade eingestellt ist. <b>✏️ Bearbeiten</b> → Liebling antippen = alles ändern, auch den Namen, oder mit 🗑️ löschen.", "Tap a row → your <b>⭐ favourites</b> are at the top. Tap = send to this zone right away. <b>＋ New</b> opens a small form: name (e.g. “Fries”), program, temperature, time and <b>↕️ shake</b> (off for cake) – prefilled with what is set below. <b>✏️ Edit</b> → tap a favourite = change everything, the name too, or delete it with 🗑️.")}</p><p>${t("Darunter <b>🕘 Zuletzt gesendet</b>: die letzten 5 Programme. Lieblinge und Verlauf liegen in Home Assistant – Handy und Küchen-Tablet sehen dasselbe.", "Below that <b>🕘 Recently sent</b>: the last 5 programs. Favourites and history live in Home Assistant – phone and kitchen tablet see the same.")}</p>`, "#fdd835", t("Ein Tipp statt drei Felder", "One tap instead of three fields"))}
-    ${acSec("⏱️", t("+1 und +3 Minuten", "+1 and +3 minutes"), `<p>${t("<b>Gart</b> die Zone: die laufende Zeit wird länger (bei der <b>TwinFry</b> nicht – sie lehnt das beim Garen ab, darum sind die Knöpfe dann weg). <b>Wartet auf Start</b>: das Programm geht mit der neuen Zeit nochmal an die Fritteuse, gestartet wird am Gerät. <b>Fertig</b>, aber noch nicht knusprig? Dann wird dasselbe Programm für 1 oder 3 Minuten bereitgestellt – am Gerät auf Start. Sonst wird nur das Zeit-Feld größer.", "<b>Cooking</b>: the running time gets longer (not on the <b>TwinFry</b> – it refuses that while cooking, so the buttons are gone then). <b>Waiting for start</b>: the program is sent to the fryer again with the new time, you start on the device. <b>Done</b> but not crispy yet? Then the same program is prepared for 1 or 3 minutes – press Start on the device. Otherwise only the time field grows.")}</p><p>${t("Bei „Wartet auf Start“, beim Garen und bei „Fertig“ stehen die Knöpfe auch direkt in der Zeile.", "When waiting for start, while cooking and when done, the buttons are also right in the row.")}</p>`, "#00897b", t("Noch ein bisschen", "A little more"))}
     ${acSec("📲", t("Fertig-Meldung aufs Handy", "Done message to your phone"), `<p>${t("Unter ⚙️ › Integration › <b>Fertig melden an</b> Häkchen bei deinem Handy setzen und speichern. Die Fritteuse schreibt dann selbst „🍟 Fritteuse fertig!“ – ohne eigene Automation. Auf Wunsch auch „↕️ Jetzt schütteln!“ (Haken „↕️ auch aufs Handy“ – wann, stellst du beim Programm ein). Kein Häkchen = aus (Standard). Wer selbst auf Stopp drückt, bekommt keine Meldung.", "Under ⚙️ › Integration › <b>Report done to</b> tick your phone and save. The air fryer then sends “🍟 Air fryer done!” itself – no automation needed. Optionally also “↕️ Shake now!” (tick “↕️ also to the phone” – when is set at the program). No tick = off (default). Pressing stop yourself sends no message.")}</p>`, "#8e24aa", t("ohne Automation", "no automation"))}
     ${acSec("🏷️", t("Was ist drin?", "What's inside?"), `<p>${t("Zeile antippen → <b>🏷️ Was ist drin?</b> eintippen, z. B. „Pommes“. Dann steht im Laufband „Zone 1 (Pommes): fertig um 18:30 Uhr“ und in der Fertig-Meldung aufs Handy „Zone 1 (Pommes): fertig“. Tippst du einen ⭐ Liebling an, steht sein Name von selbst da.", "Tap a row → type <b>🏷️ What's inside?</b>, e.g. “Fries”. Then the ticker says “Zone 1 (Fries): done at 18:30” and the done message on your phone “Zone 1 (Fries): done”. Tap a ⭐ favourite and its name lands there by itself.")}</p><p>${t("Nach dem Garen (Zone wieder „Bereit“ oder „Aus“) wird es von selbst vergessen.", "After cooking (zone back to “Ready” or “Off”) it is forgotten by itself.")}</p>`, "#6d4c41", t("Pommes oder Kuchen?", "Fries or cake?"))}
     ${acSec("↕️", t("Schütteln", "Shaking"), `<p>${t("Zone antippen → beim Programm steht <b>„↕️ Schütteln: Aus“</b>. Antippen klappt die Zeiten auf: <b>Aus · Halbzeit · alle 3 · 5 · 8 Min</b>. Eine antippen = gespeichert, die Zeile klappt wieder zu. Jede Schublade merkt sich ihre Wahl. Zur Schüttel-Zeit kommt das Ereignis <code>airfryer_control_schuetteln</code> für eine Handy-Nachricht oder Durchsage per Automation.", "Tap a zone → at the program you see <b>“↕️ Shake: Off”</b>. Tap it to open the times: <b>Off · half time · every 3 · 5 · 8 min</b>. Tap one = saved, the row closes again. Each drawer remembers its choice. At shake time the event <code>airfryer_control_schuetteln</code> fires for a phone message or announcement via an automation.")}</p><p>${t("Dazu blinkt 3 Minuten lang <b>↕️ in der Karte und im Laufband</b> – auch am Küchen-Tablet und Fire TV. Schublade auf = geschüttelt, dann ist es sofort weg. Ein ⭐ Liebling mit ↕️ aus (z. B. Kuchen) stellt den Knopf auf Aus, einer mit ↕️ an auf Halbzeit (wenn er aus war).", "Also <b>↕️ blinks in the card and the ticker</b> for 3 minutes – on the kitchen tablet and Fire TV too. Drawer open = shaken, then it is gone right away. A ⭐ favourite with ↕️ off (e.g. cake) sets the button to off, one with ↕️ on to half time (if it was off).")}</p>`, "#f4511e", t("pro Schublade", "per drawer"))}
     ${acSec("⏰", t("Vergessen zu starten?", "Forgot to start?"), `<p>${t("Nach „Senden“ muss man am Gerät auf Start drücken. Wartet eine Zone <b>10 Minuten</b> (einstellbar unter ⚙️ › Integration) auf Start, steht in der Karte und im Laufband „⏰ Start am Gerät vergessen?“ – mit Handys unter „Fertig melden an“ kommt auch eine Nachricht. Für Automationen: Ereignis <code>airfryer_control_start_vergessen</code>.", "After “Send” you have to press Start on the device. If a zone waits <b>10 minutes</b> (set under ⚙️ › Integration) for start, the card and the ticker show “⏰ Forgot to press Start?” – with phones under “Report done to” you also get a message. For automations: event <code>airfryer_control_start_vergessen</code>.")}</p>`, "#fb8c00", t("Der Klassiker", "The classic"))}
+    ${acSec("🕒", t("Fertig um …", "Done at …"), `<p>${t("Zeile antippen → bei <b>🕒 Fertig um</b> die Uhrzeit eintippen, wann das Essen fertig sein soll, z. B. 18:30. Die Karte rechnet <b>Uhrzeit minus Garzeit = Startzeit</b> und zeigt in der Zeile und im Laufband „🕒 Start um 18:12 → fertig um 18:30“ (auch im Küchen-Ticker der Einkaufsliste). Zur Startzeit blinkt <b>„⏰ Jetzt starten!“</b>, und mit Handys unter ⚙️ › Integration › Fertig melden an kommt eine Nachricht.", "Tap a row → at <b>🕒 Done at</b> type the time the food should be done, e.g. 18:30. The card works out <b>time minus cooking time = start time</b> and shows “🕒 Start at 18:12 → done at 18:30” in the row and the ticker (also in the shopping list's kitchen ticker). At start time <b>“⏰ Start now!”</b> blinks, and with phones under ⚙️ › Integration › Report done to you get a message.")}</p><p>${t("<b>Gestartet wird nie von allein</b> – Senden und Start drückst du selbst. Am besten erst zur Startzeit senden: Die Fritteuse wirft ein gesendetes Programm nach ca. 5 Minuten ohne Start selbst weg. Dann steht „😴 Verworfen“ in der Zeile mit <b>📤 Nochmal senden</b> – deine Werte bleiben stehen. Fängt die Zone an zu garen, ist die Uhrzeit erledigt und verschwindet.", "<b>It never starts by itself</b> – you press Send and Start. Best send only at start time: the fryer throws away a sent program after about 5 minutes without Start. Then the row says “😴 Dropped” with <b>📤 Send again</b> – your values stay. Once the zone starts cooking, the time is done and disappears.")}</p>`, "#6a1b9a", t("Startzeit ausrechnen lassen", "Let it work out the start time"))}
     ${acSec("⏹️", t("Knopf rechts", "Button on the right"), `<p>${t("<b>Grün</b> = senden, <b>Orange</b> = abbrechen (noch nicht gestartet), <b>Rot</b> = Garen beenden.", "<b>Green</b> = send, <b>orange</b> = cancel (not started yet), <b>red</b> = stop cooking.")}</p>`, "#e53935", t("Senden, Abbrechen, Beenden", "Send, cancel, stop"))}
     ${acSec("🔗", "Match & Sync", `<p>${t("Bei zwei Zonen: „Einstellungen übernehmen“ kopiert die andere Zone. <b>Match senden</b> = beide Zonen bekommen dieselben Werte. <b>Sync senden</b> = beide werden zur selben Zeit fertig.", "With two zones: “Copy settings” copies the other zone. <b>Send Match</b> = both zones get the same values. <b>Send Sync</b> = both finish at the same time.")}</p><p>${t("Der Sync-Hinweis sagt dir außerdem, wann du die zweite Zone startest.", "The sync hint also tells you when to start the second zone.")}</p>`, "#1e88e5", t("Zwei Körbe, ein Abendessen", "Two baskets, one dinner"))}
     ${acSec("🔢", t("Oben in der Karte", "At the top of the card"), `<p>${t("Die blaue Zahl = so viele Zonen garen gerade. 🟢/🔴 = Fritteuse online oder offline. 📴 = gerade keine Verbindung zu Home Assistant (die Karte zeigt den letzten Stand). Ist die Verbindung wieder da, holt die Karte die Werte sofort im Hintergrund (🔄). <b>ⓘ</b> = Infos & Credits. <b>⚙️</b> = Einstellungen.", "The blue number = zones cooking right now. 🟢/🔴 = fryer online or offline. 📴 = no connection to Home Assistant right now (the card shows the last known state). Once it is back, the card fetches the values in the background right away (🔄). <b>ⓘ</b> = info & credits. <b>⚙️</b> = settings.")}</p>`, "#8e24aa", t("Zahl, Punkt, Knöpfe", "Number, dot, buttons"))}
@@ -619,11 +633,12 @@ class AirfryerControlCard extends HTMLElement {
       .map((e) => { const s = hass.states[e]; return s ? s.state + "|" + (s.attributes?.min ?? "") + (s.attributes?.max ?? "") : "-"; }).join(",")).join(";")
       + "#" + (findOnline(hass, zones)?.state || "") + (hass.connected === false ? "x" : "") + (AC_BACK.busy ? "b" : "") + this._open + (hass.language || "") + new Date().getHours()
       + "#" + JSON.stringify(zones.map((z) => { const a = hass.states[z.progs]?.attributes || {}; return [a.lieblinge, a.zuletzt]; }))
-      + "#" + JSON.stringify(zones.map((z) => { const x = zoneExtra(hass, z); return [x.inhalt, x.shake, x.every, x.forgot, x.forgot ? x.waitMin : 0]; }));
+      + "#" + JSON.stringify(zones.map((z) => { const x = zoneExtra(hass, z); return [x.inhalt, x.shake, x.every, x.forgot, x.forgot ? x.waitMin : 0, x.goal, x.start, x.startNow, x.dropped]; }))
+      + (zones.some((z) => zoneExtra(hass, z).goal) ? "#" + Math.floor(Date.now() / 60000) : ""); // 🕒 „in 42 Min“ jede Minute neu
     if (sig === this._sig) return;
     // ⌨️ Tippt gerade jemand den Namen eines Lieblings? Dann nicht dazwischenfunken (kommt gleich danach)
     if (this._favForm && this.shadowRoot.activeElement?.matches?.("[data-favf]")) return;
-    if (this.shadowRoot.activeElement?.matches?.("[data-inhalt]")) return; // 🏷️ tippt gerade „Was ist drin?“
+    if (this.shadowRoot.activeElement?.matches?.("[data-inhalt], [data-plan]")) return; // 🏷️/🕒 tippt gerade „Was ist drin?“ oder die Uhrzeit
     this._sig = sig;
     this._zones = zones;
     this._render();
@@ -712,15 +727,31 @@ class AirfryerControlCard extends HTMLElement {
         const b = this._btn(z);
         const sub = valid(fin) ? tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`) : "";
         const x = zoneExtra(hass, z);
+        const lock = this._lockedBy(z, zones); // 🔒 Grandzone ↔ Zone 1/2
+        if (lock.length) {
+          if (this._open === z.key) this._open = null;
+          const who = lock.map((o) => o.name).join(tr(hass, " und ", " and "));
+          return `<div class="ac-row ac-locked" data-z="${esc(z.key)}" data-locked="1" style="--c:#bdbdbd" title="${esc(tr(hass, `Gesperrt, solange ${who} an ist`, `Locked while ${who} is on`))}">
+          <ha-icon icon="mdi:toaster-oven"></ha-icon>
+          <div class="ac-txt"><div class="ac-name">${esc(z.name)}</div>
+            <div class="ac-state">🔒 ${esc(tr(hass, `Gesperrt – ${who} ist an`, `Locked – ${who} is on`))}</div></div>
+          <button class="ac-go" style="--b:#9e9e9e" disabled aria-label="${esc(tr(hass, "Gesperrt", "Locked"))}"><ha-icon icon="mdi:lock-outline"></ha-icon></button>
+        </div>`;
+        }
         // ↕️ blinkt zur Schüttel-Zeit, ⏰ wenn der Start am Gerät vergessen wurde
         const alert = x.shake ? `<div class="ac-alert ac-shake" role="status"><span class="ac-blink">↕️</span> ${esc(tr(hass, "Jetzt schütteln!", "Shake now!"))}</div>`
-          : x.forgot ? `<div class="ac-alert" role="status">⏰ ${esc(tr(hass, `Wartet seit ${x.waitMin ?? "?"} Min – Start am Gerät vergessen?`, `Waiting ${x.waitMin ?? "?"} min – forgot to press Start?`))}</div>` : "";
+          : x.forgot ? `<div class="ac-alert" role="status">⏰ ${esc(tr(hass, `Wartet seit ${x.waitMin ?? "?"} Min – Start am Gerät vergessen?`, `Waiting ${x.waitMin ?? "?"} min – forgot to press Start?`))}</div>`
+          : x.startNow && x.goal ? `<div class="ac-alert ac-shake" role="status"><span class="ac-blink">⏰</span> ${esc(st?.state === "wartet_auf_start"
+            ? tr(hass, `Jetzt am Gerät starten – fertig um ${clock(x.goal, hass)} Uhr`, `Press Start now – done at ${clock(x.goal, hass)}`)
+            : tr(hass, `Jetzt senden und starten – fertig um ${clock(x.goal, hass)} Uhr`, `Send and start now – done at ${clock(x.goal, hass)}`))}</div>`
+          : x.dropped ? `<div class="ac-alert ac-drop" role="status">😴 ${esc(tr(hass, "Fritteuse hat das Programm verworfen (kein Start)", "Fryer dropped the program (no start)"))} <button type="button" class="ac-resend" data-go="${esc(z.key)}">📤 ${esc(tr(hass, "Nochmal senden", "Send again"))}</button></div>`
+          : x.start && x.goal ? `<div class="ac-sub ac-plan">🕒 ${esc(tr(hass, `Start um ${clock(x.start, hass)} Uhr → fertig um ${clock(x.goal, hass)} Uhr`, `Start at ${clock(x.start, hass)} → done at ${clock(x.goal, hass)}`))}</div>` : "";
         return `<div class="ac-row ${this._open === z.key ? "open" : ""}" data-z="${esc(z.key)}" style="--c:${this._color(z)}" title="${esc(tr(hass, "Antippen = Programm, Temperatur und Zeit", "Tap = program, temperature and time"))}">
           <ha-icon icon="mdi:toaster-oven"></ha-icon>
           <div class="ac-txt"><div class="ac-name">${esc(z.name)}${x.inhalt ? ` <span class="ac-inh">· ${esc(x.inhalt)}</span>` : ""}</div>
             <div class="ac-state">${esc(stateText(hass, st?.state))}</div>
             ${sub ? `<div class="ac-sub">${esc(sub)}</div>` : ""}${alert}
-            ${this._rowPlusHtml(z)}</div>
+            </div>
           <button class="ac-go" data-go="${esc(z.key)}" style="--b:${b.color}" title="${esc(b.text)}" ${z.sw ? "" : "disabled"}><ha-icon icon="${b.icon}"></ha-icon></button>
         </div>${this._msg?.key === z.key ? `<div class="ac-flash" role="status">${esc(this._msg.text)}</div>` : ""}${this._open === z.key ? this._zoneHtml(z, zones) : ""}`;
       }).join("");
@@ -996,6 +1027,15 @@ class AirfryerControlCard extends HTMLElement {
   }
 
   // Die andere Zone (ohne Grandzone), für „Match“ und „Sync“
+  // 🔒 Grandzone ODER Zone 1/2 – nie beides: Ist Zone 1 oder 2 „an“, ist die Grandzone gesperrt, und andersherum.
+  // Für Doofe: Die Grandzone ist die ganze Schublade ohne Trennwand. Liegt in Zone 1 schon was, passt da keine Grandzone rein.
+  // Eine Zone, die selbst gerade an ist, wird nie gesperrt (sonst käme man nicht mehr an „Abbrechen“/„Beenden“).
+  _lockedBy(z, zones) {
+    const hass = this._hass, on = (x) => ZONE_ON.includes(hass.states[x.state]?.state);
+    if (on(z)) return [];
+    const grand = /grandzone$/.test(z.key);
+    return zones.filter((x) => x.key !== z.key && /grandzone$/.test(x.key) !== grand && on(x));
+  }
   _other(z, zones) {
     if (/grandzone$/.test(z.key)) return null;
     return zones.find((x) => x.key !== z.key && !/grandzone$/.test(x.key)) || null;
@@ -1113,7 +1153,7 @@ class AirfryerControlCard extends HTMLElement {
       ${this._shakeHtml(z)}
       ${step("temp", tr(hass, "Temperatur", "Temperature"), temp, "°C", tHelp)}
       ${step("time", tr(hass, "Garzeit", "Cooking time"), time, "Min", mHelp)}
-      ${this._plusHtml(z)}
+      ${this._planHtml(z)}
       ${this._syncHtml(z, zones)}
       ${other ? `<div class="ac-withinfo"><button class="ac-match" data-match="${esc(z.key)}" ${RUNNING.includes(hass.states[other.state]?.state) ? "disabled" : ""}>📋 ${t(`Einstellungen auf ${other.name} übernehmen`, `Copy settings to ${other.name}`)}</button>${this._info(copyKey, tr(hass, "Einstellungen übernehmen", "Copy settings"))}</div>${this._hint(copyKey, t(`Kopiert Programm, Temperatur und Zeit nur in die Felder von ${other.name}. An die Fritteuse geht dabei noch nichts.`, `Copies program, temperature and time into the fields of ${other.name} only. Nothing is sent to the fryer yet.`))}` : ""}
       ${this._syncSendHtml(z, zones)}
@@ -1136,7 +1176,7 @@ class AirfryerControlCard extends HTMLElement {
       ${row(t("Programm", "Program"), `<select class="ac-num" data-favf="programm">${progs}</select>`)}
       ${row(t("Temperatur (°C)", "Temperature (°C)"), `<input class="ac-num" data-favf="temperatur" type="number" inputmode="numeric" min="35" max="240" step="5" value="${esc(d.temperatur)}">`)}
       ${row(t("Zeit (Min)", "Time (min)"), `<input class="ac-num" data-favf="minuten" type="number" inputmode="numeric" min="1" max="600" step="1" value="${esc(d.minuten)}">`)}
-      ${row(t("↕️ Schütteln", "↕️ Shake"), `<button type="button" class="ac-tgl ${d.schuetteln ? "on" : ""}" data-favf="schuetteln" aria-pressed="${d.schuetteln}">${d.schuetteln ? t("an", "on") : t("aus (z. B. Kuchen)", "off (e.g. cake)")}</button>`)}
+      ${row(t("↕️ Schütteln", "↕️ Shake"), `<button type="button" class="ac-ftgl ${d.schuetteln ? "on" : ""}" data-favf="schuetteln" aria-pressed="${d.schuetteln}">${d.schuetteln ? t("an", "on") : t("aus (z. B. Kuchen)", "off (e.g. cake)")}</button>`)}
       <div class="ac-favbtns">${f.idx != null ? `<button type="button" class="del" data-favdel>🗑️ ${t("Löschen", "Delete")}</button>` : ""}<span></span><button type="button" data-favcancel>${t("Abbrechen", "Cancel")}</button><button type="button" class="pri" data-favsave>💾 ${t("Speichern", "Save")}</button></div>
     </div>`;
   }
@@ -1157,6 +1197,34 @@ class AirfryerControlCard extends HTMLElement {
       ${this._hint(favKey, t("Antippen = sofort an diese Zone senden (nur bereitstellen, Start am Gerät). ＋ Neu öffnet ein Formular: Name, Programm, Temperatur, Zeit und ↕️ Schütteln (vorbelegt mit der Einstellung unten). ✏️ Bearbeiten: Liebling antippen = alles ändern, auch den Namen, 🗑️ = löschen. Lieblinge gelten auf allen Geräten.", "Tap = send to this zone right away (prepare only, start on the device). ＋ New opens a form: name, program, temperature, time and ↕️ shaking (prefilled with the setting below). ✏️ Edit: tap a favourite = change everything, the name too, 🗑️ = delete. Favourites apply on all devices."))}
       <div class="ac-chips">${favChips}<button type="button" class="ac-chip add ${this._favForm?.key === z.key && this._favForm.idx == null ? "sel" : ""}" data-favadd title="${t("Neuen Liebling anlegen", "Create a new favourite")}">＋ ${t("Neu", "New")}</button></div>${form}
       ${recChips ? `<div class="ac-flab"><span>🕘 ${t("Zuletzt gesendet", "Recently sent")}</span>${this._info(recKey, tr(hass, "Zuletzt gesendet", "Recently sent"))}</div>${this._hint(recKey, t("Die letzten 5 Programme, die an die Fritteuse gingen. Antippen = nochmal an diese Zone senden.", "The last 5 programs sent to the fryer. Tap = send to this zone again."))}<div class="ac-chips">${recChips}</div>` : ""}`;
+  }
+  // 🕒 „Fertig um …“ – Uhrzeit eintippen, die Integration rechnet die Startzeit aus. Gestartet wird NIE von allein.
+  _planHtml(z) {
+    const hass = this._hass, t = (d, e) => esc(tr(hass, d, e));
+    if (!hass.entities?.[z.state]?.device_id) return "";
+    const s = hass.states[z.state]?.state;
+    if (["gart", "vorheizen", "pausiert", "warmhalten"].includes(s)) return ""; // gart schon → „fertig um“ zeigt die Fritteuse selbst
+    const x = zoneExtra(hass, z), key = `${z.key}:plan`;
+    const val = x.goal ? new Date(x.goal).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "";
+    const mins = Math.max(1, Math.round(Number(hass.states[z.time]?.state) || 0));
+    let line = "";
+    if (x.goal && x.start) {
+      const left = Math.round((Date.parse(x.start) - Date.now()) / 60000);
+      const inTxt = left >= 60 ? tr(hass, `in ${Math.floor(left / 60)} Std ${left % 60} Min`, `in ${Math.floor(left / 60)} h ${left % 60} min`) : tr(hass, `in ${left} Min`, `in ${left} min`);
+      line = left > 0
+        ? `<div class="ac-planline">▶️ ${t(`Um ${clock(x.start, hass)} Uhr am Gerät starten (${inTxt}) · Garzeit ${mins} Min`, `Start on the device at ${clock(x.start, hass)} (${inTxt}) · cooking time ${mins} min`)}</div>`
+        : `<div class="ac-planline late">⏰ ${t(`Jetzt starten! Dann ist es um ${clock(x.goal, hass)} Uhr fertig`, `Start now! Then it is done at ${clock(x.goal, hass)}`)}${left < -1 ? t(` (eigentlich schon seit ${-left} Min – jetzt gestartet = fertig um ${clock(new Date(Date.now() + mins * 60000).toISOString(), hass)} Uhr)`, ` (actually ${-left} min ago – started now = done at ${clock(new Date(Date.now() + mins * 60000).toISOString(), hass)})`) : ""}</div>`;
+    }
+    return `<div class="ac-planbox"><div class="ac-flab"><span>🕒 ${t("Fertig um", "Done at")}</span>${this._info(key, tr(hass, "Fertig um", "Done at"))}</div>
+      ${this._hint(key, t("Uhrzeit eintippen, wann das Essen fertig sein soll, z. B. 18:30. Die Karte rechnet: Uhrzeit minus Garzeit = Startzeit, und zeigt sie in der Zeile und im Laufband. Zur Startzeit blinkt „⏰ Jetzt starten!“ (mit Handys unter ⚙️ › Fertig melden an kommt auch eine Nachricht). Gestartet wird NIE von allein – Senden und Start drückst du selbst. Tipp: Erst zur Startzeit senden – die Fritteuse wirft ein gesendetes Programm nach ca. 5 Minuten ohne Start wieder weg. Heizt dein Programm vor, rechne ein paar Minuten dazu. Ist die Uhrzeit heute schon vorbei, gilt morgen.", "Type the time the food should be done, e.g. 18:30. The card works out: time minus cooking time = start time, and shows it in the row and the ticker. At start time “⏰ Start now!” blinks (with phones under ⚙️ › Report done to you also get a message). It NEVER starts by itself – you press Send and Start. Tip: only send at start time – the fryer throws away a sent program after about 5 minutes without Start. If your program preheats, add a few minutes. If the time has already passed today, tomorrow counts."))}
+      <div class="ac-favform"><input class="ac-num" type="time" data-plan="${esc(z.key)}" value="${esc(val)}" aria-label="${t("Fertig um", "Done at")}" enterkeyhint="done">${x.goal ? `<button type="button" data-plandel="${esc(z.key)}" aria-label="${t("Uhrzeit löschen", "Delete time")}">✕</button>` : ""}</div>${line}</div>`;
+  }
+  async _setPlan(z, value) {
+    const hass = this._hass, dev = hass.entities?.[z.state]?.device_id;
+    if (!dev) return;
+    const v = String(value || "").trim().slice(0, 5);
+    try { await this._svc("fertig_um_setzen", { geraet: dev, zone: zoneNum(z), uhrzeit: v }); }
+    catch (e) { this._flash(z, tr(hass, `😕 Ging nicht: ${e?.message || e}`, `😕 Did not work: ${e?.message || e}`)); }
   }
   // 🏷️ „Was ist drin?“ – steht im Laufband und in der Fertig-Meldung, wird nach dem Garen von selbst vergessen
   _inhaltHtml(z) {
@@ -1195,28 +1263,6 @@ class AirfryerControlCard extends HTMLElement {
     try { await this._svc("inhalt_setzen", { geraet: dev, zone: zoneNum(z), inhalt: val }); }
     catch (e) { this._flash(z, tr(hass, `😕 Ging nicht: ${e?.message || e}`, `😕 Did not work: ${e?.message || e}`)); }
   }
-  // ⏱️ +1 / +3 min – was der Knopf macht, hängt davon ab, was die Zone gerade tut
-  _plusKind(z) {
-    const st = this._hass.states[z.state], s = st?.state;
-    // TwinFry: beim Garen lehnt sie neue Zeiten ab (Code 11030000) – dann gibt es dort keine Knöpfe
-    if (["gart", "pausiert", "schublade_offen", "vorheizen"].includes(s)) return st.attributes?.zeit_aendern_beim_garen === false ? "" : "run";
-    if (s === "wartet_auf_start") return "wait";
-    if (s === "fertig" || s === "warmhalten") return "done";
-    return s === "offline" ? "" : "field";
-  }
-  _plusHtml(z) {
-    const hass = this._hass, t = (d, e) => esc(tr(hass, d, e)), kind = this._plusKind(z);
-    if (!kind || !hass.entities?.[z.state]?.device_id) return "";
-    const key = `${z.key}:plus`;
-    const label = { run: t("Garen verlängern", "Extend cooking"), wait: t("Zeit dazu", "Add time"), done: t("Nachgaren", "Cook a bit more"), field: t("Zur Garzeit dazu", "Add to the time") }[kind];
-    return `<div class="ac-quick"><span>⏱️ ${label}</span><button type="button" class="ac-plus" data-plus="1" data-zk="${esc(z.key)}">+1 min</button><button type="button" class="ac-plus" data-plus="3" data-zk="${esc(z.key)}">+3 min</button>${this._info(key, tr(hass, "Schnellknöpfe", "Quick buttons"))}</div>
-      ${this._hint(key, t("Gart die Zone: die laufende Zeit wird länger (nicht bei der TwinFry – die lässt das beim Garen nicht zu, dann sind die Knöpfe weg). Wartet sie auf Start: das Programm geht mit der neuen Zeit nochmal hin, Start weiter am Gerät. Ist sie fertig: dasselbe Programm wird für 1 oder 3 Minuten nochmal bereitgestellt – dann am Gerät auf Start. Sonst: nur das Zeit-Feld oben wird größer.", "Cooking: the running time gets longer (not on the TwinFry – it does not allow that while cooking, then the buttons are gone). Waiting for start: the program is sent again with the new time, still start on the device. Done: the same program is prepared again for 1 or 3 minutes – then press Start on the device. Otherwise: only the time field above grows."))}`;
-  }
-  _rowPlusHtml(z) { // in der Zeile nur, wenn es gerade wirklich gebraucht wird (gart oder fertig)
-    const kind = this._plusKind(z);
-    if ((kind !== "run" && kind !== "done" && kind !== "wait") || !this._hass.entities?.[z.state]?.device_id) return "";
-    return `<div class="ac-rowplus"><button type="button" class="ac-plus" data-plus="1" data-zk="${esc(z.key)}">+1 min</button><button type="button" class="ac-plus" data-plus="3" data-zk="${esc(z.key)}">+3 min</button></div>`;
-  }
   _flash(z, text) { // kurze Meldung unter der Zeile (verschwindet nach 6 s)
     this._msg = { key: z.key, text }; this._sig = ""; this.hass = this._hass;
     clearTimeout(this._msgT);
@@ -1249,22 +1295,6 @@ class AirfryerControlCard extends HTMLElement {
       this._flash(z, tr(hass, `😕 Senden ging nicht: ${e?.message || e}`, `😕 Sending failed: ${e?.message || e}`));
     } finally { this._busySend = false; }
   }
-  async _plus(z, n) {
-    const hass = this._hass, dev = hass.entities?.[z.state]?.device_id;
-    if (!dev || this._busySend) return;
-    this._busySend = true;
-    try {
-      const r = await this._svc("garzeit_plus", { geraet: dev, zone: zoneNum(z), minuten: n }, true);
-      const m = r?.minuten;
-      this._flash(z, r?.ergebnis === "verlaengert" ? tr(hass, `⏱️ +${n} Min – Garzeit jetzt ${m} Min.`, `⏱️ +${n} min – cooking time now ${m} min.`)
-        : r?.ergebnis === "neu_bereitgestellt" ? tr(hass, `✅ +${n} Min – Programm mit ${m} Min neu bereitgestellt, Start am Gerät.`, `✅ +${n} min – program prepared again with ${m} min, start on the device.`)
-        : r?.ergebnis === "bereitgestellt" ? tr(hass, `✅ Nachgaren ${n} Min ist bereit – jetzt am Gerät auf Start drücken.`, `✅ ${n} more min is ready – now press Start on the device.`)
-        : tr(hass, `⏱️ Garzeit-Feld: ${m ?? "?"} Min.`, `⏱️ Time field: ${m ?? "?"} min.`));
-    } catch (e) {
-      this._flash(z, tr(hass, `😕 Ging nicht: ${e?.message || e}`, `😕 Did not work: ${e?.message || e}`));
-    } finally { this._busySend = false; }
-  }
-
   _wire() {
     const root = this.shadowRoot;
     // 🔄 Neu laden: nur die eigenen Zwischenspeicher der App leeren, den Offline-Helfer aktualisieren – wie bei der Einkaufsliste
@@ -1274,12 +1304,6 @@ class AirfryerControlCard extends HTMLElement {
       setTimeout(() => location.reload(), 300);
     });
     const zoneOf = (k) => (this._zones || []).find((x) => x.key === k);
-    // ⏱️ +1 / +3 min (in der Zeile und im aufgeklappten Teil)
-    root.querySelectorAll("[data-plus]").forEach((el) => el.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const z = zoneOf(el.dataset.zk);
-      if (z) this._plus(z, Number(el.dataset.plus));
-    }));
     // ↕️ Schütteln: Knopf klappt die Zeiten auf/zu, Zeit antippen = speichern und wieder zu
     root.querySelectorAll("[data-shk]").forEach((el) => el.addEventListener("click", () => {
       this._shkOpen = this._shkOpen === el.dataset.shk ? null : el.dataset.shk; this._sig = ""; this.hass = this._hass;
@@ -1338,6 +1362,13 @@ class AirfryerControlCard extends HTMLElement {
       el.addEventListener("change", () => { if (z) this._setInhalt(z, el.value); });
       el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
     });
+    // 🕒 Fertig um – speichern beim Verlassen des Feldes / Enter, ✕ = löschen
+    root.querySelectorAll("[data-plan]").forEach((el) => {
+      const z = zoneOf(el.dataset.plan);
+      el.addEventListener("change", () => { if (z && /^\d{1,2}:\d{2}/.test(el.value)) this._setPlan(z, el.value); });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
+    });
+    root.querySelectorAll("[data-plandel]").forEach((el) => el.addEventListener("click", () => { const z = zoneOf(el.dataset.plandel); if (z) this._setPlan(z, ""); }));
     root.querySelectorAll("[data-inhaltdel]").forEach((el) => el.addEventListener("click", () => { const z = zoneOf(el.dataset.inhaltdel); if (z) this._setInhalt(z, ""); }));
     const saveFav = async () => {
       const z = openZ(), hass = this._hass, f = this._favForm;
@@ -1372,7 +1403,7 @@ class AirfryerControlCard extends HTMLElement {
       root.querySelectorAll("[data-hint]").forEach((h) => { if (h.dataset.hint === k) h.hidden = !open; });
     }));
     root.querySelectorAll(".ac-row").forEach((el) => el.addEventListener("click", (e) => {
-      if (e.target.closest("[data-go]")) return;
+      if (e.target.closest("[data-go]") || el.dataset.locked) return; // 🔒 gesperrte Zone klappt nicht auf
       this._open = this._open === el.dataset.z ? null : el.dataset.z; this._sig = ""; this.hass = this._hass; // nochmal antippen = zuklappen
     }));
     root.querySelectorAll("[data-go]").forEach((el) => el.addEventListener("click", (e) => {
@@ -1519,9 +1550,20 @@ class AirfryerControlTicker extends HTMLElement {
         items.push(`⏰ ${fr} ${name}: ${x.waitMin != null
           ? tr(hass, `wartet seit ${x.waitMin} Min – Start am Gerät vergessen?`, `waiting ${x.waitMin} min – forgot to press Start?`)
           : tr(hass, "Start am Gerät vergessen?", "forgot to press Start?")}`);
+      } else if (x.goal && x.startNow && s !== "gart" && s !== "vorheizen" && s !== "pausiert") { // 🕒 Startzeit ist da
+        shake = true;
+        items.push(`⏰ ${fr} ${name}: ${tr(hass, `JETZT STARTEN – fertig um ${clock(x.goal, hass)} Uhr`, `START NOW – done at ${clock(x.goal, hass)}`)}`);
+      } else if (x.goal && x.start && s !== "gart" && s !== "vorheizen" && s !== "pausiert") { // 🕒 geplant
+        items.push(`${FRY} ${fr} ${name}: ${tr(hass, `Start um ${clock(x.start, hass)} Uhr → fertig um ${clock(x.goal, hass)} Uhr`, `start at ${clock(x.start, hass)} → done at ${clock(x.goal, hass)}`)}`);
+      } else if (x.dropped && s === "bereit") { // 😴 Fritteuse hat das Programm weggeworfen
+        items.push(`😴 ${fr} ${name}: ${tr(hass, "Programm verworfen – nochmal senden", "program dropped – send again")}`);
       } else if (s === "gart" || s === "vorheizen") {
         const when = s === "vorheizen" ? tr(hass, "heizt vor", "preheating")
-          : valid(fin) ? tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`) : tr(hass, "gart", "cooking");
+          : valid(fin) ? (() => { // ⏱️ Restzeit vorne, Uhrzeit dahinter – jede Minute wird nur die Zahl getauscht
+            const left = Math.max(0, Math.ceil((Date.parse(fin.state) - Date.now()) / 60000));
+            return Number.isFinite(left) ? tr(hass, `noch ${left} Min · fertig ${clock(fin.state, hass)} Uhr`, `${left} min left · done ${clock(fin.state, hass)}`)
+              : tr(hass, `fertig um ${clock(fin.state, hass)} Uhr`, `done at ${clock(fin.state, hass)}`);
+          })() : tr(hass, "gart", "cooking");
         items.push(`${FRY} ${fr} ${name}: ${when}`);
       } else if (s === "wartet_auf_sync") {
         items.push(`${FRY} ${fr} ${name}: ${tr(hass, "wartet auf Sync-Start", "waiting for sync start")}`);
@@ -1537,7 +1579,8 @@ class AirfryerControlTicker extends HTMLElement {
       if (!Array.isArray(timers)) continue;
       timers.filter((x) => x.fertig).forEach((x) => { done = true; items.push(`${TMR}${x.name}: ${tr(hass, "FERTIG!", "DONE!")}`); });
       timers.filter((x) => !x.fertig).sort((a, b) => Date.parse(a.ende) - Date.parse(b.ende))
-        .forEach((x) => items.push(`${TMR}${x.name}: ${tr(hass, `fertig um ${clock(x.ende, hass)} Uhr`, `done at ${clock(x.ende, hass)}`)}`));
+        .forEach((x) => { const left = Math.max(0, Math.ceil((Date.parse(x.ende) - Date.now()) / 60000)); // ⏱️ Restzeit wie bei der Fritteuse
+          items.push(`${TMR}${x.name}: ${Number.isFinite(left) ? tr(hass, `noch ${left} Min · fertig ${clock(x.ende, hass)} Uhr`, `${left} min left · done ${clock(x.ende, hass)}`) : tr(hass, `fertig um ${clock(x.ende, hass)} Uhr`, `done at ${clock(x.ende, hass)}`)}`); });
     }
     return { items, done, shake };
   }

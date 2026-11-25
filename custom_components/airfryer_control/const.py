@@ -50,6 +50,9 @@ SHAKE_SHOW_SECONDS = 180  # ↕️ so lange steht „Jetzt schütteln!“ in Kar
 # Ereignis: Zone wartet schon lange auf Start am Gerät („Vergessen zu starten?“)
 EVENT_FORGOT = f"{DOMAIN}_start_vergessen"
 INHALT_MAX = 40  # 🏷️ „Was ist drin?“ – höchstens so viele Zeichen
+# 🕒 „Fertig um …“: Ereignis zur Startzeit (Fertig-Wunsch minus Garzeit) – gestartet wird trotzdem nur am Gerät
+EVENT_START_NOW = f"{DOMAIN}_jetzt_starten"
+PLAN_KEEP_SECONDS = 1800  # 🕒 so lange nach der Wunsch-Zeit bleibt sie stehen, falls nie gestartet wurde
 
 # Dienste
 SERVICE_SEND_TEST = "senden_testen"
@@ -64,6 +67,7 @@ SERVICE_FAV_DELETE = "liebling_loeschen"
 SERVICE_ADD_TIME = "garzeit_plus"
 SERVICE_CONTENT = "inhalt_setzen"
 SERVICE_SHAKE = "schuetteln_setzen"
+SERVICE_PLAN = "fertig_um_setzen"
 
 # ⭐ Lieblings-Programme und 🕘 zuletzt gesendet (pro Fritteuse)
 MAX_FAVORITES = 12

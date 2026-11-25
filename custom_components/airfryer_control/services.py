@@ -16,6 +16,8 @@ Für Doofe:
 - inhalt_setzen: Für alle – 🏷️ „Was ist drin?“ pro Zone (z. B. „Pommes“). Steht dann
   im Laufband und in der Fertig-Meldung und wird nach dem Garen von selbst vergessen.
 - schuetteln_setzen: Für alle – ↕️ Schüttel-Knopf einer Zone: aus, Halbzeit oder alle X Minuten.
+- fertig_um_setzen: Für alle – 🕒 „Fertig um 18:30“ pro Zone. Daraus wird die Startzeit
+  (minus Garzeit); zur Startzeit kommt „⏰ Jetzt starten!“. Gestartet wird NIE von allein.
 - garzeit_plus: Für alle – ⏱️ 1–30 Minuten dazu: gart die Zone, wird die laufende
   Zeit länger; ist sie fertig, wird dasselbe Programm nochmal bereitgestellt.
 - befehl_senden: Für Bastler (nur Admins) – einen beliebigen App-Befehl
@@ -25,6 +27,7 @@ Für Doofe:
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -32,6 +35,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.util import dt as dt_util
 
 from .core.api import CODE_DEVICE_TIMEOUT, AirfryerConnectionError, AirfryerError
 from .const import (
@@ -40,6 +44,7 @@ from .const import (
     SERVICE_CAPABILITIES,
     SERVICE_CONTENT,
     SERVICE_SHAKE,
+    SERVICE_PLAN,
     SHAKE_EVERY_MAX,
     SHAKE_HALF,
     INHALT_MAX,
@@ -100,6 +105,7 @@ ATTR_CONTENT = "inhalt"
 ATTR_SHAKE = "schuetteln"
 ATTR_OLD_NAME = "alter_name"  # ✏️ Liebling umbenennen: so hieß er bisher
 ATTR_HOW_OFTEN = "wie_oft"
+ATTR_CLOCK = "uhrzeit"
 
 # „bestätigen“: so oft und so lange nachsehen, ob die Werte an der Zone angekommen sind
 CONFIRM_TRIES = 3
@@ -172,6 +178,14 @@ CONTENT_SCHEMA = vol.Schema(
         vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
         vol.Optional(ATTR_CONTENT, default=""): vol.Any(None, vol.All(cv.string, vol.Strip, vol.Length(max=INHALT_MAX))),
         vol.Optional(ATTR_SHAKE): cv.boolean,
+    }
+)
+PLAN_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
+        # „18:30“ (oder „18:30:00“ vom Zeit-Auswahlfeld) – leer = Wunsch löschen
+        vol.Optional(ATTR_CLOCK, default=""): vol.Any(None, vol.All(cv.string, vol.Strip, vol.Match(r"^$|^\d{1,2}:\d{2}(:\d{2})?$"))),
     }
 )
 SHAKE_SCHEMA = vol.Schema(
@@ -408,6 +422,29 @@ async def _content(call: ServiceCall) -> None:
     _remember_zone(coordinator, fryer, call.data[ATTR_ZONE], call.data.get(ATTR_CONTENT) or "", call.data.get(ATTR_SHAKE))
 
 
+async def _plan(call: ServiceCall) -> None:
+    """🕒 „Fertig um …“ für eine Zone setzen (leer = löschen).
+
+    Für Doofe: „18:30“ heißt das nächste 18:30 – ist es heute schon später, dann morgen.
+    Die Startzeit rechnet die Integration selbst aus (Wunsch minus Garzeit).
+    """
+    coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    store = _program_store(call)
+    text = str(call.data.get(ATTR_CLOCK) or "").strip()
+    value = None
+    if text:
+        hour, minute = (int(x) for x in text.split(":")[:2])
+        if hour > 23 or minute > 59:
+            raise ServiceValidationError(f"Uhrzeit {text} gibt es nicht")
+        now = dt_util.now()
+        when = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if when <= now:
+            when += timedelta(days=1)
+        value = dt_util.as_utc(when).isoformat()
+    if store.set_zone_info(fryer.cid, call.data[ATTR_ZONE], fertig_wunsch=value):
+        coordinator.async_update_listeners()
+
+
 async def _shake(call: ServiceCall) -> None:
     """↕️ Schüttel-Knopf einer Zone: „aus“, „halbzeit“ oder alle X Minuten (1–30)."""
     coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
@@ -630,6 +667,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(DOMAIN, SERVICE_FAV_DELETE, _fav_delete, schema=FAV_DELETE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_CONTENT, _content, schema=CONTENT_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SHAKE, _shake, schema=SHAKE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_PLAN, _plan, schema=PLAN_SCHEMA)
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_TIME, _add_time, schema=ADD_TIME_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )

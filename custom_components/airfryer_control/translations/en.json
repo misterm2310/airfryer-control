@@ -539,6 +539,24 @@
           "description": "aus (off), halbzeit (half time) or minutes (1–30), e.g. 5."
         }
       }
+    },
+    "fertig_um_setzen": {
+      "name": "Set done-at time",
+      "description": "For all users: 🕒 the time a zone should be done (e.g. 18:30). The start time (time minus cooking time) is shown in card and ticker; at start time the event airfryer_control_jetzt_starten fires and phones under “Report done to” get a message. It never starts by itself. Empty = delete.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 or 3 (whole basket)."
+        },
+        "uhrzeit": {
+          "name": "Time",
+          "description": "e.g. 18:30 – the next 18:30 (tomorrow if already past today). Empty = delete."
+        }
+      }
     }
   }
 }

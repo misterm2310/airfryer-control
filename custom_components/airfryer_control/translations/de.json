@@ -539,6 +539,24 @@
           "description": "aus, halbzeit oder Minuten (1–30), z. B. 5."
         }
       }
+    },
+    "fertig_um_setzen": {
+      "name": "Fertig um setzen",
+      "description": "Für alle: 🕒 Uhrzeit, wann eine Zone fertig sein soll (z. B. 18:30). Die Startzeit (Uhrzeit minus Garzeit) steht in Karte und Laufband; zur Startzeit kommt das Ereignis airfryer_control_jetzt_starten und Handys unter „Fertig melden an“ bekommen eine Nachricht. Gestartet wird nie von allein. Leer = löschen.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 oder 3 (Grandzone)."
+        },
+        "uhrzeit": {
+          "name": "Uhrzeit",
+          "description": "z. B. 18:30 – das nächste 18:30 (ist es heute schon vorbei: morgen). Leer = löschen."
+        }
+      }
     }
   }
 }
