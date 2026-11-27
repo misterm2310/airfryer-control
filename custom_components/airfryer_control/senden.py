@@ -637,6 +637,32 @@ async def async_end(
     meldet sie Code 11923000 – das zählt als „schon aus“, nicht als Fehler.
     """
     coordinator.note_cancel(fryer.cid)  # 😴 selbst abgebrochen ≠ „von der Fritteuse verworfen“
+    # Was gart gerade? Diese Zonen räumt nach „Beenden“ wie immer das normale Aufräumen
+    # auf (dann nennt das Ereignis „fertig“ den Inhalt noch).
+    cooking = {z for z, zs in fryer.state.zones.items() if zs.status in (STATE_COOKING, STATE_PREHEAT)}
+    await _end(coordinator, fryer, zone)
+    # 🧹 ✕ Abbrechen hat geklappt → Zone gleich mit aufräumen: „Was ist drin?“, „Fertig um“,
+    # ↕️ „Jetzt schütteln!“, 😴 „Verworfen“. Lieblinge und der ↕️-Knopf bleiben. Lehnt die
+    # Fritteuse ab (Fehler), bleibt alles stehen – dann ist ja noch was drin.
+    store = get_store(coordinator.hass)
+    if zone:
+        todo = [zone]
+    else:
+        todo = store.zones_with_info(fryer.cid) if store is not None else []
+        todo = sorted({*todo, *(k[1] for k in (*coordinator.shake_at, *coordinator.dropped_at) if k[0] == fryer.cid)})
+    changed = False
+    for z in todo:
+        if z in cooking:
+            continue
+        changed |= coordinator.clear_zone(fryer.cid, z, notify=False)
+    if changed:
+        coordinator.async_update_listeners()
+
+
+async def _end(
+    coordinator: AirfryerCoordinator, fryer: FryerData, zone: int | None = None
+) -> None:
+    """Das eigentliche „endCook“ an die Fritteuse (ohne Aufräumen)."""
     if fryer.model.startswith("CS"):
         await coordinator.api.bypass_v2(fryer.info, "endCook", {})
         await coordinator.async_request_fast_refresh()

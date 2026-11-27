@@ -387,6 +387,22 @@ fertig_um_setzen:
       selector:
         text:
 
+zone_leeren:
+  fields:
+    geraet:
+      required: false
+      selector:
+        device:
+          integration: airfryer_control
+    zone:
+      default: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "3"
+
 garzeit_plus:
   fields:
     geraet:

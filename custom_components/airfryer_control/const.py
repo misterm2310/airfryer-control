@@ -26,6 +26,10 @@ SHAKE_CHOICES = (None, 0, 3, 5, 8)  # was der Knopf in der Karte anbietet
 OPT_FORGOT = "start_vergessen"  # ⏰ Hinweis, wenn eine Zone so viele Minuten auf Start wartet (0 = aus, Standard 10)
 DEFAULT_FORGOT = 10
 FORGOT_MAX = 60
+# ⏱️ „⏰ Jetzt starten!“ so viele Minuten VOR der ausgerechneten Startzeit (Weg zur Fritteuse, Abfrage 1×/Min)
+OPT_LEAD = "vorlauf"
+DEFAULT_LEAD = 2
+LEAD_MAX = 30
 OPT_NOTIFY_FORGOT = "melden_vergessen"  # 📲 „Vergessen zu starten?“ auch aufs Handy (Standard: an, nur mit Handys)
 
 DEFAULT_INTERVAL = 60  # Sekunden, wenn die Fritteuse nichts tut
@@ -68,6 +72,7 @@ SERVICE_ADD_TIME = "garzeit_plus"
 SERVICE_CONTENT = "inhalt_setzen"
 SERVICE_SHAKE = "schuetteln_setzen"
 SERVICE_PLAN = "fertig_um_setzen"
+SERVICE_CLEAR = "zone_leeren"  # 🧹 Inhalt, „Fertig um“ und Schütteln-Hinweis einer Zone von Hand löschen
 
 # ⭐ Lieblings-Programme und 🕘 zuletzt gesendet (pro Fritteuse)
 MAX_FAVORITES = 12

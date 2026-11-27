@@ -45,6 +45,7 @@ from .const import (
     SERVICE_CONTENT,
     SERVICE_SHAKE,
     SERVICE_PLAN,
+    SERVICE_CLEAR,
     SHAKE_EVERY_MAX,
     SHAKE_HALF,
     INHALT_MAX,
@@ -188,6 +189,13 @@ PLAN_SCHEMA = vol.Schema(
         vol.Optional(ATTR_CLOCK, default=""): vol.Any(None, vol.All(cv.string, vol.Strip, vol.Match(r"^$|^\d{1,2}:\d{2}(:\d{2})?$"))),
     }
 )
+CLEAR_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE): cv.string,
+        vol.Optional(ATTR_ZONE, default=1): vol.All(vol.Coerce(int), vol.In([1, 2, 3])),
+    }
+)
+
 SHAKE_SCHEMA = vol.Schema(
     {
         vol.Optional(ATTR_DEVICE): cv.string,
@@ -445,6 +453,15 @@ async def _plan(call: ServiceCall) -> None:
         coordinator.async_update_listeners()
 
 
+async def _clear(call: ServiceCall) -> None:
+    """🧹 Zone leeren: „Was ist drin?“, „Fertig um“ und ↕️ „Jetzt schütteln!“ weg – Lieblinge bleiben.
+
+    Für Doofe: Für den Fall, dass etwas hängen geblieben ist. An die Fritteuse geht nichts.
+    """
+    coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
+    coordinator.clear_zone(fryer.cid, call.data[ATTR_ZONE])
+
+
 async def _shake(call: ServiceCall) -> None:
     """↕️ Schüttel-Knopf einer Zone: „aus“, „halbzeit“ oder alle X Minuten (1–30)."""
     coordinator, fryer = _find_any(call.hass, call.data.get(ATTR_DEVICE))
@@ -668,6 +685,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(DOMAIN, SERVICE_CONTENT, _content, schema=CONTENT_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SHAKE, _shake, schema=SHAKE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_PLAN, _plan, schema=PLAN_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_CLEAR, _clear, schema=CLEAR_SCHEMA)
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_TIME, _add_time, schema=ADD_TIME_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )

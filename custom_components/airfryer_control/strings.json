@@ -44,7 +44,8 @@
           "melden_an": "📲 Report “done” to these phones",
           "melden_schuetteln": "📲 Also “↕️ Shake now!” to the phones",
           "start_vergessen": "⏰ “Forgot to start?” after",
-          "melden_vergessen": "📲 Also “⏰ Forgot to start?” to the phones"
+          "melden_vergessen": "📲 Also “⏰ Forgot to start?” to the phones",
+          "vorlauf": "⏱️ Lead time for “⏰ Start now!”"
         },
         "data_description": {
           "intervall": "While cooking, it is always polled every 15 seconds.",
@@ -54,7 +55,8 @@
           "melden_an": "The air fryer sends a message itself when it is done – no automation needed. Pick one or more notify services (e.g. mobile_app_your_phone). Empty = off (default).",
           "melden_schuetteln": "When to shake is set per drawer in the card (“↕️ Shake” button at the program selection). Off by default.",
           "start_vergessen": "Minutes a zone may wait for start on the device before the card, the ticker and the event airfryer_control_start_vergessen remind you. 0 = off. Default: 10.",
-          "melden_vergessen": "Only with phones above. On by default."
+          "melden_vergessen": "Only with phones above. On by default.",
+          "vorlauf": "The “⏰ Start now!” reminder comes this many minutes BEFORE the calculated start time (walk to the fryer, polling once a minute). 0 = exactly at start time. Default: 2."
         }
       }
     }
@@ -555,6 +557,20 @@
         "uhrzeit": {
           "name": "Time",
           "description": "e.g. 18:30 – the next 18:30 (tomorrow if already past today). Empty = delete."
+        }
+      }
+    },
+    "zone_leeren": {
+      "name": "Clear zone",
+      "description": "For all users: 🧹 clears “What's inside?”, “Done at” and ↕️ “Shake now!” of a zone (e.g. if something got stuck). Favourites and the ↕️ button stay. Nothing is sent to the fryer.",
+      "fields": {
+        "geraet": {
+          "name": "Air fryer",
+          "description": "Which air fryer? (empty = the only one)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 or 3 (whole basket)."
         }
       }
     }

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
 
@@ -241,7 +241,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
         result["flow_id"], {"intervall": 120, "zeiteinheit": "minuten"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False, "melden_an": [], "melden_schuetteln": False, "start_vergessen": 10, "melden_vergessen": True}
+    assert entry.options == {"intervall": 120, "zeiteinheit": "minuten", "sidebar": False, "maskottchen": False, "melden_an": [], "melden_schuetteln": False, "start_vergessen": 10, "melden_vergessen": True, "vorlauf": 2}
 
 
 async def test_reauth_when_login_fails(hass: HomeAssistant, fake_api) -> None:
@@ -1987,3 +1987,154 @@ async def test_dropped_program_after_waiting(hass: HomeAssistant, fake_api) -> N
     await coordinator.async_refresh()
     await hass.async_block_till_done()
     assert _zone1(hass).attributes["verworfen"] is False
+
+
+# ---------------------------------------------------------- 1.0.6-beta.6: Aufräumen, Vorlauf, Aufrunden
+async def test_done_then_offline_clears_zone(hass: HomeAssistant, fake_api) -> None:
+    """🧹 Fertig → direkt Offline (TwinFry ausgeschaltet): Inhalt ist danach weg, Lieblinge bleiben."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    await hass.services.async_call(
+        DOMAIN, "liebling_speichern", {"name": "Pommes", "programm": "airfry", "temperatur": 200, "minuten": 15}, blocking=True
+    )
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Pommes"}, blocking=True)
+    fake_api.multi = real_twinfry("cooking", remaining=300, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    fake_api.multi = real_twinfry("cookEnd", remaining=0, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["inhalt"] == "Pommes"
+    fake_api.offline = True
+    await _offline_for_long(hass, coordinator)
+    from custom_components.airfryer_control.programme import get_store
+    cid = next(iter(coordinator.fryers))
+    assert get_store(hass).zone_info(cid, 1) == {}
+    assert [p["name"] for p in get_store(hass).favorites(cid)] == ["Pommes"]
+
+
+async def test_offline_before_cooking_keeps_plan(hass: HomeAssistant, fake_api) -> None:
+    """🧹 Noch nicht gegart (nur eingetippt) + offline → bleibt stehen (z. B. „Fertig um 18:30“ für später)."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Kuchen"}, blocking=True)
+    fake_api.offline = True
+    await _offline_for_long(hass, coordinator)
+    from custom_components.airfryer_control.programme import get_store
+    assert get_store(hass).zone_info(next(iter(coordinator.fryers)), 1).get("inhalt") == "Kuchen"
+
+
+async def test_cancel_waiting_zone_clears_it(hass: HomeAssistant, fake_api) -> None:
+    """✕ Abbrechen (Schalter aus) bei „Wartet auf Start“ → Inhalt und „Fertig um“ weg, ↕️-Knopf bleibt."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    await _knob(hass, 1, 5)
+    goal = dt_util.now() + timedelta(hours=2)
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Pommes"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "fertig_um_setzen", {"zone": 1, "uhrzeit": goal.strftime("%H:%M")}, blocking=True)
+    fake_api.multi = real_twinfry("ready", remaining=900, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["inhalt"] == "Pommes" and _zone1(hass).attributes["fertig_wunsch"]
+    await hass.services.async_call("switch", "turn_off", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True)
+    await hass.async_block_till_done()
+    a = _zone1(hass).attributes
+    assert a["inhalt"] is None and a["fertig_wunsch"] is None
+    assert a["schuetteln_alle"] == 5  # Einstellung bleibt
+
+
+async def test_cancel_cooking_zone_keeps_content_for_done_event(hass: HomeAssistant, fake_api) -> None:
+    """⏹️ Beenden beim Garen räumt NICHT sofort auf – das Ereignis „fertig“ soll „Pommes“ noch nennen."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Pommes"}, blocking=True)
+    fake_api.multi = real_twinfry("cooking", remaining=300, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.services.async_call("switch", "turn_off", {"entity_id": eid(hass, "switch", "zone1_gart")}, blocking=True)
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["inhalt"] == "Pommes"
+
+
+async def test_clear_zone_service(hass: HomeAssistant, fake_api) -> None:
+    """🧹 Dienst zone_leeren: Inhalt, „Fertig um“ und „Jetzt schütteln!“ weg – Knopf und Lieblinge bleiben."""
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    cid = next(iter(coordinator.fryers))
+    await _knob(hass, 1, 3)
+    goal = dt_util.now() + timedelta(hours=2)
+    await hass.services.async_call(DOMAIN, "inhalt_setzen", {"zone": 1, "inhalt": "Pommes"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "fertig_um_setzen", {"zone": 1, "uhrzeit": goal.strftime("%H:%M")}, blocking=True)
+    coordinator.shake_at[(cid, 1)] = dt_util.utcnow()
+    coordinator.async_update_listeners()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["jetzt_schuetteln"] is True
+    api_calls = len(FakeApi.instances[-1].calls)
+    await hass.services.async_call(DOMAIN, "zone_leeren", {"zone": 1}, blocking=True)
+    await hass.async_block_till_done()
+    a = _zone1(hass).attributes
+    assert a["inhalt"] is None and a["fertig_wunsch"] is None and a["jetzt_schuetteln"] is False
+    assert a["schuetteln_alle"] == 3
+    assert len(FakeApi.instances[-1].calls) == api_calls  # 🚫 nichts an die Fritteuse
+
+
+async def test_lead_time_reminds_earlier(hass: HomeAssistant, fake_api) -> None:
+    """⏱️ Vorlauf: Startzeit in 3 Min → mit Vorlauf 5 schon „Jetzt starten!“, mit 0 noch nicht."""
+    from custom_components.airfryer_control.const import EVENT_START_NOW
+    from custom_components.airfryer_control.programme import get_store
+
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    await _set_options(hass, entry, vorlauf=0)
+    assert entry.options["vorlauf"] == 0
+    coordinator = entry.runtime_data
+    events = async_capture_events(hass, EVENT_START_NOW)
+    cid = next(iter(coordinator.fryers))
+    minutes = coordinator.plan_minutes(cid, 1)
+    get_store(hass).set_zone_info(cid, 1, fertig_wunsch=(dt_util.utcnow() + timedelta(minutes=minutes + 3)).isoformat())
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["jetzt_starten"] is False and events == []
+    await _set_options(hass, entry, vorlauf=5)
+    coordinator = entry.runtime_data
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _zone1(hass).attributes["jetzt_starten"] is True and len(events) == 1
+
+
+async def test_lead_time_default_and_limits() -> None:
+    from custom_components.airfryer_control.config_flow import clean_options
+
+    assert clean_options({})["vorlauf"] == 2
+    assert clean_options({"vorlauf": 99})["vorlauf"] == 30
+    assert clean_options({"vorlauf": -3})["vorlauf"] == 0
+    assert clean_options({"vorlauf": "kaputt"})["vorlauf"] == 2
+
+
+async def test_done_at_rounded_up_to_full_minute(hass: HomeAssistant, fake_api) -> None:
+    """⏫ „Fertig um“ zeigt die nächste volle Minute (TwinFry zählt nur ganze Minuten)."""
+    from custom_components.airfryer_control.coordinator import ceil_minute
+
+    base = datetime(2026, 11, 25, 16, 56, 35, tzinfo=UTC)
+    assert ceil_minute(base) == datetime(2026, 11, 25, 16, 57, tzinfo=UTC)
+    exact = datetime(2026, 11, 25, 16, 57, tzinfo=UTC)
+    assert ceil_minute(exact) == exact and ceil_minute(None) is None
+    fake_api.status_rejected = True
+    fake_api.multi = real_twinfry()
+    entry = await setup(hass)
+    coordinator = entry.runtime_data
+    fake_api.multi = real_twinfry("cooking", remaining=300, set_time=900, temp=200)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    state = hass.states.get(eid(hass, "sensor", "zone1_fertig_um")).state
+    when = dt_util.parse_datetime(state)
+    assert when.second == 0 and when >= dt_util.utcnow() + timedelta(seconds=299)

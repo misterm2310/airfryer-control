@@ -37,6 +37,8 @@ from .const import (
     OPT_SHAKE,
     OPT_SHAKE_EVERY,
     OPT_FORGOT,
+    OPT_LEAD,
+    DEFAULT_LEAD,
     OPT_NOTIFY_FORGOT,
     DEFAULT_FORGOT,
     SHAKE_LAST_SECONDS,
@@ -137,6 +139,11 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
         # ⏰ „Vergessen zu starten?“ nach X Minuten „Wartet auf Start“ (0 = aus) + auch aufs Handy
         self._forgot_min = max(0, int(entry.options.get(OPT_FORGOT, DEFAULT_FORGOT) or 0))
         self._notify_forgot = bool(entry.options.get(OPT_NOTIFY_FORGOT, True)) and bool(self._notify)
+        # ⏱️ Vorlauf: „⏰ Jetzt starten!“ kommt so viele Minuten vor der Startzeit (0 = genau zur Startzeit)
+        try:
+            self._lead_min = max(0, int(entry.options.get(OPT_LEAD, DEFAULT_LEAD)))
+        except (TypeError, ValueError):
+            self._lead_min = DEFAULT_LEAD
         # Wie oft schon erinnert (pro Fritteuse+Zone und Garvorgang)
         self._shaken: dict[tuple[str, int], tuple[int, int]] = {}  # (Takt, so oft schon erinnert)
         # ↕️ Seit wann „Jetzt schütteln!“ gilt (für Karte und Laufband, verschwindet nach 3 Minuten)
@@ -270,6 +277,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             fryer.state = FryerState(status=STATE_OFFLINE)
             fryer.finish_at = None
             fryer.zone_finish_at = {}
+            self._offline_cleanup(fryer)
             if was_online:
                 fryer.revision += 1
                 _LOGGER.info("%s ist offline: %s", fryer.name, err)
@@ -371,6 +379,43 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             for zone in store.zones_with_info(fryer.cid):
                 if zone not in new.zones and store.zone_info(fryer.cid, zone).get("gegart"):
                     store.clear_zone_info(fryer.cid, zone)
+
+    def _offline_cleanup(self, fryer: FryerData) -> None:
+        """🧹 Fritteuse ist offline (z. B. nach „Fertig“ ausgeschaltet) → gegarte Zonen aufräumen.
+
+        Für Doofe: Die TwinFry geht nach dem Garen gern direkt von „Fertig“ auf „Offline“,
+        ohne vorher „Bereit“ zu melden. Dann blieben „Was ist drin?“ und Co. stehen.
+        Jetzt gilt: hat die Zone schon gegart, wird sie auch beim Offline-Gehen geleert.
+        Noch nicht gegart (z. B. „Fertig um 18:30“ schon eingetragen) bleibt stehen.
+        Lieblinge und der ↕️-Knopf bleiben immer.
+        """
+        store = get_store(self.hass)
+        changed = False
+        if store is not None:
+            for zone in store.zones_with_info(fryer.cid):
+                if store.zone_info(fryer.cid, zone).get("gegart"):
+                    changed |= self.clear_zone(fryer.cid, zone, notify=False)
+        for key in [k for k in (*self.shake_at, *self._shaken) if k[0] == fryer.cid]:
+            self.shake_at.pop(key, None)  # ↕️ offline schüttelt keiner mehr
+            self._shaken.pop(key, None)
+        if changed:
+            self.async_update_listeners()
+
+    def clear_zone(self, cid: str, zone: int, notify: bool = True) -> bool:
+        """🧹 Zone leeren: „Was ist drin?“, „Fertig um“, ↕️ „Jetzt schütteln!“ und 😴 „Verworfen“ weg.
+
+        Für Doofe: Wird bei ✕ Abbrechen, beim Knopf „🧹 Zone leeren“ und beim Dienst
+        ``zone_leeren`` benutzt. Lieblinge und der ↕️-Knopf der Zone (Halbzeit, alle 3 Min …)
+        bleiben, das sind ja Einstellungen. True = es war etwas zum Aufräumen da.
+        """
+        key = (cid, zone)
+        store = get_store(self.hass)
+        changed = bool(store is not None and store.clear_zone_info(cid, zone))
+        for d in (self.shake_at, self._shaken, self._start_sent, self.dropped_at):
+            changed |= d.pop(key, None) is not None
+        if changed and notify:
+            self.async_update_listeners()
+        return changed
 
     def _fire_events(self, fryer: FryerData, old: FryerState, new: FryerState) -> None:
         """Ereignis „fertig“, wenn etwas aufhört zu garen."""
@@ -517,10 +562,15 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
             return None
         return target - timedelta(minutes=self.plan_minutes(cid, zone))
 
+    @property
+    def lead(self) -> timedelta:
+        """⏱️ Vorlauf: so viel früher als die Startzeit kommt „⏰ Jetzt starten!“."""
+        return timedelta(minutes=self._lead_min)
+
     def start_now(self, cid: str, zone: int) -> bool:
-        """🕒 Ist die Startzeit da (und gart die Zone noch nicht)? Dann „⏰ Jetzt starten!“."""
+        """🕒 Ist die Startzeit da – mit ⏱️ Vorlauf (und gart die Zone noch nicht)? Dann „⏰ Jetzt starten!“."""
         start = self.start_at(cid, zone)
-        if start is None or dt_util.utcnow() < start:
+        if start is None or dt_util.utcnow() < start - self.lead:
             return False
         fryer = self.fryers.get(cid)
         zs = zone_view(fryer.state, zone) if fryer is not None else None
@@ -531,7 +581,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
 
         Für Doofe:
         - Gart die Zone, ist der Wunsch erledigt → weg damit.
-        - Ist die Startzeit da → einmal Ereignis ``airfryer_control_jetzt_starten``
+        - Ist die Startzeit da (minus ⏱️ Vorlauf, Standard 2 Min) → einmal Ereignis ``airfryer_control_jetzt_starten``
           und (mit Handys unter „Fertig melden an“) eine Nachricht „Jetzt starten!“.
           Starten musst du trotzdem selbst am Gerät – von allein startet nichts.
         - Ist die Wunsch-Zeit schon 30 Minuten vorbei und nie gestartet → vergessen.
@@ -554,7 +604,7 @@ class AirfryerCoordinator(DataUpdateCoordinator[dict[str, FryerData]]):
                     self._start_sent.pop(key, None)
                     continue
                 start = target - timedelta(minutes=self.plan_minutes(cid, zone))
-                if now < start or self._start_sent.get(key) == target.isoformat():
+                if now < start - self.lead or self._start_sent.get(key) == target.isoformat():
                     continue
                 self._start_sent[key] = target.isoformat()
                 content = self.content(cid, zone)
@@ -739,6 +789,19 @@ def _stable_finish(
     if old is not None and abs((new - old).total_seconds()) < 45:
         return old
     return new
+
+
+def ceil_minute(when: datetime | None) -> datetime | None:
+    """⏫ „Fertig um“ auf die nächste volle Minute aufrunden (17:56:35 → 17:57).
+
+    Für Doofe: Die TwinFry zählt die Restzeit nur in ganzen Minuten und meldet „fertig“
+    erst, wenn die letzte Minute ganz um ist. Abgerundet stünde „fertig um 17:56“ da,
+    obwohl sie erst um 17:57 piept. Aufgerundet passt die Anzeige zur Meldung.
+    """
+    if when is None:
+        return None
+    full = when.replace(second=0, microsecond=0)
+    return full if full == when else full + timedelta(minutes=1)
 
 
 def clean_notify(value: Any) -> list[str]:

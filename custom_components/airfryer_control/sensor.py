@@ -31,7 +31,7 @@ from .const import (
     zone_label,
 )
 from . import modelle
-from .coordinator import AirfryerCoordinator, FryerData, fryer_zones
+from .coordinator import AirfryerCoordinator, FryerData, ceil_minute, fryer_zones
 from .entity import AirfryerEntity, async_setup_dynamic
 from .core.parser import ZoneState, reports_current_temp, zone_view
 from .core.util import redact
@@ -79,7 +79,7 @@ def _freshness(fryer: FryerData) -> dict[str, Any]:
 
 def _zone_finish(fryer: FryerData, zone: int) -> datetime | None:
     """„Fertig um“ einer Zone (None, wenn die Fritteuse die Zone gerade nicht meldet)."""
-    return fryer.zone_finish_at.get(zone)
+    return ceil_minute(fryer.zone_finish_at.get(zone))  # ⏫ auf volle Minute aufgerundet
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -115,7 +115,7 @@ FRYER_SENSORS: tuple[FryerSensorDescription, ...] = (
         key="fertig_um",
         translation_key="fertig_um",
         device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda f: f.finish_at,
+        value_fn=lambda f: ceil_minute(f.finish_at),
     ),
 )
 

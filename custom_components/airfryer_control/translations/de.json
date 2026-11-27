@@ -44,7 +44,8 @@
           "melden_an": "📲 „Fertig“ an diese Handys melden",
           "melden_schuetteln": "📲 Auch „↕️ Jetzt schütteln!“ aufs Handy",
           "start_vergessen": "⏰ „Vergessen zu starten?“ nach",
-          "melden_vergessen": "📲 Auch „⏰ Vergessen zu starten?“ aufs Handy"
+          "melden_vergessen": "📲 Auch „⏰ Vergessen zu starten?“ aufs Handy",
+          "vorlauf": "⏱️ Vorlauf für „⏰ Jetzt starten!“"
         },
         "data_description": {
           "intervall": "Solange sie arbeitet, wird immer alle 15 Sekunden nachgefragt.",
@@ -54,7 +55,8 @@
           "melden_an": "Die Fritteuse schickt selbst eine Nachricht, wenn sie fertig ist – ganz ohne Automation. Wähle einen oder mehrere notify-Dienste (z. B. mobile_app_dein_handy). Leer = aus (Standard).",
           "melden_schuetteln": "Wann geschüttelt wird, stellst du pro Schublade in der Karte ein (Knopf „↕️ Schütteln“ bei der Programm-Auswahl). Standard: aus.",
           "start_vergessen": "So viele Minuten darf eine Zone auf Start am Gerät warten, dann erinnern Karte, Laufband und das Ereignis airfryer_control_start_vergessen. 0 = aus. Standard: 10.",
-          "melden_vergessen": "Nur mit Handys oben. Standard: an."
+          "melden_vergessen": "Nur mit Handys oben. Standard: an.",
+          "vorlauf": "So viele Minuten VOR der ausgerechneten Startzeit kommt die Erinnerung „⏰ Jetzt starten!“ (Weg zur Fritteuse, Abfrage 1× pro Minute). 0 = genau zur Startzeit. Standard: 2."
         }
       }
     }
@@ -555,6 +557,20 @@
         "uhrzeit": {
           "name": "Uhrzeit",
           "description": "z. B. 18:30 – das nächste 18:30 (ist es heute schon vorbei: morgen). Leer = löschen."
+        }
+      }
+    },
+    "zone_leeren": {
+      "name": "Zone leeren",
+      "description": "Für alle: 🧹 löscht bei einer Zone „Was ist drin?“, „Fertig um“ und ↕️ „Jetzt schütteln!“ (z. B. wenn etwas hängen geblieben ist). Lieblinge und der ↕️-Knopf bleiben. An die Fritteuse geht nichts.",
+      "fields": {
+        "geraet": {
+          "name": "Fritteuse",
+          "description": "Welche Fritteuse? (leer = die einzige)"
+        },
+        "zone": {
+          "name": "Zone",
+          "description": "1, 2 oder 3 (Grandzone)."
         }
       }
     }

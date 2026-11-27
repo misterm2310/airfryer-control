@@ -46,6 +46,9 @@ from .const import (
     OPT_NOTIFY,
     OPT_NOTIFY_SHAKE,
     OPT_FORGOT,
+    OPT_LEAD,
+    DEFAULT_LEAD,
+    LEAD_MAX,
     DEFAULT_FORGOT,
     FORGOT_MAX,
     OPT_NOTIFY_FORGOT,
@@ -192,6 +195,10 @@ def clean_options(data: Mapping[str, Any]) -> dict[str, Any]:
         forgot = int(data.get(OPT_FORGOT, DEFAULT_FORGOT) or 0)
     except (TypeError, ValueError):
         forgot = DEFAULT_FORGOT
+    try:
+        lead = int(data.get(OPT_LEAD, DEFAULT_LEAD))
+    except (TypeError, ValueError):
+        lead = DEFAULT_LEAD
     unit = data.get(OPT_TIME_UNIT, TIME_UNIT_AUTO)
     return {
         OPT_INTERVAL: max(MIN_INTERVAL, min(MAX_INTERVAL, interval)),
@@ -202,6 +209,7 @@ def clean_options(data: Mapping[str, Any]) -> dict[str, Any]:
         OPT_NOTIFY_SHAKE: bool(data.get(OPT_NOTIFY_SHAKE, False)),
         OPT_FORGOT: max(0, min(FORGOT_MAX, forgot)),  # ⏰ ganze Minuten, 0 = aus
         OPT_NOTIFY_FORGOT: bool(data.get(OPT_NOTIFY_FORGOT, True)),
+        OPT_LEAD: max(0, min(LEAD_MAX, lead)),  # ⏱️ ganze Minuten vor der Startzeit, 0 = genau dann
     }
 
 
@@ -247,6 +255,11 @@ class AirfryerOptionsFlow(OptionsFlow):
                 vol.Optional(OPT_FORGOT, default=int(opts.get(OPT_FORGOT, DEFAULT_FORGOT))): NumberSelector(
                     NumberSelectorConfig(
                         min=0, max=FORGOT_MAX, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Optional(OPT_LEAD, default=int(opts.get(OPT_LEAD, DEFAULT_LEAD))): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=LEAD_MAX, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX
                     )
                 ),
                 vol.Optional(OPT_NOTIFY, default=chosen): SelectSelector(

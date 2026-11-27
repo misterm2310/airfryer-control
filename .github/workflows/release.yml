@@ -46,6 +46,14 @@ jobs:
           # HACS packt sie direkt in diesen Ordner aus. GitHub zählt jeden
           # Download dieser ZIP → das Download-Schild im README.
           ZIP="$(jq -r .filename hacs.json)"
+          # 📥 Download-Zahl für die Credits: Summe aller ZIP-Downloads aller Releases bis jetzt.
+          # Landet als www/downloads.json NUR in der ZIP (nicht im Repo). Die Karte liest sie
+          # offline von Home Assistant – kein Aufruf an GitHub. Klappt die Abfrage nicht: 0 = keine Zeile.
+          DL=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate \
+            --jq '[.[].assets[] | select(.name | endswith(".zip")) | .download_count] | add // 0' 2>/dev/null \
+            | awk '{s+=$1} END {print s+0}') || DL=0
+          printf '{"downloads": %s, "stand": "%s"}\n' "${DL:-0}" "$(date -u +%F)" > custom_components/airfryer_control/www/downloads.json
+          cat custom_components/airfryer_control/www/downloads.json
           ( cd custom_components/airfryer_control && zip -qr -X "$GITHUB_WORKSPACE/$ZIP" . -x '__pycache__/*' '*/__pycache__/*' '*.pyc' )
           unzip -l "$ZIP" | grep -q ' manifest.json$' || { echo "manifest.json fehlt in der ZIP"; exit 1; }
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -53,6 +61,13 @@ jobs:
             # 📦 Fehlt dort die ZIP noch, wird sie nachgereicht
             if ! gh release view "$TAG" --json assets -q '.assets[].name' | grep -qxF "$ZIP"; then
               gh release upload "$TAG" "$ZIP"
+            elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              # 📥 Von Hand gestartet und die ZIP dort hat noch keine downloads.json
+              # (z. B. weil sie mit der release.yml von main gebaut wurde) → ersetzen
+              mkdir -p alt && gh release download "$TAG" -p "$ZIP" -D alt
+              if ! unzip -l "alt/$ZIP" | grep -q ' www/downloads.json$'; then
+                gh release upload "$TAG" "$ZIP" --clobber
+              fi
             fi
           else
             # 📝 Kurze deutsche Beschreibung: die Commit-Texte seit dem letzten Release
