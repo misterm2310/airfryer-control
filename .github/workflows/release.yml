@@ -45,7 +45,7 @@ jobs:
           # Drin ist nur der Inhalt von custom_components/airfryer_control/ –
           # HACS packt sie direkt in diesen Ordner aus. GitHub zählt jeden
           # Download dieser ZIP → das Download-Schild im README.
-          ZIP="$(jq -r .filename hacs.json)"
+          ZIP="$(jq -r '.filename // "airfryer_control.zip"' hacs.json)"  # main hat (noch) keinen filename → fester Name statt „null“
           ( cd custom_components/airfryer_control && zip -qr -X "$GITHUB_WORKSPACE/$ZIP" . -x '__pycache__/*' '*/__pycache__/*' '*.pyc' )
           unzip -l "$ZIP" | grep -q ' manifest.json$' || { echo "manifest.json fehlt in der ZIP"; exit 1; }
           if gh release view "$TAG" >/dev/null 2>&1; then
