@@ -6,7 +6,7 @@
 
 **Your Cosori air fryer on your dashboard.** Time remaining, “done at”, temperature and program for each zone. Plus a notification when the food is ready (“🍟 Fries are done!”), a stop button, two ready-made cards and a small phone app. Built for models the official VeSync integration does **not** know, first of all the **Dual Blaze TwinFry 10 L** (CAF-TF101S / CAF-TF102S).
 
-One click opens it right in your Home Assistant: [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=misterm2310&repository=airfryer-control&category=integration) [![Add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=airfryer_control)
+One click opens it right in your Home Assistant: [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=misterm2310&repository=airfryer-control&category=integration) [![Add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=airfryer_control) [![Downloads](https://img.shields.io/github/downloads/misterm2310/airfryer-control/total?label=Downloads)](https://github.com/misterm2310/airfryer-control/releases)
 
 <p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Card on a phone"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Settings dialog, dark"></p>
 
@@ -407,6 +407,10 @@ That lets the model be added properly. Without this data it would be guesswork.
 ---
 
 ## 💙 Like Airfryer Control?
+
+⭐ **Like the card? Give us a star:** on [GitHub](https://github.com/misterm2310/airfryer-control), tap “⭐ Star” at the top right (free GitHub account needed) – that shows me how many people like the integration and helps others find it. The button is also in the card under (i) → Credits.
+
+📊 **Download counter:** the “Downloads” badge at the top counts how often the ready-made ZIP file of the releases (betas and official versions together) was downloaded. Only GitHub counts this, nothing about you is sent.
 
 It is and stays **free**. If you like, you can send me a small donation via PayPal – completely voluntary: [paypal.me/MarcoStrickmann](https://paypal.me/MarcoStrickmann). The link is also in the card under (i) → Credits. Thank you! 🙏
 

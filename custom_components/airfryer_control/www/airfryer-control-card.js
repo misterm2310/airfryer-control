@@ -16,6 +16,7 @@ const AC_REPO = "https://github.com/misterm2310/airfryer-control";
 // Reihenfolge egal: angezeigt wird immer nach Version, Neueste oben. In einer Beta landen die Einträge dieser Beta-Reihe im orangen Kasten.
 // ⚠️ Die Texte sind HTML (nur <b>) und werden NICHT maskiert – also nur eigene, feste Texte hier eintragen.
 const AC_NEWS = [
+  ["1.0.6-beta.5", "⭐ <b>Stern-Knopf in den Credits:</b> Gefällt dir die Karte? Unter ⓘ Credits führt „⭐ Gib uns einen Stern“ direkt zu GitHub · 📦 <b>Download-Zähler:</b> Jede neue Version hängt jetzt als fertige ZIP-Datei am Release, HACS lädt diese ZIP – so zählt GitHub endlich mit, wie oft die Integration geladen wird (Schild oben im README). Es wird nichts getrackt und nichts von dir übertragen.", "⭐ <b>Star button in the credits:</b> like the card? Under ⓘ Credits, “⭐ Give us a star” takes you straight to GitHub · 📦 <b>Download counter:</b> every new version now comes as a ready-made ZIP file on the release and HACS downloads that ZIP – so GitHub finally counts how often the integration is downloaded (badge at the top of the README). Nothing is tracked and nothing about you is sent."],
   ["1.0.6-beta.4", "⏱️ <b>Laufband mit Restzeit:</b> statt nur „fertig um 18:05“ steht jetzt „noch 12 Min · fertig 18:05 Uhr“ – die Minuten zählen still runter, das Laufband läuft dabei weiter", "⏱️ <b>Ticker with time left:</b> instead of just “done at 18:05” it now says “12 min left · done 18:05” – the minutes count down quietly while the ticker keeps running"],
   ["1.0.6-beta.4", "🕒 <b>Fertig um …:</b> Zone antippen → Uhrzeit eintippen, wann das Essen fertig sein soll. Die Karte rechnet die Startzeit aus (Uhrzeit minus Garzeit) und zeigt sie in Zeile, Laufband und Küchen-Ticker der Einkaufsliste · Zur Startzeit blinkt „⏰ Jetzt starten!“ und mit Handys unter „Fertig melden an“ kommt eine Nachricht · Gestartet wird nie von allein – immer am Gerät", "🕒 <b>Done at …:</b> tap a zone → type the time the food should be done. The card works out the start time (time minus cooking time) and shows it in the row, the ticker and the shopping list's kitchen ticker · At start time “⏰ Start now!” blinks, and with phones under “Report done to” you get a message · It never starts by itself – always on the device"],
   ["1.0.6-beta.4", "😴 <b>Fritteuse hat das Programm verworfen:</b> drückt keiner Start, wirft die Fritteuse ein gesendetes Programm nach ca. 5 Minuten selbst weg. Jetzt steht dann „😴 Verworfen“ in der Zeile mit dem Knopf <b>📤 Nochmal senden</b> – deine Werte und „Was ist drin?“ bleiben stehen", "😴 <b>Fryer dropped the program:</b> if nobody presses Start, the fryer throws away a sent program after about 5 minutes. Now the row says “😴 Dropped” with the button <b>📤 Send again</b> – your values and “What's inside?” stay"],
@@ -411,6 +412,7 @@ const BASE_CSS = `
   .elcbtn { color:var(--primary-text-color); background:var(--secondary-background-color, rgba(127,127,127,.12)); border-radius:12px; padding:10px 14px; text-decoration:none; font-weight:500; }
   .elcbtn.pp { display:inline-flex; align-items:center; gap:8px; background:#0070BA; color:#fff; border:2px solid #003087; font-weight:700; }
   .elcbtn.pp svg { width:20px; height:20px; flex:none; }
+  .elcbtn.star { background:#fbc02d; color:#3e2723; border:2px solid #f57f17; font-weight:700; }
   .elcsmall { opacity:.7; font-size:.9em; }
   /* 👁️ Ansicht pro Gerät: Schriftgröße (zoom) und Hell/Dunkel (eigene Farben nur für die Karte) */
   ha-card { display:block; }
@@ -538,6 +540,10 @@ function creditsHtml(hass) {
     <p>${t("Gemacht von <b>Mister-M</b> – mit Hilfe von Claude 🤖", "Made by <b>Mister-M</b> – with help from Claude 🤖")}</p>
     <p>${t("Ich versuche, Updates und Fehler-Korrekturen zeitnah zu erledigen.", "I try to ship updates and fixes promptly.")}</p>
     <p class="elcsmall">📅 ${t("Neue offizielle Versionen kommen immer sonntags. An den anderen Tagen gibt es nur Test-Versionen (Beta) – die siehst du in HACS (ab Home Assistant 2026.11: Einstellungen › Marketplace) unter „Beta-Versionen anzeigen“.", "New official versions always come out on Sundays. On the other days there are only test versions (beta) – you see them in HACS (from Home Assistant 2026.11: Settings › Marketplace) under “Show beta versions”.")}</p>
+    <div class="elcbtns">
+      <a class="elcbtn star" href="${AC_REPO}" target="_blank" rel="noopener">⭐ ${t("Gefällt dir die Karte? Gib uns einen Stern", "Like the card? Give us a star")}</a>
+    </div>
+    <p class="elcsmall">${t("Auf GitHub oben rechts auf „⭐ Star“ tippen (braucht ein kostenloses GitHub-Konto) – so sehe ich, wie vielen die Karte gefällt, und andere finden sie leichter. Beim Antippen öffnet sich GitHub im Browser; vorher geht nichts ins Internet.", "On GitHub, tap “⭐ Star” at the top right (needs a free GitHub account) – that shows me how many people like the card and helps others find it. Tapping opens GitHub in your browser; nothing goes to the internet before that.")}</p>
     <div class="elcbtns">
       <a class="elcbtn" href="${AC_REPO}" target="_blank" rel="noopener">🐙 GitHub</a>
       <a class="elcbtn" href="${AC_REPO}/discussions" target="_blank" rel="noopener">💡 ${t("Idee oder Wunsch", "Idea or request")}</a>

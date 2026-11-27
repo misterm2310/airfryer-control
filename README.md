@@ -6,7 +6,7 @@
 
 **Deine Cosori-Heißluftfritteuse im Dashboard.** Restzeit, „Fertig um“, Temperatur und Programm für jede Zone einzeln. Dazu eine Nachricht, wenn das Essen fertig ist („🍟 Pommes sind fertig!“), ein Stopp-Knopf, zwei fertige Karten und eine kleine Handy-App. Gemacht für Modelle, die die offizielle VeSync-Integration **nicht** kennt, allen voran die **Dual Blaze TwinFry 10 L** (CAF-TF101S / CAF-TF102S).
 
-Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=misterm2310&repository=airfryer-control&category=integration) [![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=airfryer_control)
+Ein Klick öffnet es direkt in deinem Home Assistant: [![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=misterm2310&repository=airfryer-control&category=integration) [![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=airfryer_control) [![Downloads](https://img.shields.io/github/downloads/misterm2310/airfryer-control/total?label=Downloads)](https://github.com/misterm2310/airfryer-control/releases)
 
 <p align="center"><img src="docs/karte-handy-hell.png" width="260" alt="Karte auf dem Handy"> <img src="docs/karte-fenster-dunkel.png" width="260" alt="Einstellfenster dunkel"></p>
 
@@ -525,6 +525,10 @@ Daraus kann das Modell sauber eingebaut werden. Ohne diese Daten wäre es gerate
 ---
 
 ## 💙 Gefällt dir Airfryer Control?
+
+⭐ **Gefällt dir die Karte? Gib uns einen Stern:** Auf [GitHub](https://github.com/misterm2310/airfryer-control) oben rechts auf „⭐ Star“ tippen (kostenloses GitHub-Konto nötig) – so sehe ich, wie vielen die Integration gefällt, und andere finden sie leichter. Den Knopf gibt es auch in der Karte unter (i) → Credits.
+
+📊 **Download-Zähler:** Das Schild „Downloads“ oben zählt, wie oft die fertige ZIP-Datei der Releases (Betas und offizielle Versionen zusammen) geladen wurde. Das zählt nur GitHub, von dir wird nichts übertragen.
 
 Sie ist und bleibt **kostenlos**. Wenn du magst, kannst du mir ganz freiwillig eine kleine Spende per PayPal schicken: [paypal.me/MarcoStrickmann](https://paypal.me/MarcoStrickmann). Den Link gibt es auch in der Karte unter (i) → Credits. Danke! 🙏
 

@@ -41,8 +41,19 @@ jobs:
           case "$TAG" in *-beta*) PRE="--prerelease";; esac
           if [ "$BRANCH" = "beta" ] && [ -z "$PRE" ]; then echo "Auf beta nur -beta-Versionen – nichts zu tun."; exit 0; fi
           if [ "$BRANCH" != "beta" ] && [ -n "$PRE" ]; then echo "-beta gehört auf den Zweig beta – nichts zu tun."; exit 0; fi
+          # 📦 Fertig gepackte ZIP für HACS (hacs.json: zip_release + filename).
+          # Drin ist nur der Inhalt von custom_components/airfryer_control/ –
+          # HACS packt sie direkt in diesen Ordner aus. GitHub zählt jeden
+          # Download dieser ZIP → das Download-Schild im README.
+          ZIP="$(jq -r .filename hacs.json)"
+          ( cd custom_components/airfryer_control && zip -qr -X "$GITHUB_WORKSPACE/$ZIP" . -x '__pycache__/*' '*/__pycache__/*' '*.pyc' )
+          unzip -l "$ZIP" | grep -q ' manifest.json$' || { echo "manifest.json fehlt in der ZIP"; exit 1; }
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG gibt es schon – nichts zu tun."
+            echo "Release $TAG gibt es schon."
+            # 📦 Fehlt dort die ZIP noch, wird sie nachgereicht
+            if ! gh release view "$TAG" --json assets -q '.assets[].name' | grep -qxF "$ZIP"; then
+              gh release upload "$TAG" "$ZIP"
+            fi
           else
             # 📝 Kurze deutsche Beschreibung: die Commit-Texte seit dem letzten Release
             PREV=$(git describe --tags --abbrev=0 --exclude '*-beta*' "$SHA^" 2>/dev/null || true)
@@ -54,8 +65,8 @@ jobs:
               [ -n "$PREV" ] && echo "**Alle Änderungen:** https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${TAG}"
             } > notes.md
             if ! grep -q "^- " notes.md; then
-              gh release create "$TAG" --target "$SHA" --title "$TAG" $PRE --generate-notes
+              gh release create "$TAG" "$ZIP" --target "$SHA" --title "$TAG" $PRE --generate-notes
             else
-              gh release create "$TAG" --target "$SHA" --title "$TAG" $PRE --notes-file notes.md
+              gh release create "$TAG" "$ZIP" --target "$SHA" --title "$TAG" $PRE --notes-file notes.md
             fi
           fi
