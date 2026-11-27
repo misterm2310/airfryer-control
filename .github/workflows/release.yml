@@ -62,10 +62,11 @@ jobs:
             if ! gh release view "$TAG" --json assets -q '.assets[].name' | grep -qxF "$ZIP"; then
               gh release upload "$TAG" "$ZIP"
             elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              # 📥 Von Hand gestartet und die ZIP dort hat noch keine downloads.json
+              # 📥 Von Hand gestartet und in der ZIP dort steht noch keine Download-Zahl
               # (z. B. weil sie mit der release.yml von main gebaut wurde) → ersetzen
               mkdir -p alt && gh release download "$TAG" -p "$ZIP" -D alt
-              if ! unzip -l "alt/$ZIP" | grep -q ' www/downloads.json$'; then
+              OLD_DL=$(unzip -p "alt/$ZIP" www/downloads.json 2>/dev/null | jq -r '.downloads // 0' 2>/dev/null || echo 0)
+              if [ "${OLD_DL:-0}" = "0" ] && [ "${DL:-0}" != "0" ]; then
                 gh release upload "$TAG" "$ZIP" --clobber
               fi
             fi
